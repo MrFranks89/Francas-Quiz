@@ -1,0 +1,37 @@
+{
+  "sourceRepository": "C:/Civica",
+  "sourceDirectory": "CivicaApp",
+  "sourceCommit": "b6595b8",
+  "owner": "Federico",
+  "method": "Byte-for-byte copy; no source or assertion changes",
+  "files": [
+    {
+      "path": "src/ripasso.ts",
+      "sha256": "561e090b97146600c351f3de165d0ec00fca3106413e567cffa86e6b05bc8a7e"
+    },
+    {
+      "path": "src/statoLezione.ts",
+      "sha256": "e78143d8e3100d3b651b77f62f15b35178ddc7f2ceb41eed26126a4b28f777a7"
+    },
+    {
+      "path": "src/esame/esame.ts",
+      "sha256": "901da03bb56640e80dced5bffdbe7ddcb6b1204fee8936496e90baf22ee0c5bf"
+    },
+    {
+      "path": "__tests__/ripasso.test.ts",
+      "sha256": "977abfac520ee1b9747d3ce952d5b7b613ab53fddfc8a72b2641d056e385ef07"
+    },
+    {
+      "path": "__tests__/statoLezione.test.ts",
+      "sha256": "cbbdcf658c9f7c016763909bf3664650bf5d2f9e0e96fbfd3a426ee2693e6e2c"
+    },
+    {
+      "path": "__tests__/esame/esame.test.ts",
+      "sha256": "9b8f03da831f0557d41f1a407f1086c7e13f4e908e09ce1537c9123934fad1e4"
+    },
+    {
+      "path": "__tests__/esame/quote.test.ts",
+      "sha256": "08e9e6040e353fe6c614f06b7a85b7586770d673b40f19711bf999c84e98ac6c"
+    }
+  ]
+}
