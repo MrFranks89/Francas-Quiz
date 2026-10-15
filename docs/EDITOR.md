@@ -1,0 +1,11 @@
+# Editor e pubblicazione locali
+
+Le route di `editing_routes.router` vanno registrate nell'app FastAPI. Sono per un solo operatore e un singolo processo locale: il lock Python protegge la sequenza lettura/validazione/salvataggio nel processo, non coordina più processi o macchine. Per un servizio aziendale serviranno database transazionale, autenticazione, ruoli e isolamento fra clienti.
+
+`PUT /drafts/{id}` riceve `{expectedRevision: 1, course: Course}`. Una vecchia bozza senza campo revision parte da revisione 1; il salvataggio incrementa la revisione. Una revisione obsoleta restituisce 409. Il corso viene validato con il contratto completo Python e i suoi controlli incrociati. Identità del corso, versione e intero elenco fonti (testo originale e metadati inclusi) sono immutabili. Si possono modificare slide, quiz, modalità esercitazione/sbarramento, soglia e tentativi purché il contratto resti valido.
+
+`POST /drafts/{id}/publish` richiede `{expectedRevision: 2, confirmReviewed: true}` con booleano rigoroso. La pubblicazione salva uno snapshot separato e immutabile in `course.json`, mantenendo la bozza originale. Ripetere la stessa richiesta restituisce lo stesso snapshot; una revisione diversa restituisce 409. Dopo la pubblicazione la bozza non è modificabile e non viene clonata automaticamente. `GET /courses/{id}` restituisce esclusivamente lo snapshot pubblicato; una bozza mai pubblicata restituisce 404.
+
+Pubblicare indica che l'operatore ha confermato la revisione. Non attesta qualità scientifica, riconoscimento legale o certificazione professionale.
+
+I test invocano route reali tramite TestClient, con una bozza sintetica esplicitamente caricata dal test e nessuna chiamata AI. Coprono revisione, fonti immutabili, regole esame, conferma rigorosa, conflitti, snapshot e richieste ripetute. Questo esclude route isolate non funzionanti; resta necessaria la verifica separata della registrazione del router nell'app principale e del collegamento dei pulsanti nell'interfaccia.
