@@ -1,0 +1,1 @@
+{"name":"@formazione/contracts","version":"0.1.0","private":true,"type":"module","exports":{".":"./src/index.ts","./sample-course.json":"./fixtures/sample-course.json"},"dependencies":{"zod":"4.6.7"}}

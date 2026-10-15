@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 1,
+  "id": "welcome",
+  "version": 1,
+  "title": "Accoglienza nuovi colleghi",
+  "description": "Orientamento alle pratiche del team.",
+  "objectives": [
+    "Accogliere un nuovo collega"
+  ],
+  "sources": [
+    {
+      "id": "source-1",
+      "documentId": "welcome-manual",
+      "page": 201,
+      "label": "Manuale di esempio, pagina 201",
+      "excerpt": "Il referente accoglie il nuovo collega e presenta il team."
+    }
+  ],
+  "modules": [
+    {
+      "id": "module-1",
+      "title": "Primo giorno",
+      "lessons": [
+        {
+          "id": "lesson-1",
+          "title": "Lezione 1",
+          "slides": [
+            {
+              "id": "slide-1",
+              "heading": "Benvenuto",
+              "body": "Il referente presenta il team al nuovo collega.",
+              "highlight": "Presentare il team",
+              "sourceRefs": [
+                "source-1"
+              ]
+            }
+          ],
+          "questionIds": [
+            "question-1"
+          ]
+        }
+      ],
+      "exam": {
+        "id": "exam-1",
+        "questionIds": [
+          "question-1"
+        ],
+        "mode": "gate",
+        "passingScore": 1,
+        "maxAttempts": 2
+      }
+    },
+    {
+      "id": "module-2",
+      "title": "Collaborazione",
+      "lessons": [
+        {
+          "id": "lesson-2",
+          "title": "Lezione 2",
+          "slides": [
+            {
+              "id": "slide-2",
+              "heading": "Benvenuto",
+              "body": "Il referente presenta il team al nuovo collega.",
+              "highlight": "Presentare il team",
+              "sourceRefs": [
+                "source-1"
+              ]
+            }
+          ],
+          "questionIds": [
+            "question-2"
+          ]
+        }
+      ],
+      "exam": {
+        "id": "exam-2",
+        "questionIds": [
+          "question-2"
+        ],
+        "mode": "practice",
+        "passingScore": 1,
+        "maxAttempts": null
+      }
+    }
+  ],
+  "questions": [
+    {
+      "id": "question-1",
+      "moduleId": "module-1",
+      "lessonId": "lesson-1",
+      "prompt": "Chi presenta il team al nuovo collega?",
+      "options": [
+        {
+          "id": "option-1-a",
+          "text": "Il referente"
+        },
+        {
+          "id": "option-1-b",
+          "text": "Nessuno"
+        }
+      ],
+      "correctOptionId": "option-1-a",
+      "explanation": "Il referente facilita l’accoglienza.",
+      "sourceRefs": [
+        "source-1"
+      ]
+    },
+    {
+      "id": "question-2",
+      "moduleId": "module-2",
+      "lessonId": "lesson-2",
+      "prompt": "Chi presenta il team al nuovo collega?",
+      "options": [
+        {
+          "id": "option-2-a",
+          "text": "Il referente"
+        },
+        {
+          "id": "option-2-b",
+          "text": "Nessuno"
+        }
+      ],
+      "correctOptionId": "option-2-a",
+      "explanation": "Il referente facilita l’accoglienza.",
+      "sourceRefs": [
+        "source-1"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+{"name":"@formazione/learning-engine","version":"0.1.0","private":true,"type":"module","exports":{".":"./src/index.ts"},"dependencies":{"@formazione/contracts":"0.1.0","@formazione/civis-engine":"0.1.0"}}
