@@ -14,6 +14,7 @@ Stato del prototipo locale in `C:\Piattaforma Formazione`. Questo registro disti
 | Distribuzione | Export dei bundle web, Android e iOS riuscito. Non equivale a build APK/IPA, installazione o collaudo su dispositivi. |
 | Layout mobile | Individuato e corretto il menu tagliato a 390 px. Lo stesso controllo dei rettangoli dei pulsanti è fallito prima e passato dopo; screenshot successivo verificato visivamente dalla sessione principale. Controllo finale navigazione passato a 390, 768 e 1440 px; nessun pulsante del quiz tagliato a 390 px. Non basta misurare l'overflow del documento. |
 | Dipendenze Python | `pip check` passato dopo installazione ONNX Runtime. |
+| Dipendenze npm | Audit finale: 22 segnalazioni (15 high, 7 moderate, nessuna critical), originate da tre advisory. Tentativi di override inefficaci annullati; manifest e lock conservati. Dettagli e limiti in [SICUREZZA_DIPENDENZE.md](SICUREZZA_DIPENDENZE.md). Compatibilità Expo, 117 test, typecheck e export di tutte le piattaforme confermati dopo il ripristino. |
 
 Comandi ripetibili dalla radice:
 

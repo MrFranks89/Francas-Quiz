@@ -68,6 +68,7 @@ Per il collaudo OCR esplicito, dopo il provisioning dei pesi:
 - [API e OCR](docs/API.md), [generazione e limiti](docs/GENERAZIONE.md), [editor e pubblicazione](docs/EDITOR.md).
 - [Strategia AI incrementale](docs/STRATEGIA_AI.md): misure, pianificazione globale, RAG e criteri per eventuali modelli specializzati.
 - [Verifiche eseguite](docs/VERIFICHE.md) e [dipendenze installate](docs/DIPENDENZE.md).
+- [Segnalazioni di sicurezza delle dipendenze](docs/SICUREZZA_DIPENDENZE.md): problemi upstream ancora aperti nella toolchain, da risolvere prima della distribuzione pubblica.
 - [Decisioni della prima versione](docs/decisions/001-prima-verticale.md).
 
 La copertura del testo elaborato non certifica correttezza o completezza didattica. La prima pipeline genera un modulo per blocco di lavoro; il piano pedagogico globale e la verifica tra capitoli sono sviluppi successivi. Le prove automatiche di generazione usano fornitori iniettati nei test, distinti dal provider reale.
