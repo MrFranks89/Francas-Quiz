@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import type { DocumentPickerAsset } from 'expo-document-picker';
 import type { PageSelection } from '@formazione/contracts';
+import {apiErrorMessage} from './errors';
 
 // Android emulator reaches the host through 10.0.2.2; devices require a reachable configured URL.
 export const apiUrl = (process.env.EXPO_PUBLIC_API_URL || (Platform.OS === 'android' ? 'http://10.0.2.2:8000' : 'http://127.0.0.1:8000')).replace(/\/$/, '');
@@ -11,7 +12,7 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
   try { response = await fetch(`${apiUrl}${path}`, init); }
   catch { throw new Error(`Server non raggiungibile (${apiUrl}). Avvia l’API o configura EXPO_PUBLIC_API_URL.`); }
   const data = await response.json();
-  if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : 'Richiesta non valida. Controlla il file e la selezione.');
+  if (!response.ok) throw new Error(apiErrorMessage(data,'Richiesta non valida. Controlla il file e la selezione.'));
   return data as T;
 }
 export async function uploadDocument(asset: DocumentPickerAsset): Promise<Document> {
