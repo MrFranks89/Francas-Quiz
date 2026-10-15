@@ -18,3 +18,9 @@ it('failed save preserves edits and exposes its error without clearing dirty sta
  const failed=editorReducer(editorReducer(changed,{type:'start'}),{type:'error',message:'Conflitto revisione'});
  expect(editorReducer(failed,{type:'end'})).toMatchObject({busy:false,dirty:true,error:'Conflitto revisione',course:{title:'Titolo nuovo'}});
 });
+it('an invalid attempt limit stays invalid after editing a different field',()=>{
+ const invalid=changeField(CourseSchema.parse(sample),['modules',0,'exam','maxAttempts'],strictPositive('abc'));
+ const changed=changeField(invalid,['title'],'Un altro titolo');
+ expect(Number.isNaN(changed.modules[0].exam!.maxAttempts)).toBe(true);
+ expect(CourseSchema.safeParse(changed).success).toBe(false);
+});

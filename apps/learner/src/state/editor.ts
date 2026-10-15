@@ -1,9 +1,14 @@
 import type {Course} from '@formazione/contracts';
 export function changeField(course:Course,path:(string|number)[],value:unknown):Course{
- const copy=JSON.parse(JSON.stringify(course)) as Course;
- let target=copy as unknown as Record<string|number,unknown>;
- for(const part of path.slice(0,-1))target=target[part] as Record<string|number,unknown>;
- target[path.at(-1)!]=value;return copy;
+ // Copy only the edited path. JSON cloning coerces NaN to null, accidentally
+ // turning an invalid attempt limit into the valid "unlimited" sentinel.
+ function replace(current:unknown,depth:number):unknown{
+  if(depth===path.length)return value;
+  const original=current as Record<string|number,unknown>;
+  const copy=Array.isArray(current)?[...current]:{...original};
+  const part=path[depth];(copy as unknown as Record<string|number,unknown>)[part]=replace(original[part],depth+1);return copy;
+ }
+ return replace(course,0) as Course;
 }
 export function strictPositive(value:string):number{return /^[1-9]\d*$/.test(value)&&Number.isSafeInteger(Number(value))?Number(value):NaN;}
 export type EditorState={course:Course;dirty:boolean;reviewed:boolean;busy:boolean;error:string};
