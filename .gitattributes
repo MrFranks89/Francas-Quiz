@@ -1,0 +1,7 @@
+packages/civis-engine/src/ripasso.ts -text
+packages/civis-engine/src/statoLezione.ts -text
+packages/civis-engine/src/esame/esame.ts -text
+packages/civis-engine/__tests__/ripasso.test.ts -text
+packages/civis-engine/__tests__/statoLezione.test.ts -text
+packages/civis-engine/__tests__/esame/esame.test.ts -text
+packages/civis-engine/__tests__/esame/quote.test.ts -text
