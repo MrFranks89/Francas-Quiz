@@ -16,6 +16,8 @@ def config_status():
 
 
 class OpenAIProvider:
+    provider_name = 'openai'
+
     def __init__(self, client=None, model=None):
         if client is None:
             if not config_status()['configured']:
@@ -23,11 +25,13 @@ class OpenAIProvider:
             from openai import OpenAI
             client = OpenAI(api_key=os.environ['OPENAI_API_KEY'], timeout=90.0, max_retries=1)
         self.client = client
+        self.last_usage = None
         self.model = model or os.getenv('OPENAI_MODEL', '').strip()
         if not self.model:
             raise GenerationError('not_configured', 'Modello OpenAI non configurato')
 
     def module(self, chunk: Chunk) -> ModuleDraft:
+        self.last_usage = None
         # Official Responses structured outputs guide; signature checked against openai 3.31.0.
         # https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=responses
         payload = [{'sourceId': p.source_id, 'start': p.start, 'end': p.end, 'text': p.text} for p in chunk.pieces]
@@ -44,6 +48,14 @@ class OpenAIProvider:
             )
         except Exception as error:
             raise GenerationError('provider_error', 'Il fornitore AI non ha completato la richiesta') from error
+        # Names read from installed SDK 3.31.0 ResponseUsage/InputTokensDetails:
+        # openai/types/responses/response_usage.py. Missing usage is not zero.
+        usage = getattr(response, 'usage', None)
+        details = getattr(usage, 'input_tokens_details', None)
+        self.last_usage = dict(model=getattr(response, 'model', self.model),
+                               inputTokens=getattr(usage, 'input_tokens', None),
+                               outputTokens=getattr(usage, 'output_tokens', None),
+                               cachedInputTokens=getattr(details, 'cached_tokens', None))
         for output in response.output:
             for content in getattr(output, 'content', []):
                 if getattr(content, 'type', None) == 'refusal':

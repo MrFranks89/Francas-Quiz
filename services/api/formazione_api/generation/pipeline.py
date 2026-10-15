@@ -1,9 +1,11 @@
 from uuid import uuid4
+from time import perf_counter
 from pydantic import ValidationError
 from .chunks import plan_chunks
 from .errors import GenerationError
 from .models import Course, ModuleDraft, Source
 from .provider import OpenAIProvider
+from .telemetry import aggregate_usage, call_usage
 
 
 def generate(extraction: dict, provider=None, *, title='Corso dal documento', max_chars=12000, max_chunks=40, acknowledge_warnings: bool = False):
@@ -22,10 +24,12 @@ def generate(extraction: dict, provider=None, *, title='Corso dal documento', ma
         raise GenerationError('invalid_sources', 'Metadati delle fonti non validi') from error
     chunks = plan_chunks(blocks, max_chars, max_chunks)
     provider = provider or OpenAIProvider()
-    modules, questions, objectives, coverage = [], [], [], []
+    modules, questions, objectives, coverage, usage_calls = [], [], [], [], []
     for i, chunk in enumerate(chunks, 1):
         try:
+            started = perf_counter()
             draft = ModuleDraft.model_validate(provider.module(chunk))
+            usage_calls.append(call_usage(provider, chunk.id, round((perf_counter() - started) * 1000, 3)))
         except GenerationError:
             raise
         except (ValidationError, ValueError) as error:
@@ -55,7 +59,7 @@ def generate(extraction: dict, provider=None, *, title='Corso dal documento', ma
                                            modules=modules, questions=questions))
     except ValidationError as error:
         raise GenerationError('invalid_course', 'Corso assemblato non valido') from error
-    return dict(status='draft', course=course.model_dump(), coverage=dict(
+    return dict(status='draft', course=course.model_dump(), usage=aggregate_usage(usage_calls), coverage=dict(
         processedChunks=len(chunks), totalChunks=len(chunks), processedCharacters=sum(len(b['text']) for b in blocks),
         semanticCompleteness='not_verified', chunks=coverage), warnings=[
             *extraction.get('warnings', []), 'Bozza da revisionare: il tracciamento del testo non certifica completezza o correttezza didattica.'])

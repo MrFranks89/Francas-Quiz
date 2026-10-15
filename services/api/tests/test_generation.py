@@ -183,6 +183,57 @@ def test_whitespace_ai_content_rejected_before_return():
     assert error.value.code == 'invalid_course'
 
 
+def test_sdk_usage_aggregated_for_two_chunks():
+    from openai.types.responses.response_usage import ResponseUsage
+    usage = ResponseUsage(input_tokens=120, output_tokens=35, total_tokens=155,
+                          input_tokens_details={'cached_tokens': 80, 'cache_write_tokens': 0},
+                          output_tokens_details={'reasoning_tokens': 0})
+    draft = FakeProvider().module(SimpleNamespace(pieces=[SimpleNamespace(source_id='page-201')]))
+    response = SimpleNamespace(output=[], status='completed', output_parsed=draft,
+                               model='resolved-test-model', usage=usage)
+    result = generate(extraction(text='A'*20), stub_provider(response), max_chars=10)
+    telemetry = result['usage']
+    assert telemetry['callCount'] == 2
+    assert telemetry['inputTokens'] == 240
+    assert telemetry['outputTokens'] == 70
+    assert telemetry['cachedInputTokens'] == 160
+    assert telemetry['provider'] == 'openai'
+    assert telemetry['model'] == 'resolved-test-model'
+    assert [call['chunkId'] for call in telemetry['calls']] == ['chunk-1', 'chunk-2']
+    assert telemetry['durationMs'] == sum(call['durationMs'] for call in telemetry['calls'])
+    assert telemetry['durationMs'] >= 0
+
+
+def test_missing_provider_usage_is_unknown_not_zero():
+    draft = FakeProvider().module(SimpleNamespace(pieces=[SimpleNamespace(source_id='page-201')]))
+    response = SimpleNamespace(output=[], status='completed', output_parsed=draft, usage=None)
+    telemetry = generate(extraction(), stub_provider(response))['usage']
+    assert telemetry['inputTokens'] is None
+    assert telemetry['outputTokens'] is None
+    assert telemetry['cachedInputTokens'] is None
+    assert telemetry['provider'] == 'openai'
+    assert telemetry['model'] == 'explicit-test-model'
+    assert telemetry['durationMs'] >= 0
+    unknown = generate(extraction(), FakeProvider())['usage']
+    assert unknown['provider'] is None and unknown['model'] is None
+    assert unknown['inputTokens'] is None
+
+
+def test_partial_usage_does_not_report_partial_sum_as_total():
+    class Partial(FakeProvider):
+        last_usage = None
+        def module(self, chunk):
+            draft = super().module(chunk)
+            self.last_usage = dict(inputTokens=4, outputTokens=2, cachedInputTokens=0) if len(self.calls) == 1 else None
+            return draft
+    usage = generate(extraction(text='A'*20), Partial(), max_chars=10)['usage']
+    assert usage['inputTokens'] is None
+    assert usage['outputTokens'] is None
+    assert usage['cachedInputTokens'] is None
+    assert usage['calls'][0]['inputTokens'] == 4
+    assert usage['calls'][1]['inputTokens'] is None
+
+
 def test_shared_negative_contract_cases():
     folder = Path(__file__).parent / 'fixtures'
     course = json.loads((folder / 'generated-course.json').read_text(encoding='utf-8'))
