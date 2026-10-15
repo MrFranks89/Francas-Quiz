@@ -3,11 +3,20 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "dev:web": "expo start apps/learner --web",
+    "export:web": "npm run export:web --workspace @formazione/learner",
+    "web": "expo start apps/learner --web",
+    "android": "expo start apps/learner --android",
+    "ios": "expo start apps/learner --ios",
+    "export:all": "npm run export:all --workspace @formazione/learner"
   },
   "devDependencies": {
     "@types/node": "26.6.5",
