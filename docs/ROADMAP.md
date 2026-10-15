@@ -1,7 +1,7 @@
 # Roadmap operativa — piattaforma di formazione da documenti
 
 Data: 14 ottobre 2026. Documento di attività, dipendenze e criteri di completamento.
-Stato: analisi iniziale di Civis eseguita; piattaforma non ancora implementata.
+Stato aggiornato al 15 ottobre 2026: prima versione locale implementata con motore Civis estratto, contratti, importazione e OCR, generazione di bozze configurabile, revisione, pubblicazione e lettore universale con sbarramenti. La generazione AI non è ancora collaudata con un provider a pagamento; account, aziende e classi non sono implementati. Questa roadmap comprende anche attività future; lo stato eseguibile è documentato nel README e le prove in VERIFICHE.md.
 Riscontri del codice e test: [ANALISI_CIVIS.md](ANALISI_CIVIS.md).
 
 ## Obiettivo e percorso utente
