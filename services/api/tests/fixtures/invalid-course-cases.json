@@ -1,0 +1,10 @@
+[
+  {"path":["title"],"value":"   "},
+  {"path":["objectives",0],"value":"   "},
+  {"path":["modules",0,"lessons",0,"slides",0,"body"],"value":"   "},
+  {"path":["questions",0,"options",0,"text"],"value":"   "},
+  {"path":["sources",0,"excerpt"],"value":"   "},
+  {"path":["questions",0,"sourceRefs"],"value":[]},
+  {"path":["questions",0,"sourceRefs"],"value":["invented"]},
+  {"path":["modules",0,"exam","maxAttempts"],"value":0}
+]

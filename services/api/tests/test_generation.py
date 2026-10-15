@@ -1,0 +1,197 @@
+import json
+from pathlib import Path
+from types import SimpleNamespace
+from copy import deepcopy
+import pytest
+from formazione_api.generation import GenerationError, generate
+from formazione_api.generation.models import Course, ModuleDraft
+from pydantic import ValidationError
+from formazione_api.generation.provider import OpenAIProvider, config_status
+
+
+def extraction(pages=1, text='Testo di formazione.\n\nSecondo paragrafo.'):
+    return dict(id='extraction-1', documentId='document-1', status='ready', warnings=[],
+                blocks=[dict(id=f'page-{p}', page=p, label=f'Pagina {p}', text=text) for p in range(201, 201+pages)])
+
+
+class FakeProvider:
+    def __init__(self):
+        self.calls = []
+
+    def module(self, chunk):
+        self.calls.append(chunk)
+        refs = list(dict.fromkeys(p.source_id for p in chunk.pieces))
+        return ModuleDraft(title='Modulo di prova', objectives=['Comprendere la procedura'],
+                           slides=[dict(heading='Procedura', body='Contenuto di prova', highlight='', sourceRefs=refs)],
+                           questions=[dict(prompt='Quale risposta?', options=['Prima', 'Seconda'], correctIndex=0,
+                                           explanation='Spiegazione di prova', sourceRefs=refs)])
+
+
+def test_pipeline_100_pages_lossless_original_numbers():
+    original = extraction(100, text=('Sezione\n\n' + 'x'*200 + '\n')*3)
+    provider = FakeProvider()
+    result = generate(original, provider, max_chars=1000, max_chunks=100)
+    assert result['status'] == 'draft'
+    assert result['coverage']['processedChunks'] == len(provider.calls)
+    assert result['coverage']['processedCharacters'] == sum(len(b['text']) for b in original['blocks'])
+    assert result['coverage']['semanticCompleteness'] == 'not_verified'
+    for block in original['blocks']:
+        pieces = [p for chunk in provider.calls for p in chunk.pieces if p.source_id == block['id']]
+        assert ''.join(p.text for p in pieces) == block['text']
+        assert pieces[0].start == 0 and pieces[-1].end == len(block['text'])
+        assert all(a.end == b.start for a, b in zip(pieces, pieces[1:]))
+    assert [s['page'] for s in result['course']['sources']] == list(range(201, 301))
+    assert [s['excerpt'] for s in result['course']['sources']] == [b['text'] for b in original['blocks']]
+
+
+def test_single_long_block_split_without_loss():
+    provider = FakeProvider()
+    result = generate(extraction(text='A'*12345), provider, max_chars=1000, max_chunks=20)
+    assert len(provider.calls) == 13
+    assert all(sum(len(p.text) for p in c.pieces) <= 1000 for c in provider.calls)
+    assert result['coverage']['processedCharacters'] == 12345
+
+
+def test_budget_checked_before_any_provider_calls():
+    provider = FakeProvider()
+    with pytest.raises(GenerationError, match='limite') as error:
+        generate(extraction(100), provider, max_chars=10, max_chunks=2)
+    assert error.value.code == 'budget_exceeded'
+    assert not provider.calls
+
+
+@pytest.mark.parametrize('status,text,code', [('needs_review','testo','needs_review'),('ready','','empty_extraction'),('ready','  ','empty_extraction')])
+def test_reject_unusable_extraction(status, text, code):
+    data = extraction(text=text)
+    data['status'] = status
+    with pytest.raises(GenerationError) as error:
+        generate(data, FakeProvider())
+    assert error.value.code == code
+
+
+def test_needs_review_requires_explicit_acknowledgement():
+    data = extraction()
+    data.update(status='needs_review', warnings=['Immagini non interpretate'])
+    with pytest.raises(GenerationError):
+        generate(data, FakeProvider())
+    result = generate(data, FakeProvider(), acknowledge_warnings=True)
+    assert data['status'] == 'needs_review'
+    assert result['warnings'][0] == 'Immagini non interpretate'
+    data['blocks'][0]['text'] = ''
+    with pytest.raises(GenerationError) as error:
+        generate(data, FakeProvider(), acknowledge_warnings=True)
+    assert error.value.code == 'empty_extraction'
+
+
+def test_invented_sources_rejected():
+    class Bad(FakeProvider):
+        def module(self, chunk):
+            draft = super().module(chunk)
+            draft.slides[0].sourceRefs = ['invented']
+            return draft
+    with pytest.raises(GenerationError) as error:
+        generate(extraction(), Bad())
+    assert error.value.code == 'invented_source'
+
+
+def test_bad_answer_and_modified_excerpt_rejected():
+    class Bad(FakeProvider):
+        def module(self, chunk):
+            draft = super().module(chunk).model_dump()
+            draft['questions'][0]['correctIndex'] = 4
+            return draft
+    with pytest.raises(GenerationError) as error:
+        generate(extraction(), Bad())
+    assert error.value.code == 'invalid_generated_content'
+    class Extra(FakeProvider):
+        def module(self, chunk):
+            return {**super().module(chunk).model_dump(), 'excerpt': 'Alterato'}
+    with pytest.raises(GenerationError):
+        generate(extraction(), Extra())
+
+
+def stub_provider(response):
+    class Responses:
+        def parse(self, **kwargs):
+            assert kwargs['store'] is False
+            assert kwargs['text_format'] is ModuleDraft
+            assert kwargs['truncation'] == 'disabled'
+            assert kwargs['model'] == 'explicit-test-model'
+            return response
+    return OpenAIProvider(client=SimpleNamespace(responses=Responses()), model='explicit-test-model')
+
+
+@pytest.mark.parametrize('response,code', [
+    (SimpleNamespace(output=[SimpleNamespace(content=[SimpleNamespace(type='refusal')])], status='completed',output_parsed=None),'provider_refusal'),
+    (SimpleNamespace(output=[],status='incomplete',output_parsed=None),'provider_incomplete'),
+    (SimpleNamespace(output=[],status='completed',output_parsed=None),'provider_empty'),
+])
+def test_provider_errors_through_pipeline(response, code):
+    with pytest.raises(GenerationError) as error:
+        generate(extraction(), stub_provider(response))
+    assert error.value.code == code
+
+
+def test_no_config_no_false_generation(monkeypatch):
+    monkeypatch.delenv('OPENAI_API_KEY', raising=False)
+    monkeypatch.delenv('OPENAI_MODEL', raising=False)
+    assert not config_status()['configured']
+    with pytest.raises(GenerationError) as error:
+        generate(extraction())
+    assert error.value.code == 'not_configured'
+
+
+def test_course_fixture_cross_contract():
+    fixture = Path(__file__).parent / 'fixtures' / 'generated-course.json'
+    result = generate(extraction(2), FakeProvider(), max_chars=45)
+    course = result['course']
+    expected = json.loads(fixture.read_text(encoding='utf-8'))
+    course['id'] = expected['id']
+    assert course == expected
+
+
+def test_provider_success_uses_actual_adapter_and_preserves_sources():
+    draft = FakeProvider().module(SimpleNamespace(pieces=[SimpleNamespace(source_id='page-201')]))
+    response = SimpleNamespace(output=[], status='completed', output_parsed=draft)
+    result = generate(extraction(), stub_provider(response))
+    assert result['course']['questions'][0]['correctOptionId'] == 'option-0'
+    assert result['course']['sources'][0]['excerpt'] == extraction()['blocks'][0]['text']
+
+
+def test_later_chunk_failure_does_not_return_partial_draft():
+    class LaterFailure(FakeProvider):
+        def module(self, chunk):
+            draft = super().module(chunk)
+            if len(self.calls) == 2:
+                raise GenerationError('provider_error', 'Errore secondo blocco')
+            return draft
+    provider = LaterFailure()
+    with pytest.raises(GenerationError) as error:
+        generate(extraction(3), provider, max_chars=40)
+    assert error.value.code == 'provider_error'
+    assert len(provider.calls) == 2
+
+
+def test_whitespace_ai_content_rejected_before_return():
+    class Whitespace(FakeProvider):
+        def module(self, chunk):
+            draft = super().module(chunk)
+            draft.slides[0].body = '   '
+            return draft
+    with pytest.raises(GenerationError) as error:
+        generate(extraction(), Whitespace())
+    assert error.value.code == 'invalid_course'
+
+
+def test_shared_negative_contract_cases():
+    folder = Path(__file__).parent / 'fixtures'
+    course = json.loads((folder / 'generated-course.json').read_text(encoding='utf-8'))
+    cases = json.loads((folder / 'invalid-course-cases.json').read_text(encoding='utf-8'))
+    for case in cases:
+        invalid = deepcopy(course)
+        target = invalid
+        for key in case['path'][:-1]:
+            target = target[key]
+        target[case['path'][-1]] = case['value']
+        with pytest.raises(ValidationError):
+            Course.model_validate(invalid)

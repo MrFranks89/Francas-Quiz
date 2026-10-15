@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 1,
+  "id": "generated-fixture",
+  "version": 1,
+  "title": "Corso dal documento",
+  "description": "Bozza generata dal materiale selezionato. Revisione umana richiesta.",
+  "objectives": [
+    "Comprendere la procedura"
+  ],
+  "sources": [
+    {
+      "id": "page-201",
+      "documentId": "document-1",
+      "page": 201,
+      "label": "Pagina 201",
+      "excerpt": "Testo di formazione.\n\nSecondo paragrafo."
+    },
+    {
+      "id": "page-202",
+      "documentId": "document-1",
+      "page": 202,
+      "label": "Pagina 202",
+      "excerpt": "Testo di formazione.\n\nSecondo paragrafo."
+    }
+  ],
+  "modules": [
+    {
+      "id": "module-1",
+      "title": "Modulo di prova",
+      "lessons": [
+        {
+          "id": "lesson-1",
+          "title": "Modulo di prova",
+          "slides": [
+            {
+              "heading": "Procedura",
+              "body": "Contenuto di prova",
+              "highlight": "",
+              "sourceRefs": [
+                "page-201",
+                "page-202"
+              ],
+              "id": "slide-1-1"
+            }
+          ],
+          "questionIds": [
+            "question-1-1"
+          ]
+        }
+      ],
+      "exam": {
+        "id": "exam-1",
+        "questionIds": [
+          "question-1-1"
+        ],
+        "mode": "practice",
+        "passingScore": 1,
+        "maxAttempts": null
+      }
+    },
+    {
+      "id": "module-2",
+      "title": "Modulo di prova",
+      "lessons": [
+        {
+          "id": "lesson-2",
+          "title": "Modulo di prova",
+          "slides": [
+            {
+              "heading": "Procedura",
+              "body": "Contenuto di prova",
+              "highlight": "",
+              "sourceRefs": [
+                "page-202"
+              ],
+              "id": "slide-2-1"
+            }
+          ],
+          "questionIds": [
+            "question-2-1"
+          ]
+        }
+      ],
+      "exam": {
+        "id": "exam-2",
+        "questionIds": [
+          "question-2-1"
+        ],
+        "mode": "practice",
+        "passingScore": 1,
+        "maxAttempts": null
+      }
+    }
+  ],
+  "questions": [
+    {
+      "id": "question-1-1",
+      "moduleId": "module-1",
+      "lessonId": "lesson-1",
+      "prompt": "Quale risposta?",
+      "options": [
+        {
+          "id": "option-0",
+          "text": "Prima"
+        },
+        {
+          "id": "option-1",
+          "text": "Seconda"
+        }
+      ],
+      "correctOptionId": "option-0",
+      "explanation": "Spiegazione di prova",
+      "sourceRefs": [
+        "page-201",
+        "page-202"
+      ]
+    },
+    {
+      "id": "question-2-1",
+      "moduleId": "module-2",
+      "lessonId": "lesson-2",
+      "prompt": "Quale risposta?",
+      "options": [
+        {
+          "id": "option-0",
+          "text": "Prima"
+        },
+        {
+          "id": "option-1",
+          "text": "Seconda"
+        }
+      ],
+      "correctOptionId": "option-0",
+      "explanation": "Spiegazione di prova",
+      "sourceRefs": [
+        "page-202"
+      ]
+    }
+  ]
+}
