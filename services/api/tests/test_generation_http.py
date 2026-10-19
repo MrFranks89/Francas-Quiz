@@ -15,6 +15,7 @@ class Provider:
 
 
 def test_generation_not_configured_http(client, monkeypatch):
+    monkeypatch.delenv('GENERATION_PROVIDER', raising=False)
     monkeypatch.delenv('OPENAI_API_KEY', raising=False)
     monkeypatch.delenv('OPENAI_MODEL', raising=False)
     assert client.get('/generation/config').json()['configured'] is False
@@ -61,3 +62,66 @@ def test_review_acknowledgement_and_provider_error(client):
     assert response.json()['detail']['code'] == 'provider_error'
     assert not list(client.app.state.store.root.glob('*.draft.json'))
     assert client.post(endpoint, json={'acknowledgeWarnings': 'true'}).status_code == 422
+
+
+def test_route_uses_provider_selected_by_environment(client, monkeypatch):
+    """Percorso vero: rotta -> generate -> create_provider -> AnthropicProvider -> SDK anthropic.
+    Si sostituisce solo il trasporto HTTP dell'SDK; nessun fornitore è iniettato in app.state."""
+    import json
+    import anthropic
+    import httpx2
+
+    sent = []
+
+    def handler(request):
+        body = json.loads(request.content)
+        sent.append((str(request.url), body))
+        source = json.loads(body['messages'][0]['content'])[0]['sourceId']
+        draft = Provider().module(type('Chunk', (), {'pieces': [type('Piece', (), {'source_id': source})]})())
+        return httpx2.Response(200, json={
+            'id': 'msg_test', 'type': 'message', 'role': 'assistant', 'model': 'resolved-anthropic-model',
+            'content': [{'type': 'text', 'text': json.dumps(draft)}], 'stop_reason': 'end_turn', 'stop_sequence': None,
+            'usage': {'input_tokens': 10, 'output_tokens': 7, 'cache_creation_input_tokens': 0, 'cache_read_input_tokens': 0}})
+
+    real = anthropic.Anthropic
+
+    def offline(**kwargs):
+        assert kwargs['api_key'] == 'anthropic-key-not-real'
+        return real(**kwargs, base_url='http://anthropic.invalid',
+                    http_client=anthropic.DefaultHttpxClient(transport=httpx2.MockTransport(handler)))
+
+    monkeypatch.setattr(anthropic, 'Anthropic', offline)
+    monkeypatch.setenv('GENERATION_PROVIDER', 'anthropic')
+    monkeypatch.setenv('ANTHROPIC_API_KEY', 'anthropic-key-not-real')
+    monkeypatch.setenv('ANTHROPIC_MODEL', 'modello-anthropic-di-prova')
+    monkeypatch.delenv('OPENAI_API_KEY', raising=False)
+    monkeypatch.delenv('OPENAI_MODEL', raising=False)
+    assert getattr(client.app.state, 'generation_provider', None) is None
+    config = client.get('/generation/config').json()
+    assert config == {'configured': True, 'provider': 'anthropic', 'missing': []}
+    doc = upload(client, 'appunti.txt', b'Leggere il manuale prima di iniziare.')
+    extracted = extraction(client, doc, {'mode': 'all'}).json()
+    response = client.post(f"/extractions/{extracted['id']}/generate", json={'title': 'Corso Anthropic'})
+    assert response.status_code == 201, response.text
+    assert len(sent) == 1
+    assert sent[0][0] == 'http://anthropic.invalid/v1/messages'
+    assert sent[0][1]['model'] == 'modello-anthropic-di-prova'
+    usage = response.json()['usage']
+    assert usage['provider'] == 'anthropic'
+    assert usage['model'] == 'resolved-anthropic-model'
+    assert usage['inputTokens'] == 10
+
+
+def test_route_reports_selected_provider_not_configured(client, monkeypatch):
+    monkeypatch.setenv('GENERATION_PROVIDER', 'anthropic')
+    monkeypatch.delenv('ANTHROPIC_API_KEY', raising=False)
+    monkeypatch.delenv('ANTHROPIC_MODEL', raising=False)
+    monkeypatch.setenv('OPENAI_API_KEY', 'openai-key-not-real')
+    monkeypatch.setenv('OPENAI_MODEL', 'modello-openai')
+    config = client.get('/generation/config').json()
+    assert config == {'configured': False, 'provider': 'anthropic', 'missing': ['ANTHROPIC_API_KEY', 'ANTHROPIC_MODEL']}
+    doc = upload(client, 'appunti.txt', b'Leggere il manuale prima di iniziare.')
+    extracted = extraction(client, doc, {'mode': 'all'}).json()
+    response = client.post(f"/extractions/{extracted['id']}/generate", json={})
+    assert response.status_code == 503
+    assert response.json()['detail']['code'] == 'not_configured'

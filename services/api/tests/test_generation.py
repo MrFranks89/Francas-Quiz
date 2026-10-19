@@ -133,6 +133,7 @@ def test_provider_errors_through_pipeline(response, code):
 
 
 def test_no_config_no_false_generation(monkeypatch):
+    monkeypatch.delenv('GENERATION_PROVIDER', raising=False)
     monkeypatch.delenv('OPENAI_API_KEY', raising=False)
     monkeypatch.delenv('OPENAI_MODEL', raising=False)
     assert not config_status()['configured']

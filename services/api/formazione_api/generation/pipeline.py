@@ -4,7 +4,7 @@ from pydantic import ValidationError
 from .chunks import plan_chunks
 from .errors import GenerationError
 from .models import Course, ModuleDraft, Source
-from .provider import OpenAIProvider
+from .selection import create_provider
 from .telemetry import aggregate_usage, call_usage
 
 
@@ -23,7 +23,7 @@ def generate(extraction: dict, provider=None, *, title='Corso dal documento', ma
     except (ValidationError, KeyError) as error:
         raise GenerationError('invalid_sources', 'Metadati delle fonti non validi') from error
     chunks = plan_chunks(blocks, max_chars, max_chunks)
-    provider = provider or OpenAIProvider()
+    provider = provider or create_provider()
     modules, questions, objectives, coverage, usage_calls = [], [], [], [], []
     for i, chunk in enumerate(chunks, 1):
         try:
