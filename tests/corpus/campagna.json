@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "nota": "Selezioni da misurare. I file stanno in tests/corpus/files/<documento>/ e si verificano con lo sha256 del manifest. motore 'docling' = OCR locale con services/api/formazione_api/docling_adapter.py (DOCLING_ARTIFACTS_PATH). Pagine = pagine del file, estremi inclusi.",
+  "selezioni": [
+    { "id": "01-nativa-p1-90", "documento": "01-dlgs-81-2008", "pagine": [1, 90], "motore": "native",
+      "motivo": "Parte con testo nativo del D.Lgs. 81/2008" },
+    { "id": "01-ocr-p94-143", "documento": "01-dlgs-81-2008", "pagine": [94, 143], "motore": "docling",
+      "motivo": "Parte scansionata con intestazione GURITEL: richiede OCR. 50 pagine invece di 100 per contenere i tempi (campione Docling: 134 s per 5 pagine)" },
+    { "id": "02-ocr-tutto", "documento": "02-dpr-547-1955", "pagine": [1, 48], "motore": "docling",
+      "motivo": "PDF scansionato, tipografia storica" },
+    { "id": "03-accordo-p50-96", "documento": "03-gu-2025-119", "pagine": [50, 96], "motore": "native",
+      "motivo": "Accordo Stato-Regioni sulla formazione, su due colonne" },
+    { "id": "04-tutto", "documento": "04-istat-asi-2024-c08", "motore": "native",
+      "motivo": "Tabelle con intestazioni a più livelli" },
+    { "id": "05-figure-p166-195", "documento": "05-istat-ra-2025", "pagine": [166, 195], "motore": "native",
+      "motivo": "Finestra di 30 pagine con più riferimenti 'Figura N' nel testo nativo (75 su 317 del volume)" },
+    { "id": "07-tavole", "documento": "07-istat-asi-2024-d08", "membro": "D08/C08_Tavole.xlsx", "motore": "native",
+      "motivo": "Fogli reali con unità e note; il file estratto è verificato contro il membro dello ZIP del manifest" }
+  ]
+}
