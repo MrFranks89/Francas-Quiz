@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "scaricatoIl": "2026-10-19",
+  "nota": "I file non sono in Git: stanno in tests/corpus/files/<id>/ e si verificano con sha256. Le misure sono state lette dai file con pypdf/openpyxl, non dedotte.",
+  "documenti": [
+    {
+      "id": "01-dlgs-81-2008",
+      "tipologia": "PDF lungo, parzialmente scansionato",
+      "titolo": "D.Lgs. 9 aprile 2008 n. 81, testo originale - GU n. 101 del 30/04/2008, S.O. n. 108",
+      "url": "https://www.gazzettaufficiale.it/eli/gu/2008/04/30/101/so/108/sg/pdf",
+      "file": "gu-2008-101-so108.pdf",
+      "byte": 8765696,
+      "sha256": "bcc0e075c0db79d2999da82900e7dffc1118a53a3aa1f6e152498c455038db4d",
+      "licenza": "Atto ufficiale dello Stato, escluso dal diritto d'autore",
+      "fonteLicenza": "https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:legge:1941-04-22;633~art5",
+      "misure": {
+        "pagine": 354,
+        "testoNativo": "misto: circa le prime 93 pagine native; 234 pagine sotto 400 caratteri, fra cui quasi tutte dalla 94, contengono solo l'intestazione GURITEL (circa 148 caratteri) sopra un'immagine",
+        "etichettePagina": "coincidono con la pagina del file (1-354)"
+      },
+      "usoPrevisto": "Selezione di 100 pagine; caso critico per pagine scansionate con intestazione testuale"
+    },
+    {
+      "id": "02-dpr-547-1955",
+      "tipologia": "PDF scansionato",
+      "titolo": "DPR 27 aprile 1955 n. 547, prevenzione infortuni - GU n. 158 del 12/07/1955, S.O.",
+      "url": "https://www.gazzettaufficiale.it/eli/gu/1955/07/12/158/so/0/sg/pdf",
+      "file": "gu-1955-158-so.pdf",
+      "byte": 4460843,
+      "sha256": "0c38a9d78288e3a90c6c2d76618988c4d7312f1c1b80c01b77107533bfc02c34",
+      "licenza": "Atto ufficiale dello Stato, escluso dal diritto d'autore",
+      "fonteLicenza": "https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:legge:1941-04-22;633~art5",
+      "misure": { "pagine": 48, "testoNativo": "assente nelle 6 pagine campionate (1, 2, 13, 25, 37, 48)" },
+      "usoPrevisto": "OCR su tipografia storica"
+    },
+    {
+      "id": "03-gu-2025-119",
+      "tipologia": "PDF a colonne",
+      "titolo": "Gazzetta Ufficiale Serie Generale n. 119 del 24/05/2025 (Accordo Stato-Regioni formazione sicurezza da pag. 50)",
+      "url": "https://www.gazzettaufficiale.it/eli/gu/2025/05/24/119/sg/pdf",
+      "file": "gu-2025-119-sg.pdf",
+      "byte": 4804171,
+      "sha256": "019cfe417ab61ad506fbdbcbf11d90641d8db43c198c7cc1a8d06890749facb1",
+      "licenza": "Atto ufficiale dello Stato, escluso dal diritto d'autore",
+      "fonteLicenza": "https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:legge:1941-04-22;633~art5",
+      "misure": { "pagine": 96, "testoNativo": "presente (3.800-8.800 caratteri per pagina campionata)" },
+      "usoPrevisto": "Ordine di lettura su due colonne; atti eterogenei nello stesso file"
+    },
+    {
+      "id": "04-istat-asi-2024-c08",
+      "tipologia": "PDF con tabelle",
+      "titolo": "ISTAT, Annuario statistico italiano 2024, cap. 8 Mercato del lavoro",
+      "url": "https://www.istat.it/storage/ASI/2024/capitoli/C08.pdf",
+      "file": "C08.pdf",
+      "byte": 1000204,
+      "sha256": "0a334d075d2a17f1f10a537af695e9f0d9488f49de90b1f9278dfc09033c653e",
+      "licenza": "CC BY 4.0",
+      "fonteLicenza": "https://www.istat.it/note-legali/",
+      "misure": { "pagine": 64, "testoNativo": "presente", "etichettePagina": "337-400, diverse dalla pagina del file (1-64)" },
+      "usoPrevisto": "Tabelle con intestazioni a più livelli; confronto con i valori in 07; caso «pagina PDF / pagina stampata»"
+    },
+    {
+      "id": "05-istat-ra-2025",
+      "tipologia": "PDF con figure informative",
+      "titolo": "ISTAT, Rapporto annuale 2025 - La situazione del Paese",
+      "url": "https://www.istat.it/wp-content/uploads/2025/05/RA-2025-volume-integrale.pdf",
+      "file": "RA-2025-volume-integrale.pdf",
+      "byte": 12476902,
+      "sha256": "9eee06d498c5743faefe9582c8d4991da5adef61bd3b2d58810831c54778f91a",
+      "licenza": "CC BY 4.0 (escluse immagini, loghi e materiali di terzi)",
+      "fonteLicenza": "https://www.istat.it/note-legali/",
+      "misure": { "pagine": 242, "testoNativo": "presente nelle pagine interne" },
+      "usoPrevisto": "Dati presenti solo nei grafici"
+    },
+    {
+      "id": "07-istat-asi-2024-d08",
+      "tipologia": "XLSX",
+      "titolo": "ISTAT, Annuario 2024, dati cap. 8 (tavole, prospetti, figure)",
+      "url": "https://www.istat.it/storage/ASI/2024/dati/D08.zip",
+      "file": "D08.zip",
+      "byte": 506930,
+      "sha256": "823bd9e1386f46181acb44745650bc9724078eda3d80dce4adceabd3ca722d78",
+      "licenza": "CC BY 4.0",
+      "fonteLicenza": "https://www.istat.it/note-legali/",
+      "misure": {
+        "contenuto": "D08/C08_Tavole.xlsx (29 fogli, 3 formule), D08/C08_Prospetti.xlsx (3 fogli, 3 formule), D08/C08_Figure.xlsx (27 fogli, 67 formule); nessun percorso sospetto nell'archivio",
+        "estrattoIn": "estratto/"
+      },
+      "usoPrevisto": "Fogli reali con unità e note; valori di riferimento per 04"
+    }
+  ],
+  "daCostruire": [
+    { "id": "06-docx-sintetico", "tipologia": "DOCX", "nota": "Da costruire da articoli del D.Lgs. 81/2008, dichiarato sintetico" },
+    { "id": "08-appunti-sintetici", "tipologia": "Markdown", "nota": "Appunti originali su articoli del D.Lgs. 81/2008, dichiarati sintetici" }
+  ]
+}
