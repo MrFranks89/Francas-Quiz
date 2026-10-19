@@ -85,6 +85,11 @@ def preventivo_selezione(selezione: dict, estrazione: dict, prezzi: dict) -> dic
                      caratteri=sum(len(b['text']) for b in estrazione['blocks']), stato=estrazione['status'])
     if estrazione['kind'] == 'pdf' and estrazione['engine'] == 'native':
         risultato['probabileScansione'] = pv.pagine_poco_testo(estrazione['blocks'], estrazione['inizio'], estrazione['fine'])
+    if estrazione['engine'] == 'docling' and (scoperte := pv.pagine_senza_testo(estrazione)):
+        # Un preventivo su un'estrazione OCR troncata sarebbe un numero senza significato.
+        risultato.update(nonStimata=f"estrazione OCR incompleta: {len(scoperte)} pagine su "
+                                    f"{estrazione['fine'] - estrazione['inizio'] + 1} senza testo", modelli=[])
+        return risultato
     try:
         chunks = pv.pianifica(estrazione['blocks'])
     except GenerationError as error:
@@ -120,6 +125,8 @@ def esegui_selezione(selezione: dict, estrazione: dict, sha: str, prezzi: dict, 
                      budget: Decimal, registro: Registro, cartella_corse: Path) -> dict:
     """Corsa reale su una selezione. Solleva GuardiaRifiuto/PrezzoMancante prima di creare il fornitore."""
     listino = prezzo(prezzi, fornitore, modello)            # modello senza prezzo: rifiutato qui
+    if estrazione['engine'] == 'docling' and pv.pagine_senza_testo(estrazione):
+        raise GuardiaRifiuto('Estrazione OCR incompleta: nessuna spesa su materiale troncato')
     chunks = pv.pianifica(estrazione['blocks'])
     stima = pv.preventivo_corsa(chunks, listino)
     if stima['oltreSogliaContestoLungo']:

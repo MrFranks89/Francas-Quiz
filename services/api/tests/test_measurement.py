@@ -274,3 +274,14 @@ def test_prezzi_registrati_hanno_fonte_data_e_sono_leggibili():
     for fornitore, modello in coppie:
         tariffa = prezzo(prezzi, fornitore, modello)
         assert tariffa.uscita > 0 and tariffa.moltiplicatore_massimo >= 1
+
+
+def test_estrazione_ocr_incompleta_non_stimata_e_rifiutata(tmp_path, senza_fornitori_reali):
+    troncata = {**estrazione(3), 'engine': 'docling'}
+    troncata['blocks'] = troncata['blocks'][:1]
+    assert pv.pagine_senza_testo(troncata) == [2, 3]
+    voce = misura.preventivo_selezione(SELEZIONE, troncata, listino())
+    assert 'nonStimata' in voce and voce['modelli'] == []
+    with pytest.raises(GuardiaRifiuto):
+        misura.esegui_selezione(SELEZIONE, troncata, 'sha', listino(), 'anthropic', 'modello-prova',
+                                Decimal(1000), Registro(tmp_path / 'r.json'), tmp_path)
