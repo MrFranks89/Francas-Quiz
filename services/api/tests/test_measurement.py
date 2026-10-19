@@ -263,3 +263,14 @@ def test_costo_per_corso_approvato_somma_anche_le_corse_fallite(tmp_path, monkey
     riga = misura.riepilogo(registro)[0]
     assert riga['approvati'] == 1 and riga['corse'] == 2
     assert riga['costoPerCorsoApprovatoUSD'] == Decimal(str(buona['effettivoUSD'])) + Decimal('0.5')
+
+
+def test_prezzi_registrati_hanno_fonte_data_e_sono_leggibili():
+    from pathlib import Path
+    from formazione_api.measurement.prezzi import carica, modelli
+    prezzi = carica(Path(__file__).resolve().parents[3] / 'tests' / 'corpus' / 'prezzi.json')
+    coppie = list(modelli(prezzi))
+    assert {f for f, _ in coppie} == {'openai', 'anthropic'}
+    for fornitore, modello in coppie:
+        tariffa = prezzo(prezzi, fornitore, modello)
+        assert tariffa.uscita > 0 and tariffa.moltiplicatore_massimo >= 1

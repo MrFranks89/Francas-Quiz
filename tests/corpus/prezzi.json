@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "valuta": "USD",
+  "unita": "USD per milione di token, tariffa standard (non Batch, non Flex, non Fast)",
+  "nota": "Prezzi letti alla fonte, non dedotti. Un modello assente da questo file viene rifiutato dalla guardia. Il limite superiore usa la tariffa d'ingresso più alta del modello (ingresso, ingressoCache, altriIngressi) e moltiplicatoreMassimo.",
+  "fornitori": {
+    "anthropic": {
+      "fonte": "https://platform.claude.com/docs/en/about-claude/pricing.md",
+      "lettoIl": "2026-10-19",
+      "moltiplicatoreMassimo": {
+        "valore": 1.1,
+        "motivo": "inference_geo 'us' o endpoint regionali: 1.1x su tutte le categorie di token. I fornitori del progetto non lo impostano; il limite lo include comunque.",
+        "fonte": "https://platform.claude.com/docs/en/about-claude/pricing.md#data-residency-pricing"
+      },
+      "sovraccaricoIngressoPerChiamata": {
+        "token": null,
+        "motivo": "Con output strutturati il fornitore inietta un prompt di sistema ('Your input token count is slightly higher') senza pubblicarne la dimensione; vi si aggiungono i marcatori di ruolo. Finché è null la guardia rifiuta ogni corsa reale. Da misurare con l'endpoint di conteggio token sulla richiesta reale e registrare qui con la fonte.",
+        "fonte": "https://platform.claude.com/docs/en/build-with-claude/structured-outputs.md"
+      },
+      "modelli": {
+        "claude-opus-5-5": {
+          "ingresso": 4, "ingressoCache": 0.20, "uscita": 20,
+          "altriIngressi": { "scritturaCache5m": 5, "scritturaCache1h": 8 },
+          "sogliaContestoLungo": null,
+          "fonte": "https://platform.claude.com/docs/en/about-claude/pricing.md", "lettoIl": "2026-10-19"
+        },
+        "claude-sonnet-5-5": {
+          "ingresso": 2, "ingressoCache": 0.10, "uscita": 10,
+          "altriIngressi": { "scritturaCache5m": 2.50, "scritturaCache1h": 4 },
+          "sogliaContestoLungo": null,
+          "fonte": "https://platform.claude.com/docs/en/about-claude/pricing.md", "lettoIl": "2026-10-19"
+        },
+        "claude-haiku-5-5": {
+          "ingresso": 0.10, "ingressoCache": 0.01, "uscita": 0.50,
+          "altriIngressi": { "scritturaCache5m": 0.125, "scritturaCache1h": 0.20 },
+          "sogliaContestoLungo": 100000,
+          "notaSoglia": "Prezzi per prompt fino a 100.000 token; oltre, 0.50/2.50: oltre soglia la guardia rifiuta.",
+          "fonte": "https://platform.claude.com/docs/en/about-claude/pricing.md", "lettoIl": "2026-10-19"
+        }
+      }
+    },
+    "openai": {
+      "fonte": "https://developers.openai.com/api/docs/pricing",
+      "lettoIl": "2026-10-19",
+      "moltiplicatoreMassimo": {
+        "valore": 1.1,
+        "motivo": "Endpoint di residenza dei dati: sovrapprezzo del 10% per i modelli rilasciati dal 5 marzo 2026. I fornitori del progetto non lo impostano; il limite lo include comunque.",
+        "fonte": "https://developers.openai.com/api/docs/pricing"
+      },
+      "sovraccaricoIngressoPerChiamata": {
+        "token": null,
+        "motivo": "La pagina prezzi non pubblica i token aggiunti per i messaggi e per lo schema degli output strutturati. Finché è null la guardia rifiuta ogni corsa reale.",
+        "fonte": "https://developers.openai.com/api/docs/pricing"
+      },
+      "modelli": {
+        "gpt-6-astra": {
+          "ingresso": 10.00, "ingressoCache": 1.00, "uscita": 50.00,
+          "sogliaContestoLungo": 272000,
+          "fonte": "https://developers.openai.com/api/docs/pricing", "lettoIl": "2026-10-19"
+        },
+        "gpt-6.1-sol": {
+          "ingresso": 2.00, "ingressoCache": 0.10, "uscita": 10.00,
+          "sogliaContestoLungo": 272000,
+          "fonte": "https://developers.openai.com/api/docs/pricing", "lettoIl": "2026-10-19"
+        },
+        "gpt-5.4-mini": {
+          "ingresso": 0.75, "ingressoCache": 0.075, "uscita": 4.50,
+          "sogliaContestoLungo": 272000,
+          "notaSoglia": "La pagina dichiara 'Short context: ≤272K input tokens' per la tabella standard.",
+          "fonte": "https://developers.openai.com/api/docs/pricing", "lettoIl": "2026-10-19"
+        },
+        "gpt-6-luna": {
+          "ingresso": 0.10, "ingressoCache": 0.01, "uscita": 0.50,
+          "sogliaContestoLungo": 272000,
+          "fonte": "https://developers.openai.com/api/docs/pricing", "lettoIl": "2026-10-19"
+        }
+      }
+    }
+  }
+}
