@@ -7,6 +7,16 @@ from .models import Course, ModuleDraft, Source
 from .selection import create_provider
 from .telemetry import aggregate_usage, call_usage
 
+# Soglia predefinita dei quiz generati, in percentuale. Deve coincidere con
+# packages/contracts/fixtures/grading-scale.json (sogliaSuperamentoPercento), letto dal
+# motore TypeScript: lo controlla services/api/tests/test_grading_scale.py.
+SOGLIA_SUPERAMENTO_PERCENTO = 60
+
+
+def soglia_predefinita(n: int) -> int:
+    """Risposte corrette minime su n domande: il più piccolo k con k/n >= 60%, in aritmetica intera."""
+    return (SOGLIA_SUPERAMENTO_PERCENTO * n + 99) // 100
+
 
 def generate(extraction: dict, provider=None, *, title='Corso dal documento', max_chars=12000, max_chunks=40, acknowledge_warnings: bool = False):
     """Atomic draft generation. No partial course returned on any failed chunk."""
@@ -49,7 +59,7 @@ def generate(extraction: dict, provider=None, *, title='Corso dal documento', ma
                                   sourceRefs=question.sourceRefs))
         slides = [dict(id=f'slide-{i}-{j}', **slide.model_dump()) for j, slide in enumerate(draft.slides, 1)]
         modules.append(dict(id=module_id, title=draft.title, lessons=[dict(id=lesson_id, title=draft.title, slides=slides, questionIds=ids)],
-                            exam=dict(id=f'exam-{i}', questionIds=ids, mode='practice', passingScore=len(ids), maxAttempts=None)))
+                            exam=dict(id=f'exam-{i}', questionIds=ids, mode='practice', passingScore=soglia_predefinita(len(ids)), maxAttempts=None)))
         objectives.extend(draft.objectives)
         coverage.append(dict(chunkId=chunk.id, moduleId=module_id, pieces=[dict(sourceId=p.source_id, start=p.start, end=p.end) for p in chunk.pieces]))
     try:
