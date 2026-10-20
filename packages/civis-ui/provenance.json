@@ -179,6 +179,11 @@
       "motivo": "Verifica il sostituto di AppIcon."
     },
     {
+      "path": "__tests__/nostri/BtnContrast.palette.test.tsx",
+      "tipo": "nostro",
+      "motivo": "Al posto di __tests__/comune/BtnContrast.test.tsx, che prende i colori dai pacchetti di figurine (non portati): verifica il contrasto del Btn disegnato sui colori delle palette chiara e scura."
+    },
+    {
       "path": "__tests__/nostri/FeedbackMotion.test.tsx",
       "tipo": "nostro",
       "motivo": "Civis non ha un test dedicato a src/comune/FeedbackMotion.tsx."
