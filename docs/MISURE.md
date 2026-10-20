@@ -35,6 +35,29 @@ Costo = token × tariffa d'ingresso più alta del modello (comprese le scritture
 
 **Limite incompleto.** I fornitori aggiungono token propri (marcatori di ruolo; con gli output strutturati Anthropic inietta un prompt di sistema di dimensione non pubblicata). Finché `sovraccaricoIngressoPerChiamata.token` è `null` il preventivo segna `completo = NO` e la guardia **rifiuta ogni corsa reale**. Per sbloccarla: misurare la quota con l'endpoint di conteggio token sulla richiesta reale, registrarla con la fonte.
 
+## Misura del sovraccarico Anthropic
+
+Strumento: `services/api/tools/misura_sovraccarico_anthropic.py`. Usa solo `messages.count_tokens`, che è gratuito («Token counting is free to use but subject to requests per minute rate limits», <https://platform.claude.com/docs/en/build-with-claude/token-counting>). Il client è avvolto in `SoloConteggio`, che non espone `create`, `parse`, `stream` né i batch. Non scrive in `prezzi.json`.
+
+```powershell
+$env:ANTHROPIC_API_KEY = "<chiave>"
+.venv/Scripts/python.exe services/api/tools/misura_sovraccarico_anthropic.py
+Remove-Item Env:ANTHROPIC_API_KEY
+```
+
+Cosa fa: per ogni selezione della campagna ripete verifica hash, estrazione e pianificazione del preventivo (`measure_generation.prepara`, `corsa.preventivo_selezione`, `preventivo.pianifica`) e prende tre blocchi: il più corto, il mediano e il più lungo. Aggiunge un blocco sintetico di un carattere (`sintetico-minimo`), che è il caso peggiore per una quota costante. Per ogni modello Anthropic di `prezzi.json` conta la richiesta di `anthropic_provider.richiesta()`, la stessa che invia il provider, senza `max_tokens`, che `count_tokens` non accetta e che non è un token d'ingresso. Fa al massimo una richiesta al secondo: oggi sono 45 conteggi, cioè meno di un minuto.
+
+Cosa leggere nell'output:
+
+- la tabella `modello / selezione / blocco / contati / maggiorante / differenza / rapporto`: `differenza = contati − maggiorante in byte`; se è negativa, il maggiorante del preventivo copre già quel blocco;
+- le righe `Esclusa ...`: sono le selezioni che il preventivo non stima (OCR troncato, estrazione fallita) e che non vengono misurate;
+- per ogni modello: `scarto massimo`, `margine`, `quota`;
+- il giudizio: dice se il maggiorante in byte **copre già** tutti i conteggi oltre il margine (quota strettamente necessaria 0) oppure **non li copre**;
+- `Valore proposto per sovraccaricoIngressoPerChiamata.token`, cioè `max(0, max(contati − maggiorante)) + margine`. Il margine è il 5% del conteggio più alto, arrotondato per eccesso, perché il conteggio è una stima («might differ by a small amount»). Il valore va registrato a mano in `prezzi.json`, citando come fonte il rapporto;
+- `Rapporto: var/misure/sovraccarico-anthropic-<data>.json`, con tutte le misure, le selezioni escluse e la quota per modello.
+
+Uscite: `0` misura completa; `1` `ANTHROPIC_API_KEY` assente (nessun client creato); `2` errore del fornitore (chiave rifiutata, permessi, fatturazione 402, limite di richieste, modello inesistente), con un messaggio leggibile e un rapporto parziale.
+
 ## Guardia
 
 - Avvio: budget > 0, limite completo, `speso nel registro + limite superiore della corsa ≤ budget`. Il fornitore si crea solo dopo.
