@@ -1,0 +1,19 @@
+{
+  "sourceRepository": "C:/Civica",
+  "sourceDirectory": "CivicaApp",
+  "sourceCommit": "db9ff48",
+  "owner": "Federico",
+  "method": "Copia byte per byte dei file di lavoro di Civis al commit indicato (fine riga come su disco); nessuna modifica a sorgenti o test. I file di tipo \"sostituto\" sono nostri e prendono il posto di moduli che non si portano; quelli di tipo \"nostro\" sono test scritti qui.",
+  "files": [
+    {
+      "path": "__tests__/nostri/integrity.test.ts",
+      "tipo": "nostro",
+      "motivo": "Verifica gli hash delle copie e che ogni file sia dichiarato."
+    },
+    {
+      "path": "__tests__/nostri/jest.test.tsx",
+      "tipo": "nostro",
+      "motivo": "Dimostra che Jest disegna un componente React Native nel pacchetto."
+    }
+  ]
+}

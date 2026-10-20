@@ -19,5 +19,10 @@
     "apps/**/*.ts",
     "apps/**/*.tsx",
     "vitest.config.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "**/node_modules",
+    "packages/civis-ui"
   ]
 }

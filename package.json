@@ -8,9 +8,10 @@
     "packages/*"
   ],
   "scripts": {
-    "test": "vitest run",
+    "test": "vitest run && npm run test:ui",
+    "test:ui": "jest --config packages/civis-ui/jest.config.js",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p packages/civis-ui/tsconfig.json",
     "dev:web": "expo start apps/learner --web",
     "export:web": "npm run export:web --workspace @formazione/learner",
     "web": "expo start apps/learner --web",
