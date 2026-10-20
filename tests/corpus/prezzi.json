@@ -13,9 +13,12 @@
         "fonte": "https://platform.claude.com/docs/en/about-claude/pricing.md#data-residency-pricing"
       },
       "sovraccaricoIngressoPerChiamata": {
-        "token": null,
-        "motivo": "Con output strutturati il fornitore inietta un prompt di sistema ('Your input token count is slightly higher') senza pubblicarne la dimensione; vi si aggiungono i marcatori di ruolo. Finché è null la guardia rifiuta ogni corsa reale. Da misurare con l'endpoint di conteggio token sulla richiesta reale e registrare qui con la fonte.",
-        "fonte": "https://platform.claude.com/docs/en/build-with-claude/structured-outputs.md"
+        "token": 459,
+        "motivo": "Misurato con messages.count_tokens sulla richiesta reale di AnthropicProvider (39 conteggi: opus/sonnet/haiku-5-5 su 01, 03, 04, 05 e un blocco minimo sintetico). Il maggiorante in byte copre già tutti i conteggi, comprese le aggiunte del fornitore: rapporto contati/byte fra 0,44 e 0,63, scarto peggiore -899 token sul blocco minimo. Quota strettamente necessaria 0; 459 = margine del 5% sul conteggio più alto (9.179), perché la documentazione definisce il conteggio una stima. Va rimisurato per ogni nuovo modello o cambio di istruzioni/schema.",
+        "fonte": "https://platform.claude.com/docs/en/build-with-claude/token-counting",
+        "misura": "var/misure/sovraccarico-anthropic-2026-10-20T074641+0000.json",
+        "misuratoIl": "2026-10-20",
+        "notaAccesso": "Il conteggio è gratuito ma con saldo a zero l'API lo rifiuta: 400 'Your credit balance is too low' (request_id req_011CgD7a41L3ntzZbsaFyTit, 2026-10-20)."
       },
       "modelli": {
         "claude-opus-5-5": {
