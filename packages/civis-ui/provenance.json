@@ -30,6 +30,12 @@
       "sha256": "919cb24385b284ca335567717ee36bd25fe150f9f5b39e9309aba09dffd638aa"
     },
     {
+      "path": "__tests__/comune/OptMark.test.tsx",
+      "tipo": "copia",
+      "origine": "CivicaApp/__tests__/comune/OptMark.test.tsx",
+      "sha256": "07157c570fcd93181e1a2b658ed728dac6eaee193df65fe28ec4cc8b5716a91c"
+    },
+    {
       "path": "__tests__/comune/ProgressBar.test.tsx",
       "tipo": "copia",
       "origine": "CivicaApp/__tests__/comune/ProgressBar.test.tsx",
@@ -112,6 +118,11 @@
       "motivo": "Civis non ha un test dedicato a src/comune/FeedbackMotion.tsx."
     },
     {
+      "path": "__tests__/nostri/OptMark.sostituto.test.tsx",
+      "tipo": "nostro",
+      "motivo": "Verifica le parole del sostituto di OptMark, che il test originale non controlla."
+    },
+    {
       "path": "__tests__/nostri/ThemeProvider.test.tsx",
       "tipo": "nostro",
       "motivo": "Il test originale importa authPalette e StarLogo da src/auth/ui (logo e schermate di accesso, non portati): qui ci sono alla lettera i suoi casi che non li usano."
@@ -145,6 +156,12 @@
       "path": "__tests__/nostri/useReducedMotion.test.tsx",
       "tipo": "nostro",
       "motivo": "Civis non ha un test dedicato a src/comune/useReducedMotion.ts."
+    },
+    {
+      "path": "src/comune/OptMark.tsx",
+      "tipo": "sostituto",
+      "sostituisce": "CivicaApp/src/comune/OptMark.tsx",
+      "motivo": "L'originale mostra i segni di spunta e croce, che contano come icone; per decisione dell'utente niente icone: il sostituto mostra le parole «Giusta» e «Sbagliata» con gli stessi colori. Il test originale __tests__/comune/OptMark.test.tsx è copiato identico e gira sul sostituto."
     },
     {
       "path": "src/icons/AppIcon.tsx",
