@@ -1,7 +1,7 @@
 import {changeField,strictPositive} from './editor';
 import sample from '../../../../packages/contracts/fixtures/sample-course.json';
 import {CourseSchema} from '@formazione/contracts';
-import {createEditorState,editorReducer} from './editor';
+import {createEditorState,editorReducer,erroriSoglia} from './editor';
 it('edits a nested slide without changing source course or its provenance',()=>{const course=CourseSchema.parse(sample);const updated=changeField(course,['modules',0,'lessons',0,'slides',0,'body'],'Nuova spiegazione');expect(updated.modules[0].lessons[0].slides[0].body).toBe('Nuova spiegazione');expect(course.modules[0].lessons[0].slides[0].body).not.toBe('Nuova spiegazione');expect(updated.sources).toEqual(course.sources);});
 it('rejects ambiguous score text instead of silently correcting it',()=>{for(const value of ['','1.2','2abc','-1','0'])expect(Number.isNaN(strictPositive(value))).toBe(true);expect(strictPositive('2')).toBe(2);});
 it('changing reviewed content invalidates review until the modified draft is saved',()=>{
@@ -23,4 +23,25 @@ it('an invalid attempt limit stays invalid after editing a different field',()=>
  const changed=changeField(invalid,['title'],'Un altro titolo');
  expect(Number.isNaN(changed.modules[0].exam!.maxAttempts)).toBe(true);
  expect(CourseSchema.safeParse(changed).success).toBe(false);
+});
+function conEsame(n:number,passingScore:number){
+ const course=CourseSchema.parse(sample);const module=course.modules[0];const base=course.questions.find(q=>q.id===module.exam!.questionIds[0])!;
+ const extra=Array.from({length:n-1},(_,i)=>({...base,id:`${base.id}-extra-${i}`}));
+ course.questions.push(...extra);module.lessons[0].questionIds.push(...extra.map(q=>q.id));
+ module.exam!.questionIds=[base.id,...extra.map(q=>q.id)];module.exam!.passingScore=passingScore;return CourseSchema.parse(course);
+}
+it('a threshold below the minimum is reported on its field and blocks the draft, without being corrected',()=>{
+ const valid=conEsame(7,5);expect(erroriSoglia(valid)).toEqual({});
+ const low=editorReducer(createEditorState(valid),{type:'change',path:['modules',0,'exam','passingScore'],value:strictPositive('4')});
+ expect(erroriSoglia(low.course)).toEqual({0:'La soglia minima è 5 risposte su 7 (60%)'});
+ expect(low.course.modules[0].exam!.passingScore).toBe(4);
+ const changed=editorReducer(low,{type:'change',path:['title'],value:'Un altro titolo'});
+ expect(changed.course.modules[0].exam!.passingScore).toBe(4);
+ expect(CourseSchema.safeParse(changed.course).success).toBe(false);
+ const fixed=editorReducer(changed,{type:'change',path:['modules',0,'exam','passingScore'],value:strictPositive('5')});
+ expect(erroriSoglia(fixed.course)).toEqual({});expect(CourseSchema.safeParse(fixed.course).success).toBe(true);
+});
+it('an empty or non numeric threshold shows the minimum as the suggestion',()=>{
+ const empty=changeField(conEsame(5,3),['modules',0,'exam','passingScore'],strictPositive(''));
+ expect(erroriSoglia(empty)).toEqual({0:'La soglia minima è 3 risposte su 5 (60%)'});
 });

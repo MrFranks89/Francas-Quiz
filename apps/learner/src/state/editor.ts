@@ -1,4 +1,4 @@
-import type {Course} from '@formazione/contracts';
+import {erroreSogliaMinima,type Course} from '@formazione/contracts';
 export function changeField(course:Course,path:(string|number)[],value:unknown):Course{
  // Copy only the edited path. JSON cloning coerces NaN to null, accidentally
  // turning an invalid attempt limit into the valid "unlimited" sentinel.
@@ -11,6 +11,12 @@ export function changeField(course:Course,path:(string|number)[],value:unknown):
  return replace(course,0) as Course;
 }
 export function strictPositive(value:string):number{return /^[1-9]\d*$/.test(value)&&Number.isSafeInteger(Number(value))?Number(value):NaN;}
+/** Errori di soglia per indice di modulo. Il valore non valido resta nel corso: lo segnala, non lo corregge. */
+export function erroriSoglia(course:Course):Record<number,string>{
+ const errors:Record<number,string>={};
+ course.modules.forEach((module,index)=>{const message=module.exam&&erroreSogliaMinima(module.exam.passingScore,module.exam.questionIds.length);if(message)errors[index]=message;});
+ return errors;
+}
 export type EditorState={course:Course;dirty:boolean;reviewed:boolean;busy:boolean;error:string};
 export type EditorAction={type:'change';path:(string|number)[];value:unknown}|{type:'start'}|{type:'end'}|{type:'error';message:string}|{type:'saved';course:Course}|{type:'reviewed';value:boolean};
 export function createEditorState(course:Course):EditorState{return {course,dirty:false,reviewed:false,busy:false,error:''};}
