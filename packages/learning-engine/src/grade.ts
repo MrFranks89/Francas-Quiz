@@ -26,3 +26,8 @@ export function valutaTentativo(attempt: { correct: number; total: number }, exa
   // Esame superato con soglia sotto la scala: la scala non prevede un giudizio, si dice solo «superato».
   return { superato, percentuale, giudizio: voce?.giudizio ?? 'superato' };
 }
+
+/** Testo per il lettore, es. «71% · Buono» oppure «57% · Non superato». */
+export function descriviValutazione(v: Valutazione): string {
+  return `${v.percentuale}% · ${v.giudizio.charAt(0).toUpperCase()}${v.giudizio.slice(1)}`;
+}

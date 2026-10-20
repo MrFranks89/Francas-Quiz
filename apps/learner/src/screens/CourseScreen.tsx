@@ -1,6 +1,6 @@
 import React,{useEffect,useState} from 'react';
 import {Text,View} from 'react-native';
-import {canAccessModule,completeLesson,submitExam,createProgress,displayOptions,type Progress} from '@formazione/learning-engine';
+import {canAccessModule,completeLesson,submitExam,createProgress,displayOptions,valutaTentativo,descriviValutazione,type Progress} from '@formazione/learning-engine';
 import {course,loadProgress,saveProgress,resetProgress} from '../state/course';
 import {Button,Card,Notice,styles} from '../components/ui';
 import type {Course} from '@formazione/contracts';
@@ -26,7 +26,7 @@ export function CourseScreen({currentCourse=course,kind='demo'}:{currentCourse?:
   {exam&&<Card><Text style={styles.subtitle}>{exam.mode==='gate'?'Esame di sbarramento':'Test di controllo'}</Text><Text style={styles.muted}>Soglia: {exam.passingScore}/{exam.questionIds.length} risposte corrette · {exam.maxAttempts===null?'tentativi illimitati':`${attempts.length}/${exam.maxAttempts} tentativi usati`}</Text>
   {!lessonsDone&&<Notice text="Completa tutte le lezioni del modulo per sostenere il test."/>}
   {lessonsDone&&!gatePassed&&!exhausted&&exam.questionIds.map(id=>{const q=course.questions.find(q=>q.id===id)!;return <View key={id} style={{gap:12}}><Text style={styles.subtitle}>{q.prompt}</Text>{displayOptions(course,exam.id,attempts.length,id).map(option=><Button key={option.id} label={`${answers[id]===option.id?'● ':'○ '}${option.text}`} secondary={answers[id]!==option.id} disabled={saving} onPress={()=>setAnswers(current=>({...current,[id]:option.id}))}/>)}</View>;})}
-  {last&&<Notice text={`${last.passed?'Superato':'Non superato'} · ${last.correct}/${last.total} risposte corrette${gatePassed?' · modulo successivo sbloccato':''}`}/>}
+  {last&&<Notice text={`${descriviValutazione(valutaTentativo(last,exam))} · ${last.correct}/${last.total} risposte corrette${gatePassed?' · modulo successivo sbloccato':''}`}/>}
   {last&&exam.questionIds.map(id=>{const q=course.questions.find(q=>q.id===id)!;return <Text key={id} style={styles.muted}>{q.explanation}</Text>;})}
   {exhausted&&!gatePassed&&<Notice text="Tentativi terminati. Il modulo successivo rimane bloccato. Nel corso dimostrativo puoi azzerare i progressi." error/>}
   <Button label="Consegna il test" disabled={!ready||saving||!lessonsDone||gatePassed||!!exhausted||exam.questionIds.some(id=>!answers[id])} onPress={submit}/>

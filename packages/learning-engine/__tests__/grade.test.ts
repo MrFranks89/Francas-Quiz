@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { valutaTentativo, sogliaPredefinita } from '@formazione/learning-engine';
+import { valutaTentativo, sogliaPredefinita, descriviValutazione } from '@formazione/learning-engine';
 
 const scala = JSON.parse(readFileSync(new URL('../../contracts/fixtures/grading-scale.json', import.meta.url), 'utf8'));
 // Esame con soglia predefinita (60%) su `total` domande.
@@ -35,4 +35,9 @@ it('soglia dell’esame più alta del 60% non raggiunta: non superato anche se l
 it('soglia dell’esame sotto il 60% raggiunta: superato senza giudizio della scala', () => {
   // Caso non coperto dalla scala decisa: segnalato, non inventato.
   expect(esito(1, 5, 1)).toEqual({ superato: true, percentuale: 20, giudizio: 'superato' });
+});
+it('descrive il risultato come «percentuale · Giudizio»', () => {
+  expect(descriviValutazione(esito(5, 7))).toBe('71% · Buono');
+  expect(descriviValutazione(esito(4, 7))).toBe('57% · Non superato');
+  expect(descriviValutazione(esito(7, 7))).toBe('100% · Perfetto');
 });
