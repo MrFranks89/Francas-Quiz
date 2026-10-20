@@ -6,10 +6,64 @@
   "method": "Copia byte per byte dei file di lavoro di Civis al commit indicato (fine riga come su disco); nessuna modifica a sorgenti o test. I file di tipo \"sostituto\" sono nostri e prendono il posto di moduli che non si portano; quelli di tipo \"nostro\" sono test scritti qui.",
   "files": [
     {
+      "path": "__tests__/comune/Card.test.tsx",
+      "tipo": "copia",
+      "origine": "CivicaApp/__tests__/comune/Card.test.tsx",
+      "sha256": "44d723c72432b95fa38d8d280d072df7c1743377639d582556fba5f38e5b193c"
+    },
+    {
+      "path": "__tests__/comune/DifficultyBadge.test.tsx",
+      "tipo": "copia",
+      "origine": "CivicaApp/__tests__/comune/DifficultyBadge.test.tsx",
+      "sha256": "65961cdad33ca3a0ef06ff3752fdbc2da8593f6a838539964f9c50c1c7b08d24"
+    },
+    {
+      "path": "__tests__/comune/OptLetter.test.tsx",
+      "tipo": "copia",
+      "origine": "CivicaApp/__tests__/comune/OptLetter.test.tsx",
+      "sha256": "919cb24385b284ca335567717ee36bd25fe150f9f5b39e9309aba09dffd638aa"
+    },
+    {
+      "path": "__tests__/comune/ProgressBar.test.tsx",
+      "tipo": "copia",
+      "origine": "CivicaApp/__tests__/comune/ProgressBar.test.tsx",
+      "sha256": "54c0d83201c3ed0bf09a592c18c50625529a6aaeb950049a4f65150904f555aa"
+    },
+    {
       "path": "src/ThemeProvider.tsx",
       "tipo": "copia",
       "origine": "CivicaApp/src/ThemeProvider.tsx",
       "sha256": "4f6f2b0d2c000b734c9bde4684414c9df8e4f8c5bb94021c32b6b90f7ab754e4"
+    },
+    {
+      "path": "src/comune/Card.tsx",
+      "tipo": "copia",
+      "origine": "CivicaApp/src/comune/Card.tsx",
+      "sha256": "145fe11cc409b6e9ba7e9731f1b45f18a7dc5ffe7f188049d72c77ea6f3e909c"
+    },
+    {
+      "path": "src/comune/DifficultyBadge.tsx",
+      "tipo": "copia",
+      "origine": "CivicaApp/src/comune/DifficultyBadge.tsx",
+      "sha256": "d0facf024ec471900da7f71899f71d3d96aec471f2ce1413eafdac0e3923f56a"
+    },
+    {
+      "path": "src/comune/FeedbackMotion.tsx",
+      "tipo": "copia",
+      "origine": "CivicaApp/src/comune/FeedbackMotion.tsx",
+      "sha256": "cf57e5c4f861a81b02223612e91858941a84d2ff9c8f259692da8017f8ab492c"
+    },
+    {
+      "path": "src/comune/OptLetter.tsx",
+      "tipo": "copia",
+      "origine": "CivicaApp/src/comune/OptLetter.tsx",
+      "sha256": "be143ffd4e38b2d8aa200d88c179f9f42cb6f7aff0f7c916bbbdfa05ca103abf"
+    },
+    {
+      "path": "src/comune/ProgressBar.tsx",
+      "tipo": "copia",
+      "origine": "CivicaApp/src/comune/ProgressBar.tsx",
+      "sha256": "809a65f2f1ca08daf4d9cdf42d7b09b8220a19f4242f649d81114149a6c1abe7"
     },
     {
       "path": "src/comune/contrast.ts",
@@ -34,6 +88,11 @@
       "tipo": "copia",
       "origine": "CivicaApp/src/tema.ts",
       "sha256": "873164917e6f4ec76387f06749609c821323868099313d7f5fa72dc6fa212a33"
+    },
+    {
+      "path": "__tests__/nostri/FeedbackMotion.test.tsx",
+      "tipo": "nostro",
+      "motivo": "Civis non ha un test dedicato a src/comune/FeedbackMotion.tsx."
     },
     {
       "path": "__tests__/nostri/ThemeProvider.test.tsx",
