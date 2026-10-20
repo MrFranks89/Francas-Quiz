@@ -6,6 +6,12 @@
   "method": "Copia byte per byte dei file di lavoro di Civis al commit indicato (fine riga come su disco); nessuna modifica a sorgenti o test. I file di tipo \"sostituto\" sono nostri e prendono il posto di moduli che non si portano; quelli di tipo \"nostro\" sono test scritti qui.",
   "files": [
     {
+      "path": "__tests__/comune/Btn.test.tsx",
+      "tipo": "copia",
+      "origine": "CivicaApp/__tests__/comune/Btn.test.tsx",
+      "sha256": "6e16be41019148861017927edcf17782089fc3fc995e74b0671bb161e0785695"
+    },
+    {
       "path": "__tests__/comune/Card.test.tsx",
       "tipo": "copia",
       "origine": "CivicaApp/__tests__/comune/Card.test.tsx",
@@ -34,6 +40,12 @@
       "tipo": "copia",
       "origine": "CivicaApp/src/ThemeProvider.tsx",
       "sha256": "4f6f2b0d2c000b734c9bde4684414c9df8e4f8c5bb94021c32b6b90f7ab754e4"
+    },
+    {
+      "path": "src/comune/Btn.tsx",
+      "tipo": "copia",
+      "origine": "CivicaApp/src/comune/Btn.tsx",
+      "sha256": "b01b02a9dd2d7c9082d6235b45a6589e14df78e3232e247e9ce240e1f912d951"
     },
     {
       "path": "src/comune/Card.tsx",
@@ -90,6 +102,11 @@
       "sha256": "873164917e6f4ec76387f06749609c821323868099313d7f5fa72dc6fa212a33"
     },
     {
+      "path": "__tests__/nostri/AppIcon.sostituto.test.tsx",
+      "tipo": "nostro",
+      "motivo": "Verifica il sostituto di AppIcon."
+    },
+    {
       "path": "__tests__/nostri/FeedbackMotion.test.tsx",
       "tipo": "nostro",
       "motivo": "Civis non ha un test dedicato a src/comune/FeedbackMotion.tsx."
@@ -128,6 +145,12 @@
       "path": "__tests__/nostri/useReducedMotion.test.tsx",
       "tipo": "nostro",
       "motivo": "Civis non ha un test dedicato a src/comune/useReducedMotion.ts."
+    },
+    {
+      "path": "src/icons/AppIcon.tsx",
+      "tipo": "sostituto",
+      "sostituisce": "CivicaApp/src/icons/AppIcon.tsx",
+      "motivo": "L'originale disegna icone SVG/PNG ed emoji e dipende da react-native-svg, immagini e dati di Civis; per decisione dell'utente niente icone né emoji. Espone solo EmojiText (testo semplice, per Btn) ed EmojiIcon (non disegna nulla, per Emoji)."
     }
   ]
 }

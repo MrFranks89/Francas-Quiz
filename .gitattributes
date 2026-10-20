@@ -19,3 +19,5 @@ packages/civis-ui/__tests__/comune/Card.test.tsx -text
 packages/civis-ui/__tests__/comune/ProgressBar.test.tsx -text
 packages/civis-ui/__tests__/comune/DifficultyBadge.test.tsx -text
 packages/civis-ui/__tests__/comune/OptLetter.test.tsx -text
+packages/civis-ui/src/comune/Btn.tsx -text
+packages/civis-ui/__tests__/comune/Btn.test.tsx -text
