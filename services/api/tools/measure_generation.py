@@ -102,6 +102,8 @@ def comando_esegui(args, manifest, campagna, prezzi):
             return 2
         print(json.dumps({k: corsa.get(k) for k in ('id', 'selezione', 'esito', 'errore', 'addebitatoUSD', 'effettivoUSD', 'durataMs')},
                          ensure_ascii=False, default=str))
+        for avviso in corsa.get('risposte', {}).get('avvisi', []):
+            print(f"{selezione['id']}: {avviso}")
         if corsa['esito'] == 'arrestata':
             return 3
     return 0

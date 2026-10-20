@@ -20,6 +20,7 @@ from . import preventivo as pv
 from .guardia import FornitoreSorvegliato, GuardiaRifiuto, Registro, adesso, verifica_avvio
 from .integrita import verifica_file, verifica_membro_zip
 from .prezzi import PrezzoMancante, modelli, prezzo
+from .risposte import analizza_risposte
 
 SCHEDA_REVISIONE = {'minutiRevisione': None, 'erroriFattuali': None, 'erroriDidattici': None,
                     'domandeDaRiscrivere': None, 'approvato': None, 'note': ''}
@@ -147,6 +148,7 @@ def esegui_selezione(selezione: dict, estrazione: dict, sha: str, prezzi: dict, 
         corsa['esito'] = 'completata'
         scrivi_json(cartella / 'bozza.json', risultato)
         scrivi_json(cartella / 'revisione.json', dict(corsaId=corsa_id, selezione=selezione['id'], **SCHEDA_REVISIONE))
+        corsa['risposte'] = analizza_risposte(risultato['course'])
     except GenerationError as error:
         corsa['esito'] = 'arrestata' if error.code == 'budget_guard' else 'fallita'
         corsa['errore'] = dict(code=error.code, message=str(error))

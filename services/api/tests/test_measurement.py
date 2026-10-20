@@ -184,6 +184,7 @@ def test_corsa_reale_passa_da_generate(tmp_path, monkeypatch):
     assert bozza['usage']['callCount'] == corsa['blocchi'] and bozza['usage']['provider'] == 'anthropic'
     scheda = json.loads((tmp_path / 'corse' / corsa['id'] / 'revisione.json').read_text(encoding='utf-8'))
     assert scheda['approvato'] is None and 'minutiRevisione' in scheda
+    assert corsa['risposte']['domande'] == corsa['blocchi'] and 'avvisi' in corsa['risposte']
     assert Decimal(str(corsa['effettivoUSD'])) <= Decimal(str(corsa['addebitatoUSD'])) == corsa['limiteSuperioreUSD']
     assert registro.speso() == corsa['limiteSuperioreUSD']
 
