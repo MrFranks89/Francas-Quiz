@@ -1,5 +1,6 @@
 import { CourseSchema, type Course } from '@formazione/contracts';
 import { gradeQuestions, type Answer } from './adapter';
+import { valutaTentativo } from './grade';
 
 export type Attempt = { id: string; examId: string; answers: Answer[]; correct: number; total: number; passed: boolean };
 export type Progress = { courseId: string; courseVersion: number; completedLessonIds: string[]; attempts: Attempt[] };
@@ -45,6 +46,6 @@ export function submitExam(course: Course, progress: Progress, examId: string, a
   if (module.exam.maxAttempts !== null && attempts.length >= module.exam.maxAttempts) throw new Error('Attempt limit reached');
   if (module.exam.mode === 'gate' && attempts.some(a => a.passed)) throw new Error('Gate already passed');
   const attempt: Attempt = { id: attemptId, examId, answers: answers.map(a => ({ ...a })), correct: result.correct,
-    total: result.total, passed: result.correct >= module.exam.passingScore };
+    total: result.total, passed: valutaTentativo(result, module.exam).superato };
   return { ...progress, attempts: [...progress.attempts, attempt] };
 }

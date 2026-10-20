@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { CourseSchema } from '@formazione/contracts';
-import { adaptQuestions, gradeQuestions, createProgress, completeLesson, canAccessModule, submitExam } from '@formazione/learning-engine';
+import { adaptQuestions, gradeQuestions, createProgress, completeLesson, canAccessModule, submitExam, valutaTentativo } from '@formazione/learning-engine';
 const sample = () => CourseSchema.parse(JSON.parse(readFileSync(new URL('../../contracts/fixtures/sample-course.json', import.meta.url), 'utf8')));
 const correct = [{ questionId: 'question-1', optionId: 'option-1-a' }];
 const wrong = [{ questionId: 'question-1', optionId: 'option-1-b' }];
@@ -48,4 +48,16 @@ it('rejects unknown and duplicate answers, invalid options, stale versions and l
   expect(() => completeLesson(course, initial, 'lesson-2')).toThrow('locked');
   expect(() => completeLesson({ ...course, version: 2 }, ready, 'lesson-1')).toThrow('version');
   expect(gradeQuestions(course, ['question-1'], [])).toMatchObject({ correct: 0, unanswered: 1 });
+});
+it('lo sbarramento si sblocca con la stessa decisione mostrata dal giudizio', () => {
+  const course = sample(); const exam = course.modules[0].exam!;
+  const ready = completeLesson(course, createProgress(course), 'lesson-1');
+  const failed = submitExam(course, ready, 'exam-1', 'a', wrong);
+  expect(failed.attempts[0].passed).toBe(valutaTentativo(failed.attempts[0], exam).superato);
+  expect(valutaTentativo(failed.attempts[0], exam).giudizio).toBe('non superato');
+  expect(canAccessModule(course, failed, 'module-2')).toBe(false);
+  const passed = submitExam(course, failed, 'exam-1', 'b', correct);
+  expect(passed.attempts[1].passed).toBe(valutaTentativo(passed.attempts[1], exam).superato);
+  expect(valutaTentativo(passed.attempts[1], exam)).toEqual({ superato: true, percentuale: 100, giudizio: 'perfetto' });
+  expect(canAccessModule(course, passed, 'module-2')).toBe(true);
 });
