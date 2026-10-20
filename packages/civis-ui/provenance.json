@@ -24,6 +24,12 @@
       "sha256": "65961cdad33ca3a0ef06ff3752fdbc2da8593f6a838539964f9c50c1c7b08d24"
     },
     {
+      "path": "__tests__/comune/FormatPill.test.tsx",
+      "tipo": "copia",
+      "origine": "CivicaApp/__tests__/comune/FormatPill.test.tsx",
+      "sha256": "47efc31981f21b56fdad2f434592af0725911d883bde1c6d6c2e33298f71548b"
+    },
+    {
       "path": "__tests__/comune/OptLetter.test.tsx",
       "tipo": "copia",
       "origine": "CivicaApp/__tests__/comune/OptLetter.test.tsx",
@@ -72,6 +78,12 @@
       "sha256": "cf57e5c4f861a81b02223612e91858941a84d2ff9c8f259692da8017f8ab492c"
     },
     {
+      "path": "src/comune/FormatPill.tsx",
+      "tipo": "copia",
+      "origine": "CivicaApp/src/comune/FormatPill.tsx",
+      "sha256": "afa7273ce76594903229d12bf79296ced13aa755d5b503a33f571c0302d27b57"
+    },
+    {
       "path": "src/comune/OptLetter.tsx",
       "tipo": "copia",
       "origine": "CivicaApp/src/comune/OptLetter.tsx",
@@ -118,6 +130,11 @@
       "motivo": "Civis non ha un test dedicato a src/comune/FeedbackMotion.tsx."
     },
     {
+      "path": "__tests__/nostri/FormatPill.sostituto.test.tsx",
+      "tipo": "nostro",
+      "motivo": "Verifica che FormatPill con il sostituto di Emoji mostri solo il testo."
+    },
+    {
       "path": "__tests__/nostri/OptMark.sostituto.test.tsx",
       "tipo": "nostro",
       "motivo": "Verifica le parole del sostituto di OptMark, che il test originale non controlla."
@@ -156,6 +173,12 @@
       "path": "__tests__/nostri/useReducedMotion.test.tsx",
       "tipo": "nostro",
       "motivo": "Civis non ha un test dedicato a src/comune/useReducedMotion.ts."
+    },
+    {
+      "path": "src/comune/Emoji.tsx",
+      "tipo": "sostituto",
+      "sostituisce": "CivicaApp/src/comune/Emoji.tsx",
+      "motivo": "L'originale disegna emoji o icone civiche; per decisione dell'utente niente icone né emoji. FormatPill lo importa: il sostituto ha la stessa firma e non disegna nulla."
     },
     {
       "path": "src/comune/OptMark.tsx",
