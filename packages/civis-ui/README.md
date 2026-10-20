@@ -27,17 +27,33 @@ questo pacchetto con il suo `tsconfig.json`.
 
 - Copie: `src/tema.ts`, `src/ThemeProvider.tsx`, `src/comune/` `contrast.ts`,
   `stili.ts`, `useReducedMotion.ts`, `Btn`, `Card`, `ProgressBar`,
-  `OptLetter`, `FeedbackMotion`, `DifficultyBadge`, `FormatPill`; test
-  originali di `Btn`, `Card`, `ProgressBar`, `OptLetter`, `OptMark`,
-  `DifficultyBadge`, `FormatPill`.
-- Sostituti: `src/icons/AppIcon.tsx` (`EmojiText` testo semplice, `EmojiIcon`
-  vuoto), `src/comune/Emoji.tsx` (vuoto), `src/comune/OptMark.tsx` (parole
-  «Giusta»/«Sbagliata» al posto dei segni).
+  `OptLetter`, `FeedbackMotion`, `DifficultyBadge`, `FormatPill`;
+  `src/lezione/` `SlideStep`, `SpeakerButton`, `util.ts`, e ciò che importano:
+  `src/ripasso.ts` (da `util.ts`) e `src/glossarioTesto.ts` (da `SlideStep`).
+  Test originali di `Btn`, `Card`, `ProgressBar`, `OptLetter`, `OptMark`,
+  `DifficultyBadge`, `FormatPill`, `lezione/SlideStep`,
+  `lezione/SpeakerButton`, `ripasso`, `glossarioTesto`.
+- Sostituti: `src/icons/AppIcon.tsx` (`EmojiText` testo semplice con il solo
+  grassetto `**parola**` di Civis, `EmojiIcon` vuoto, tipo
+  `ContestoGlossarioTesto`), `src/comune/Emoji.tsx` (vuoto),
+  `src/comune/OptMark.tsx` (parole «Giusta»/«Sbagliata» al posto dei segni),
+  `src/speech.ts` (`useSpeech` senza effetti: niente react-native-tts),
+  `src/glossario.ts` (`GLOSSARIO` vuoto: i dati del glossario civico non si
+  portano).
 - Non portati: `__tests__/ThemeProvider.test.tsx` (importa logo e schermate
-  di accesso; i casi portabili sono in `__tests__/nostri/`) e
-  `__tests__/comune/BtnContrast.test.tsx` (importa i pacchetti di figurine).
+  di accesso; i casi portabili sono in `__tests__/nostri/`),
+  `__tests__/comune/BtnContrast.test.tsx` (importa i pacchetti di figurine;
+  al suo posto `__tests__/nostri/BtnContrast.palette.test.tsx`, contrasto del
+  `Btn` sulle palette chiara e scura), `__tests__/lezione/SlideStepGlossario.test.tsx`
+  (verifica parole del glossario civico), `__tests__/ripassoLivelli.test.ts`
+  (dipende da `src/auth/progressSync`), `__tests__/glossario.test.ts` (dati).
 
 La chiave di salvataggio del tema resta quella di Civis, `civis.ui.theme`.
 
-Il pacchetto non è ancora usato dall'app: il lettore lo adotterà nel passo
-successivo.
+Il lettore (`apps/learner`) usa il pacchetto: `ThemeProvider`, `Btn`, `Card`,
+`ProgressBar`, `stili`, `OptLetter`, `OptMark`, `SlideStep` e `optState`. A
+`SlideStep` passa sempre `onTesti`, così il pulsante altoparlante (voce
+sostituita) non viene disegnato: lo verifica
+`__tests__/nostri/SlideStep.lettore.test.tsx`. Il tema parte da 'system' perché
+l'app salva quella preferenza prima di montare il provider
+(`apps/learner/src/state/tema.ts`), senza modificare la copia.

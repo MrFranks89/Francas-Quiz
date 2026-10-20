@@ -35,4 +35,32 @@ Jest usa `@react-native/jest-preset`, lo stesso preset di Civis, allineato a
 React Native 0.86.3. `npm test` esegue Vitest e poi Jest; `npm run typecheck`
 controlla anche il pacchetto con il suo `tsconfig.json`.
 
-Il lettore non usa ancora il pacchetto: lo adotterà nel passo successivo.
+## Il lettore (aggiornamento del 20 ottobre 2026)
+
+Il lettore adotta il pacchetto. Nuove copie da Civis: `SlideStep`,
+`SpeakerButton` e `util.ts` di `src/lezione/`, con `ripasso.ts` e
+`glossarioTesto.ts` che importano, e i loro test originali. Nuovi sostituti:
+`speech.ts` (voce senza effetti) e `glossario.ts` (glossario vuoto); il
+sostituto di `EmojiText` riprende il grassetto `**parola**` di Civis, che le
+slide usano e il test originale di `SlideStep` verifica. Elenco completo in
+`packages/civis-ui/README.md` e `provenance.json`.
+
+Scelte del lettore:
+
+- **Slide**: una alla volta con `SlideStep`; un adattatore puro
+  (`apps/learner/src/state/slide.ts`) porta le slide del contratto nei campi di
+  Civis. Se l'evidenza è vuota il corpo va nel riquadro, che `SlideStep`
+  disegna sempre.
+- **Fonte leggera**: una riga discreta sotto la slide («Fonte: pagina 172»)
+  che al tocco si apre in linea con etichetta ed estratto di ogni fonte, e si
+  richiude (`components/SourceNote.tsx`).
+- **Test e riepilogo**: componenti nostri con `OptLetter`, il sostituto di
+  `OptMark` e `optState` di `util.ts`. `QuizSingleStep` non si usa: mescola
+  con `Math.random` e romperebbe l'ordine con seme. Il riepilogo dell'ultimo
+  tentativo mostra le opzioni nell'ordine visto (indice di quel tentativo),
+  la giusta in verde, la sbagliata scelta in rosso.
+- **Tema**: il `ThemeProvider` copiato parte da 'dark'; l'app salva 'system'
+  come preferenza iniziale prima di montarlo, se l'utente non ne ha scelta
+  una (`state/tema.ts`). Interruttore Sistema/Chiaro/Scuro in testata.
+  Importazione ed editor usano ancora `components/ui.tsx` con colori fissi:
+  restano su un fondo chiaro anche nel tema scuro.
