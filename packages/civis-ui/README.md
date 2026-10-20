@@ -23,5 +23,21 @@ del progetto usa Vitest. Dalla radice: `npm test` esegue Vitest e poi
 `npm run test:ui` (questo pacchetto); `npm run typecheck` controlla anche
 questo pacchetto con il suo `tsconfig.json`.
 
+## Contenuto
+
+- Copie: `src/tema.ts`, `src/ThemeProvider.tsx`, `src/comune/` `contrast.ts`,
+  `stili.ts`, `useReducedMotion.ts`, `Btn`, `Card`, `ProgressBar`,
+  `OptLetter`, `FeedbackMotion`, `DifficultyBadge`, `FormatPill`; test
+  originali di `Btn`, `Card`, `ProgressBar`, `OptLetter`, `OptMark`,
+  `DifficultyBadge`, `FormatPill`.
+- Sostituti: `src/icons/AppIcon.tsx` (`EmojiText` testo semplice, `EmojiIcon`
+  vuoto), `src/comune/Emoji.tsx` (vuoto), `src/comune/OptMark.tsx` (parole
+  «Giusta»/«Sbagliata» al posto dei segni).
+- Non portati: `__tests__/ThemeProvider.test.tsx` (importa logo e schermate
+  di accesso; i casi portabili sono in `__tests__/nostri/`) e
+  `__tests__/comune/BtnContrast.test.tsx` (importa i pacchetti di figurine).
+
+La chiave di salvataggio del tema resta quella di Civis, `civis.ui.theme`.
+
 Il pacchetto non è ancora usato dall'app: il lettore lo adotterà nel passo
 successivo.
