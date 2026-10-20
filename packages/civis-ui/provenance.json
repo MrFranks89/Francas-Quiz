@@ -48,6 +48,30 @@
       "sha256": "54c0d83201c3ed0bf09a592c18c50625529a6aaeb950049a4f65150904f555aa"
     },
     {
+      "path": "__tests__/glossarioTesto.test.ts",
+      "tipo": "copia",
+      "origine": "CivicaApp/__tests__/glossarioTesto.test.ts",
+      "sha256": "29061182f6372ab8b1d7b8c13dc471a4e8019cd0678c8b12b7c0fdb494e78a11"
+    },
+    {
+      "path": "__tests__/lezione/SlideStep.test.tsx",
+      "tipo": "copia",
+      "origine": "CivicaApp/__tests__/lezione/SlideStep.test.tsx",
+      "sha256": "894427ffd5aa946af194769ed0f41313726da85ee729a79531d15ebdb40987e1"
+    },
+    {
+      "path": "__tests__/lezione/SpeakerButton.test.tsx",
+      "tipo": "copia",
+      "origine": "CivicaApp/__tests__/lezione/SpeakerButton.test.tsx",
+      "sha256": "f7dffe13e90c063b4a34e5d7e1324ff1a6bb6620767a3af882164cd0d59d67b8"
+    },
+    {
+      "path": "__tests__/ripasso.test.ts",
+      "tipo": "copia",
+      "origine": "CivicaApp/__tests__/ripasso.test.ts",
+      "sha256": "977abfac520ee1b9747d3ce952d5b7b613ab53fddfc8a72b2641d056e385ef07"
+    },
+    {
       "path": "src/ThemeProvider.tsx",
       "tipo": "copia",
       "origine": "CivicaApp/src/ThemeProvider.tsx",
@@ -114,6 +138,36 @@
       "sha256": "146629c96982d4dc6cda054a8e86fbf1065cfd52430ccf915a8af615570e2c47"
     },
     {
+      "path": "src/glossarioTesto.ts",
+      "tipo": "copia",
+      "origine": "CivicaApp/src/glossarioTesto.ts",
+      "sha256": "a2ef02211940f6af6dd461d6a02cf3dbfffc24bade478dd5c94db36f976dd31a"
+    },
+    {
+      "path": "src/lezione/SlideStep.tsx",
+      "tipo": "copia",
+      "origine": "CivicaApp/src/lezione/SlideStep.tsx",
+      "sha256": "584a88a980f224ee1b97dc01adf0a8135534d7f75ce38bc27508fa4cd0c6879b"
+    },
+    {
+      "path": "src/lezione/SpeakerButton.tsx",
+      "tipo": "copia",
+      "origine": "CivicaApp/src/lezione/SpeakerButton.tsx",
+      "sha256": "be9362ff82a04fb2f221499582f5039936421507b7f04277505613f3a2a7d795"
+    },
+    {
+      "path": "src/lezione/util.ts",
+      "tipo": "copia",
+      "origine": "CivicaApp/src/lezione/util.ts",
+      "sha256": "b0e1d746cc4e0864de05708e4fce088ec3a6bc7d0d008fa64cdbedda40f8c394"
+    },
+    {
+      "path": "src/ripasso.ts",
+      "tipo": "copia",
+      "origine": "CivicaApp/src/ripasso.ts",
+      "sha256": "561e090b97146600c351f3de165d0ec00fca3106413e567cffa86e6b05bc8a7e"
+    },
+    {
       "path": "src/tema.ts",
       "tipo": "copia",
       "origine": "CivicaApp/src/tema.ts",
@@ -140,6 +194,11 @@
       "motivo": "Verifica le parole del sostituto di OptMark, che il test originale non controlla."
     },
     {
+      "path": "__tests__/nostri/SlideStep.lettore.test.tsx",
+      "tipo": "nostro",
+      "motivo": "Verifica SlideStep come lo usa il lettore (con onTesti, senza lezioneId): nessun pulsante altoparlante, che con il sostituto di speech sarebbe un comando morto, e nessuna parola toccabile."
+    },
+    {
       "path": "__tests__/nostri/ThemeProvider.test.tsx",
       "tipo": "nostro",
       "motivo": "Il test originale importa authPalette e StarLogo da src/auth/ui (logo e schermate di accesso, non portati): qui ci sono alla lettera i suoi casi che non li usano."
@@ -160,6 +219,11 @@
       "motivo": "Dimostra che Jest disegna un componente React Native nel pacchetto."
     },
     {
+      "path": "__tests__/nostri/speech.sostituto.test.ts",
+      "tipo": "nostro",
+      "motivo": "Verifica il sostituto di speech: nessun effetto."
+    },
+    {
       "path": "__tests__/nostri/stili.test.tsx",
       "tipo": "nostro",
       "motivo": "Civis non ha un test dedicato a src/comune/stili.ts."
@@ -175,6 +239,11 @@
       "motivo": "Civis non ha un test dedicato a src/comune/useReducedMotion.ts."
     },
     {
+      "path": "__tests__/nostri/util.test.ts",
+      "tipo": "nostro",
+      "motivo": "Civis non ha un test dedicato a src/lezione/util.ts: fissa optState, usato dal riepilogo del test."
+    },
+    {
       "path": "src/comune/Emoji.tsx",
       "tipo": "sostituto",
       "sostituisce": "CivicaApp/src/comune/Emoji.tsx",
@@ -187,10 +256,22 @@
       "motivo": "L'originale mostra i segni di spunta e croce, che contano come icone; per decisione dell'utente niente icone: il sostituto mostra le parole «Giusta» e «Sbagliata» con gli stessi colori. Il test originale __tests__/comune/OptMark.test.tsx è copiato identico e gira sul sostituto."
     },
     {
+      "path": "src/glossario.ts",
+      "tipo": "sostituto",
+      "sostituisce": "CivicaApp/src/glossario.ts",
+      "motivo": "L'originale porta il glossario civico di Civis (glossarioDati.js, sigle.ts), dati che qui non si portano. SlideStep lo importa: il sostituto espone GLOSSARIO vuoto con gli stessi tipi. Il test originale __tests__/lezione/SlideStepGlossario.test.tsx non è portato perché verifica parole di quel glossario."
+    },
+    {
       "path": "src/icons/AppIcon.tsx",
       "tipo": "sostituto",
       "sostituisce": "CivicaApp/src/icons/AppIcon.tsx",
-      "motivo": "L'originale disegna icone SVG/PNG ed emoji e dipende da react-native-svg, immagini e dati di Civis; per decisione dell'utente niente icone né emoji. Espone solo EmojiText (testo semplice, per Btn) ed EmojiIcon (non disegna nulla, per Emoji)."
+      "motivo": "L'originale disegna icone SVG/PNG ed emoji e dipende da react-native-svg, immagini e dati di Civis; per decisione dell'utente niente icone né emoji. Espone solo EmojiText (testo semplice con il solo grassetto **parola** di Civis, per Btn e SlideStep), EmojiIcon (non disegna nulla, per Emoji e SlideStep) e il tipo ContestoGlossarioTesto (per SlideStep)."
+    },
+    {
+      "path": "src/speech.ts",
+      "tipo": "sostituto",
+      "sostituisce": "CivicaApp/src/speech.ts",
+      "motivo": "L'originale usa react-native-tts, dipendenza nativa assente qui. SpeakerButton lo importa: il sostituto espone useSpeech senza effetti. Il lettore passa sempre onTesti a SlideStep, quindi il pulsante non è disegnato."
     }
   ]
 }

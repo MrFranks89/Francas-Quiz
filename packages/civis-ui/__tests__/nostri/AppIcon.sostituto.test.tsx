@@ -15,6 +15,14 @@ test('EmojiText è un testo semplice con lo stile ricevuto', () => {
   expect(testo.props.style).toEqual({ color: '#ffffff' });
 });
 
+test('EmojiText rende **parola** in grassetto come in Civis e toglie gli asterischi', () => {
+  let view!: Renderer.ReactTestRenderer;
+  act(() => { view = Renderer.create(<EmojiText style={{ color: '#ffffff' }}>{'Una **parola** sola'}</EmojiText>); });
+  const grassetto = view.root.findAllByType(Text).find(t => t.props.children === 'parola');
+  expect(grassetto?.props.style).toEqual([{ color: '#ffffff' }, { fontWeight: '700' }]);
+  expect(JSON.stringify(view.toJSON())).not.toContain('**');
+});
+
 test('EmojiIcon non disegna nulla', () => {
   let view!: Renderer.ReactTestRenderer;
   act(() => { view = Renderer.create(<EmojiIcon emoji="stella" size={18} />); });

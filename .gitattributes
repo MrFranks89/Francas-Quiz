@@ -24,3 +24,12 @@ packages/civis-ui/__tests__/comune/Btn.test.tsx -text
 packages/civis-ui/__tests__/comune/OptMark.test.tsx -text
 packages/civis-ui/src/comune/FormatPill.tsx -text
 packages/civis-ui/__tests__/comune/FormatPill.test.tsx -text
+packages/civis-ui/src/lezione/SlideStep.tsx -text
+packages/civis-ui/src/lezione/SpeakerButton.tsx -text
+packages/civis-ui/src/lezione/util.ts -text
+packages/civis-ui/src/ripasso.ts -text
+packages/civis-ui/src/glossarioTesto.ts -text
+packages/civis-ui/__tests__/ripasso.test.ts -text
+packages/civis-ui/__tests__/glossarioTesto.test.ts -text
+packages/civis-ui/__tests__/lezione/SlideStep.test.tsx -text
+packages/civis-ui/__tests__/lezione/SpeakerButton.test.tsx -text
