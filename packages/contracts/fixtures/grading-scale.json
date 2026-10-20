@@ -1,0 +1,11 @@
+{
+  "nota": "Unica fonte della scala dei giudizi. Letta da packages/learning-engine/src/grade.ts e confrontata dal test Python services/api/tests/test_grading_scale.py con la soglia predefinita della pipeline. Soglie incluse, in percentuale di risposte corrette.",
+  "sogliaSuperamentoPercento": 60,
+  "giudizi": [
+    { "daPercento": 60, "giudizio": "discreto" },
+    { "daPercento": 70, "giudizio": "buono" },
+    { "daPercento": 80, "giudizio": "distinto" },
+    { "daPercento": 90, "giudizio": "ottimo" },
+    { "daPercento": 100, "giudizio": "perfetto" }
+  ]
+}
