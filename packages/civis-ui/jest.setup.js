@@ -34,3 +34,12 @@ jest.mock('@react-native-async-storage/async-storage', () => {
     },
   };
 });
+
+// La preferenza di movimento è letta dal sistema in modo asincrono. Nei test
+// di componenti non è il soggetto della verifica e la Promise si risolve dopo
+// il renderer, generando aggiornamenti fuori da act(). Il mock rappresenta la
+// modalità accessibile e statica; i test che devono coprire le animazioni
+// possono sovrascrivere questo mock con un valore esplicito.
+jest.mock('./src/comune/useReducedMotion', () => ({
+  useReducedMotion: jest.fn(() => true),
+}));

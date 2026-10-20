@@ -6,16 +6,39 @@
   "method": "Copia byte per byte dei file di lavoro di Civis al commit indicato (fine riga come su disco); nessuna modifica a sorgenti o test. I file di tipo \"sostituto\" sono nostri e prendono il posto di moduli che non si portano; quelli di tipo \"nostro\" sono test scritti qui.",
   "files": [
     {
+      "path": "src/ThemeProvider.tsx",
+      "tipo": "copia",
+      "origine": "CivicaApp/src/ThemeProvider.tsx",
+      "sha256": "4f6f2b0d2c000b734c9bde4684414c9df8e4f8c5bb94021c32b6b90f7ab754e4"
+    },
+    {
       "path": "src/comune/contrast.ts",
       "tipo": "copia",
       "origine": "CivicaApp/src/comune/contrast.ts",
       "sha256": "00ecd92f3e9a190c5bc03d50738f2dc212fbf32433c27aaaca855847fdb05a30"
     },
     {
+      "path": "src/comune/stili.ts",
+      "tipo": "copia",
+      "origine": "CivicaApp/src/comune/stili.ts",
+      "sha256": "f57a4125fa04866db579767193b42d065e3a9b67e3c3a2feccd814646ca50c3e"
+    },
+    {
+      "path": "src/comune/useReducedMotion.ts",
+      "tipo": "copia",
+      "origine": "CivicaApp/src/comune/useReducedMotion.ts",
+      "sha256": "146629c96982d4dc6cda054a8e86fbf1065cfd52430ccf915a8af615570e2c47"
+    },
+    {
       "path": "src/tema.ts",
       "tipo": "copia",
       "origine": "CivicaApp/src/tema.ts",
       "sha256": "873164917e6f4ec76387f06749609c821323868099313d7f5fa72dc6fa212a33"
+    },
+    {
+      "path": "__tests__/nostri/ThemeProvider.test.tsx",
+      "tipo": "nostro",
+      "motivo": "Il test originale importa authPalette e StarLogo da src/auth/ui (logo e schermate di accesso, non portati): qui ci sono alla lettera i suoi casi che non li usano."
     },
     {
       "path": "__tests__/nostri/contrast.test.ts",
@@ -33,9 +56,19 @@
       "motivo": "Dimostra che Jest disegna un componente React Native nel pacchetto."
     },
     {
+      "path": "__tests__/nostri/stili.test.tsx",
+      "tipo": "nostro",
+      "motivo": "Civis non ha un test dedicato a src/comune/stili.ts."
+    },
+    {
       "path": "__tests__/nostri/tema.test.ts",
       "tipo": "nostro",
       "motivo": "Civis non ha un test dedicato a src/tema.ts: fissa i valori della copia."
+    },
+    {
+      "path": "__tests__/nostri/useReducedMotion.test.tsx",
+      "tipo": "nostro",
+      "motivo": "Civis non ha un test dedicato a src/comune/useReducedMotion.ts."
     }
   ]
 }

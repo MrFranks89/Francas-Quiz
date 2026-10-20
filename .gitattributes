@@ -7,3 +7,6 @@ packages/civis-engine/__tests__/esame/esame.test.ts -text
 packages/civis-engine/__tests__/esame/quote.test.ts -text
 packages/civis-ui/src/tema.ts -text
 packages/civis-ui/src/comune/contrast.ts -text
+packages/civis-ui/src/ThemeProvider.tsx -text
+packages/civis-ui/src/comune/stili.ts -text
+packages/civis-ui/src/comune/useReducedMotion.ts -text
