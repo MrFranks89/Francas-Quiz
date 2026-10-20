@@ -5,3 +5,5 @@ packages/civis-engine/__tests__/ripasso.test.ts -text
 packages/civis-engine/__tests__/statoLezione.test.ts -text
 packages/civis-engine/__tests__/esame/esame.test.ts -text
 packages/civis-engine/__tests__/esame/quote.test.ts -text
+packages/civis-ui/src/tema.ts -text
+packages/civis-ui/src/comune/contrast.ts -text

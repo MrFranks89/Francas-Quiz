@@ -6,6 +6,23 @@
   "method": "Copia byte per byte dei file di lavoro di Civis al commit indicato (fine riga come su disco); nessuna modifica a sorgenti o test. I file di tipo \"sostituto\" sono nostri e prendono il posto di moduli che non si portano; quelli di tipo \"nostro\" sono test scritti qui.",
   "files": [
     {
+      "path": "src/comune/contrast.ts",
+      "tipo": "copia",
+      "origine": "CivicaApp/src/comune/contrast.ts",
+      "sha256": "00ecd92f3e9a190c5bc03d50738f2dc212fbf32433c27aaaca855847fdb05a30"
+    },
+    {
+      "path": "src/tema.ts",
+      "tipo": "copia",
+      "origine": "CivicaApp/src/tema.ts",
+      "sha256": "873164917e6f4ec76387f06749609c821323868099313d7f5fa72dc6fa212a33"
+    },
+    {
+      "path": "__tests__/nostri/contrast.test.ts",
+      "tipo": "nostro",
+      "motivo": "In Civis contrast.ts è verificato solo dentro test di componenti che non si portano (BtnContrast, ThemeProvider)."
+    },
+    {
       "path": "__tests__/nostri/integrity.test.ts",
       "tipo": "nostro",
       "motivo": "Verifica gli hash delle copie e che ogni file sia dichiarato."
@@ -14,6 +31,11 @@
       "path": "__tests__/nostri/jest.test.tsx",
       "tipo": "nostro",
       "motivo": "Dimostra che Jest disegna un componente React Native nel pacchetto."
+    },
+    {
+      "path": "__tests__/nostri/tema.test.ts",
+      "tipo": "nostro",
+      "motivo": "Civis non ha un test dedicato a src/tema.ts: fissa i valori della copia."
     }
   ]
 }
