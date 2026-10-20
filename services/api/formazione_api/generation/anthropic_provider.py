@@ -29,6 +29,19 @@ def _schema():
     return transform_schema(ModuleDraft)
 
 
+def richiesta(model: str, chunk: Chunk) -> dict:
+    """Argomenti di messages.create per un blocco: unica fonte, letta anche dalla misura del
+    sovraccarico (tools/misura_sovraccarico_anthropic.py), che deve contare questa stessa richiesta."""
+    # Forma {'type': 'json_schema', 'schema': ...} da anthropic/types/json_output_format_param.py.
+    # `thinking` non è impostato: si lascia il comportamento predefinito del modello configurato.
+    return dict(
+        model=model, max_tokens=MAX_OUTPUT_TOKENS,
+        system=ISTRUZIONI_DIDATTICHE,
+        messages=[{'role': 'user', 'content': materiale(chunk)}],
+        output_config={'format': {'type': 'json_schema', 'schema': _schema()}},
+    )
+
+
 class AnthropicProvider:
     provider_name = 'anthropic'
 
@@ -52,15 +65,8 @@ class AnthropicProvider:
         # dentro la chiamata (post_parser in anthropic/resources/messages/messages.py 1.15.0), quindi
         # una risposta troncata o rifiutata diventerebbe un errore generico prima di poter leggere
         # stop_reason, e i codici provider_refusal / provider_incomplete andrebbero persi.
-        # Forma {'type': 'json_schema', 'schema': ...} da anthropic/types/json_output_format_param.py.
-        # `thinking` non è impostato: si lascia il comportamento predefinito del modello configurato.
         try:
-            response = self.client.messages.create(
-                model=self.model, max_tokens=MAX_OUTPUT_TOKENS,
-                system=ISTRUZIONI_DIDATTICHE,
-                messages=[{'role': 'user', 'content': materiale(chunk)}],
-                output_config={'format': {'type': 'json_schema', 'schema': _schema()}},
-            )
+            response = self.client.messages.create(**richiesta(self.model, chunk))
         except Exception as error:
             raise GenerationError('provider_error', 'Il fornitore AI non ha completato la richiesta') from error
         # Nomi letti da anthropic/types/usage.py 1.15.0. `input_tokens` è solo la parte non in cache:

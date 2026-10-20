@@ -162,3 +162,37 @@ def test_real_client_limits_without_network(monkeypatch):
     status = config_status()
     assert status['configured'] is True
     assert 'test-key-not-real' not in json.dumps(status)
+
+
+def _chunk_di_prova():
+    from formazione_api.generation.chunks import Chunk, SourcePiece
+    return Chunk('chunk-1', (SourcePiece('page-1', 0, 12, 'Testo è qui.'), SourcePiece('page-2', 3, 9, 'altro\n')))
+
+
+def _richiesta_catturata(chunk):
+    """La richiesta che AnthropicProvider.module() passa a messages.create, catturata su un client finto."""
+    seen = {}
+
+    class Messages:
+        def create(self, **kwargs):
+            seen.update(kwargs)
+            raise RuntimeError('stop')
+    with pytest.raises(GenerationError):
+        AnthropicProvider(client=SimpleNamespace(messages=Messages()), model=MODEL).module(chunk)
+    return seen
+
+
+def test_request_sent_by_provider_is_pinned():
+    from formazione_api.generation.anthropic_provider import _schema
+    from formazione_api.generation.instructions import materiale
+    chunk = _chunk_di_prova()
+    assert _richiesta_catturata(chunk) == dict(
+        model=MODEL, max_tokens=6000, system=ISTRUZIONI_DIDATTICHE,
+        messages=[{'role': 'user', 'content': materiale(chunk)}],
+        output_config={'format': {'type': 'json_schema', 'schema': _schema()}})
+
+
+def test_request_function_is_what_provider_sends():
+    from formazione_api.generation.anthropic_provider import richiesta
+    chunk = _chunk_di_prova()
+    assert _richiesta_catturata(chunk) == richiesta(MODEL, chunk)
