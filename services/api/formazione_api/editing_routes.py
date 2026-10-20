@@ -15,7 +15,9 @@ _edit_lock = RLock()
 class EditRequest(BaseModel):
     model_config = ConfigDict(extra='forbid')
     expectedRevision: StrictInt = Field(ge=1)
-    course: Course
+    # Validato nella route, non qui, per rispondere 422 con un messaggio leggibile
+    # invece dell'elenco di errori di FastAPI, che l'editor non sa mostrare.
+    course: dict
 
 
 class PublishRequest(BaseModel):
@@ -31,6 +33,12 @@ def _published(store, identifier):
         return None
 
 
+def _errori(error: ValidationError) -> str:
+    """Messaggi di validazione del corso in una riga, senza il prefisso tecnico di Pydantic."""
+    messages = [item['msg'].removeprefix('Value error, ') for item in error.errors()]
+    return '; '.join(dict.fromkeys(messages))
+
+
 def _revision(draft, expected):
     if draft.get('revision', 1) != expected:
         raise HTTPException(409, 'La bozza è stata modificata: ricaricarla prima di continuare.')
@@ -39,13 +47,17 @@ def _revision(draft, expected):
 @router.put('/drafts/{identifier}')
 def edit_draft(identifier: str, body: EditRequest, request: Request):
     store = request.app.state.store
+    try:
+        course = Course.model_validate(body.course)
+    except ValidationError as error:
+        raise HTTPException(422, f'Bozza non valida: {_errori(error)}') from error
     with _edit_lock:
         draft = read_record(store, identifier, 'draft.json')
         if _published(store, identifier) is not None:
             raise HTTPException(409, 'Corso già pubblicato: la bozza non è più modificabile.')
         _revision(draft, body.expectedRevision)
         original = draft['course']
-        edited = body.course.model_dump()
+        edited = course.model_dump()
         if any(edited[field] != original[field] for field in ('id', 'version', 'sources')):
             raise HTTPException(422, 'Identità, versione e fonti originali del corso non sono modificabili.')
         updated = {**draft, 'course': edited, 'revision': draft.get('revision', 1) + 1}
@@ -69,7 +81,7 @@ def publish_draft(identifier: str, body: PublishRequest, request: Request):
         try:
             course = Course.model_validate(draft['course']).model_dump()
         except ValidationError as error:
-            raise HTTPException(422, 'Bozza non valida: correggere i contenuti prima di pubblicare.') from error
+            raise HTTPException(422, f'Bozza non valida: correggere i contenuti prima di pubblicare. {_errori(error)}') from error
         snapshot = {**draft, 'id': identifier, 'status': 'published',
                     'revision': draft.get('revision', 1), 'course': course}
         store.save(identifier, 'course.json', snapshot)

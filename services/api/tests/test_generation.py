@@ -241,9 +241,11 @@ def test_shared_negative_contract_cases():
     cases = json.loads((folder / 'invalid-course-cases.json').read_text(encoding='utf-8'))
     for case in cases:
         invalid = deepcopy(course)
-        target = invalid
-        for key in case['path'][:-1]:
-            target = target[key]
-        target[case['path'][-1]] = case['value']
+        # Un caso è una modifica singola ({path, value}) o più modifiche insieme ({changes: [...]}).
+        for change in case.get('changes', [case]):
+            target = invalid
+            for key in change['path'][:-1]:
+                target = target[key]
+            target[change['path'][-1]] = change['value']
         with pytest.raises(ValidationError):
             Course.model_validate(invalid)

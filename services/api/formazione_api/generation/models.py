@@ -84,12 +84,36 @@ class Lesson(Model):
     questionIds: list[str]
 
 
+def soglia_minima(n: int) -> int:
+    """Risposte corrette minime ammesse su n domande: la soglia predefinita della pipeline, ⌈60%·n⌉."""
+    # Import ritardato: pipeline importa questo modulo. Il percento è SOGLIA_SUPERAMENTO_PERCENTO,
+    # confrontato con packages/contracts/fixtures/grading-scale.json da tests/test_grading_scale.py.
+    from .pipeline import soglia_predefinita
+    return soglia_predefinita(n)
+
+
+def errore_soglia_minima(passing_score: int, n: int) -> str | None:
+    """Messaggio per una soglia sotto il minimo, oppure None. Stesso testo del contratto TypeScript."""
+    from .pipeline import SOGLIA_SUPERAMENTO_PERCENTO
+    minimo = soglia_minima(n)
+    if passing_score >= minimo:
+        return None
+    return f"La soglia minima è {minimo} {'risposta' if minimo == 1 else 'risposte'} su {n} ({SOGLIA_SUPERAMENTO_PERCENTO}%)"
+
+
 class Exam(Model):
     id: str
     questionIds: list[str] = Field(min_length=1)
     mode: Literal['practice', 'gate']
     passingScore: StrictInt = Field(ge=1)
     maxAttempts: StrictInt | None
+
+    @model_validator(mode='after')
+    def soglia_non_sotto_il_minimo(self):
+        errore = errore_soglia_minima(self.passingScore, len(self.questionIds))
+        if errore:
+            raise ValueError(errore)
+        return self
 
 
 class Module(Model):

@@ -1,4 +1,5 @@
 import { CourseStructureSchema } from './structure';
+import { erroreSogliaMinima } from './soglia';
 
 export const CourseSchema = CourseStructureSchema.superRefine((course, ctx) => {
   const error = (message: string) => ctx.addIssue({ code: 'custom', message });
@@ -38,6 +39,8 @@ export const CourseSchema = CourseStructureSchema.superRefine((course, ctx) => {
     if (module.exam) {
       unique(module.exam.questionIds, `exam question reference ${module.exam.id}`);
       if (module.exam.passingScore > module.exam.questionIds.length) error(`Passing score exceeds exam size ${module.exam.id}`);
+      const sottoMinimo = erroreSogliaMinima(module.exam.passingScore, module.exam.questionIds.length);
+      if (sottoMinimo) error(sottoMinimo);
       for (const id of module.exam.questionIds) {
         if (questions.get(id)?.moduleId !== module.id) error(`Invalid exam question ${id}`);
       }
