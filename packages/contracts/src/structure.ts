@@ -1,11 +1,18 @@
 import { z } from 'zod';
+import { DIFFICOLTA, TIPI_DOMANDA } from './tipi';
 
 const id = z.string().trim().min(1);
 const text = z.string().trim().min(1);
 const refs = z.array(id).min(1);
+// `kind` è facoltativo con predefinito 'single': i corsi scritti prima dei tipi restano validi.
+// I campi di presentazione (situation, sentence, wrong) valgono ciascuno per un solo tipo:
+// le regole per tipo sono in tipi.ts e le applica CourseSchema (course.ts).
 export const QuestionSchema = z.object({
-  id, moduleId: id, lessonId: id, prompt: text,
-  options: z.array(z.object({ id, text })).min(2),
+  id, moduleId: id, lessonId: id, kind: z.enum(TIPI_DOMANDA).default('single'), prompt: text,
+  situation: text.optional(), sentence: text.optional(), wrong: text.optional(),
+  difficulty: z.enum(DIFFICOLTA).optional(),
+  // `rationale`: perché l'opzione è (o non è) quella giusta, il `perche` di Civis.
+  options: z.array(z.object({ id, text, rationale: text.optional() })).min(2),
   correctOptionId: id, explanation: text, sourceRefs: refs,
 });
 export const CourseStructureSchema = z.object({

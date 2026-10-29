@@ -69,17 +69,27 @@
             }
           ],
           "questionIds": [
-            "question-2"
+            "question-2",
+            "question-2-tf",
+            "question-2-fb",
+            "question-2-sc",
+            "question-2-in",
+            "question-2-ce"
           ]
         }
       ],
       "exam": {
         "id": "exam-2",
         "questionIds": [
-          "question-2"
+          "question-2",
+          "question-2-tf",
+          "question-2-fb",
+          "question-2-sc",
+          "question-2-in",
+          "question-2-ce"
         ],
         "mode": "practice",
-        "passingScore": 1,
+        "passingScore": 4,
         "maxAttempts": null
       }
     }
@@ -110,7 +120,9 @@
       "id": "question-2",
       "moduleId": "module-2",
       "lessonId": "lesson-2",
+      "kind": "single",
       "prompt": "Chi presenta il team al nuovo collega?",
+      "difficulty": "base",
       "options": [
         {
           "id": "option-2-a",
@@ -123,6 +135,141 @@
       ],
       "correctOptionId": "option-2-a",
       "explanation": "Il referente facilita l’accoglienza.",
+      "sourceRefs": [
+        "source-1"
+      ]
+    },
+    {
+      "id": "question-2-tf",
+      "moduleId": "module-2",
+      "lessonId": "lesson-2",
+      "kind": "truefalse",
+      "prompt": "Il nuovo collega si presenta al team da solo, senza il referente.",
+      "difficulty": "base",
+      "options": [
+        {
+          "id": "option-2-tf-0",
+          "text": "Vero"
+        },
+        {
+          "id": "option-2-tf-1",
+          "text": "Falso"
+        }
+      ],
+      "correctOptionId": "option-2-tf-1",
+      "explanation": "È il referente ad accogliere il nuovo collega e a presentargli il team.",
+      "sourceRefs": [
+        "source-1"
+      ]
+    },
+    {
+      "id": "question-2-fb",
+      "moduleId": "module-2",
+      "lessonId": "lesson-2",
+      "kind": "fillblank",
+      "prompt": "Il ___ accoglie il nuovo collega e presenta il team.",
+      "options": [
+        {
+          "id": "option-2-fb-0",
+          "text": "referente"
+        },
+        {
+          "id": "option-2-fb-1",
+          "text": "cliente",
+          "rationale": "Il cliente non ha un ruolo nell’accoglienza descritta dal manuale."
+        },
+        {
+          "id": "option-2-fb-2",
+          "text": "fornitore"
+        }
+      ],
+      "correctOptionId": "option-2-fb-0",
+      "explanation": "Il manuale affida l’accoglienza al referente.",
+      "sourceRefs": [
+        "source-1"
+      ]
+    },
+    {
+      "id": "question-2-sc",
+      "moduleId": "module-2",
+      "lessonId": "lesson-2",
+      "kind": "scenario",
+      "prompt": "Che cosa dovrebbe succedere quando il referente si libera?",
+      "situation": "Lunedì arriva Marta, nuova collega. Il suo referente è in riunione per tutta la mattina.",
+      "difficulty": "medio",
+      "options": [
+        {
+          "id": "option-2-sc-0",
+          "text": "Il referente accoglie Marta e le presenta il team"
+        },
+        {
+          "id": "option-2-sc-1",
+          "text": "Marta cerca da sola i colleghi del team",
+          "rationale": "Comprensibile se il referente è occupato, ma il manuale affida a lui la presentazione."
+        },
+        {
+          "id": "option-2-sc-2",
+          "text": "Nessuno le presenta il team"
+        }
+      ],
+      "correctOptionId": "option-2-sc-0",
+      "explanation": "Anche se in ritardo, l’accoglienza e la presentazione del team spettano al referente.",
+      "sourceRefs": [
+        "source-1"
+      ]
+    },
+    {
+      "id": "question-2-in",
+      "moduleId": "module-2",
+      "lessonId": "lesson-2",
+      "kind": "oddOneOut",
+      "prompt": "Quale di queste azioni non fa parte dell’accoglienza descritta dal manuale?",
+      "options": [
+        {
+          "id": "option-2-in-0",
+          "text": "Accogliere il nuovo collega"
+        },
+        {
+          "id": "option-2-in-1",
+          "text": "Presentare il team"
+        },
+        {
+          "id": "option-2-in-2",
+          "text": "Assegnare le ferie",
+          "rationale": "Le ferie non compaiono fra i compiti di accoglienza del referente."
+        }
+      ],
+      "correctOptionId": "option-2-in-2",
+      "explanation": "Il manuale descrive solo accoglienza e presentazione del team.",
+      "sourceRefs": [
+        "source-1"
+      ]
+    },
+    {
+      "id": "question-2-ce",
+      "moduleId": "module-2",
+      "lessonId": "lesson-2",
+      "kind": "correctStatement",
+      "prompt": "Quale parola sostituisce quella sbagliata?",
+      "sentence": "Il fornitore accoglie il nuovo collega e presenta il team.",
+      "wrong": "fornitore",
+      "difficulty": "avanzato",
+      "options": [
+        {
+          "id": "option-2-ce-0",
+          "text": "referente"
+        },
+        {
+          "id": "option-2-ce-1",
+          "text": "fornitore"
+        },
+        {
+          "id": "option-2-ce-2",
+          "text": "cliente"
+        }
+      ],
+      "correctOptionId": "option-2-ce-0",
+      "explanation": "Secondo il manuale è il referente ad accogliere il nuovo collega.",
       "sourceRefs": [
         "source-1"
       ]

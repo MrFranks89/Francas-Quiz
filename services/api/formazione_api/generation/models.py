@@ -1,5 +1,5 @@
-from typing import Literal
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_validator, model_validator
+from typing import ClassVar, Literal
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_validator, model_serializer, model_validator
 
 
 class Model(BaseModel):
@@ -57,20 +57,98 @@ class Source(Model):
         return self
 
 
-class Option(Model):
+# Tipi di domanda: stessi valori e stesse regole di packages/contracts/src/tipi.ts.
+TipoDomanda = Literal['single', 'truefalse', 'fillblank', 'scenario', 'oddOneOut', 'correctStatement']
+# Livelli letti da DifficultyBadge di Civis (packages/civis-ui/src/comune/DifficultyBadge.tsx).
+Difficolta = Literal['base', 'medio', 'avanzato']
+# Opzioni fisse del vero/falso, nell'ordine di Civis (TrueFalseStep, normalizzaPerRipasso).
+OPZIONI_VERO_FALSO = ('Vero', 'Falso')
+# Segnaposto della parola mancante (FillBlankStep di Civis).
+SPAZIO = '___'
+_CAMPI_DEL_TIPO = {'situation': 'scenario', 'sentence': 'correctStatement', 'wrong': 'correctStatement'}
+
+
+def errori_tipo(kind, prompt, options, correct_id, situation=None, sentence=None, wrong=None) -> list[tuple[str, str]]:
+    """Regole per tipo, (campo, messaggio). `options`: elenco di (id, testo).
+
+    Riscritte, non copiate, da C:\\Civica\\CivicaApp\\scripts\\verifica-contenuti.mjs (righe 281–331);
+    stesso ordine e stessi messaggi di erroriTipo in packages/contracts/src/tipi.ts. Una sola giusta
+    è garantita dalla forma (un correctOptionId); che sia fra le opzioni lo controlla il corso.
+    """
+    errori = []
+    campi = dict(situation=situation, sentence=sentence, wrong=wrong)
+    for campo, tipo in _CAMPI_DEL_TIPO.items():
+        if kind != tipo and campi[campo] is not None:
+            errori.append((campo, f'Il campo {campo} vale solo per il tipo {tipo}'))
+    testi = [t.strip() for _, t in options]
+    if kind == 'truefalse' and tuple(testi) != OPZIONI_VERO_FALSO:
+        errori.append(('options', 'Vero o falso: le opzioni sono esattamente «Vero» e «Falso», in quest\'ordine'))
+    if kind == 'fillblank' and prompt.count(SPAZIO) != 1:
+        errori.append(('prompt', f'Completa la frase: il testo deve contenere esattamente uno spazio {SPAZIO}'))
+    if kind == 'scenario' and not (situation or '').strip():
+        errori.append(('situation', 'Scenario: la situazione è obbligatoria'))
+    if kind == 'correctStatement':
+        if not (sentence or '').strip():
+            errori.append(('sentence', 'Correggi l\'errore: la frase è obbligatoria'))
+        if not (wrong or '').strip():
+            errori.append(('wrong', 'Correggi l\'errore: la parte sbagliata è obbligatoria'))
+        elif (sentence or '').strip() and sentence.count(wrong) != 1:
+            errori.append(('wrong', 'Correggi l\'errore: la parte sbagliata deve comparire esattamente una volta nella frase'))
+    if kind in ('scenario', 'oddOneOut', 'correctStatement'):
+        if len(set(testi)) != len(testi):
+            errori.append(('options', 'Opzioni duplicate'))
+        ids = [i for i, _ in options]
+        if correct_id in ids and len(options) > 1:
+            giusta = ids.index(correct_id)
+            rivale = max(len(t) for k, t in enumerate(testi) if k != giusta)
+            # len() conta punti di codice, come Array.from in TypeScript; 2·giusta > 3·rivale ⇔ giusta > 1,5·rivale.
+            if 2 * len(testi[giusta]) > 3 * rivale:
+                errori.append(('options', 'La risposta giusta è più lunga di 1,5 volte la più lunga delle altre: '
+                                          'si riconosce senza conoscere la materia'))
+    return errori
+
+
+class _SenzaNulli(Model):
+    """I campi facoltativi assenti non compaiono nel JSON (come `optional()` di Zod, che rifiuta null)."""
+    _FACOLTATIVI: ClassVar[frozenset[str]] = frozenset()
+
+    @model_serializer(mode='wrap')
+    def _senza_nulli(self, handler):
+        return {k: v for k, v in handler(self).items() if not (v is None and k in self._FACOLTATIVI)}
+
+
+class Option(_SenzaNulli):
+    _FACOLTATIVI: ClassVar[frozenset[str]] = frozenset({'rationale'})
     id: str
     text: str = Field(min_length=1)
+    # Perché l'opzione è (o non è) quella giusta: il `perche` di Civis.
+    rationale: str | None = None
 
 
-class Question(Model):
+class Question(_SenzaNulli):
+    _FACOLTATIVI: ClassVar[frozenset[str]] = frozenset({'situation', 'sentence', 'wrong', 'difficulty'})
     id: str
     moduleId: str
     lessonId: str
+    # Facoltativo con predefinito 'single': i corsi scritti prima dei tipi restano validi.
+    kind: TipoDomanda = 'single'
     prompt: str = Field(min_length=1)
+    situation: str | None = None
+    sentence: str | None = None
+    wrong: str | None = None
+    difficulty: Difficolta | None = None
     options: list[Option] = Field(min_length=2)
     correctOptionId: str
     explanation: str = Field(min_length=1)
     sourceRefs: list[str] = Field(min_length=1)
+
+    @model_validator(mode='after')
+    def regole_del_tipo(self):
+        errori = errori_tipo(self.kind, self.prompt, [(o.id, o.text) for o in self.options], self.correctOptionId,
+                             self.situation, self.sentence, self.wrong)
+        if errori:
+            raise ValueError('; '.join(f'{messaggio} ({self.id})' for _, messaggio in errori))
+        return self
 
 
 class Slide(SlideDraft):

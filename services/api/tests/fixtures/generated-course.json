@@ -97,6 +97,7 @@
       "id": "question-1-1",
       "moduleId": "module-1",
       "lessonId": "lesson-1",
+      "kind": "single",
       "prompt": "Quale risposta?",
       "options": [
         {
@@ -119,6 +120,7 @@
       "id": "question-2-1",
       "moduleId": "module-2",
       "lessonId": "lesson-2",
+      "kind": "single",
       "prompt": "Quale risposta?",
       "options": [
         {
