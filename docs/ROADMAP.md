@@ -4,6 +4,55 @@ Data: 14 ottobre 2026. Documento di attività, dipendenze e criteri di completam
 Stato aggiornato al 15 ottobre 2026: prima versione locale implementata con motore Civis estratto, contratti, importazione e OCR, generazione di bozze configurabile, revisione, pubblicazione e lettore universale con sbarramenti. La generazione AI non è ancora collaudata con un provider a pagamento; account, aziende e classi non sono implementati. Questa roadmap comprende anche attività future; lo stato eseguibile è documentato nel README e le prove in VERIFICHE.md.
 Riscontri del codice e test: [ANALISI_CIVIS.md](ANALISI_CIVIS.md).
 
+## Priorità aggiornate — 29 ottobre 2026
+
+Decisione: [003-due-modalita.md](decisions/003-due-modalita.md). La piattaforma ha due modalità sullo stesso motore: **Studio**, per lo studente in abbonamento senza revisione manuale, e **Formazione**, per le aziende su richiesta con revisione umana. Si costruisce prima Studio. Le fasi 8 (aziende e classi) e 9 (attestati e report gestionali) sono **rimandate** finché non c'è un cliente aziendale reale. Le fasi sotto restano valide come elenco di attività, ma l'ordine di lavoro è questo:
+
+1. **In corso:**
+   - nuovi tipi di domanda: vero/falso, completa la frase, scenario, intruso, correggi l'errore, risposta multipla;
+   - correzione dei tre difetti dell'estrazione: OCR troncato in silenzio, XLSX reali, pagine scansionate non segnalate.
+2. **Avvisi:**
+   - il corso segue l'ordine del documento e lo stesso concetto può comparire in più moduli (provvisorio, finché non c'è il registro dei concetti);
+   - avviso preciso, pagina per pagina, sulle figure non interpretate.
+3. **Registro dei concetti** (fase 5):
+   - estrazione per blocco, poi unione dei duplicati e dei sinonimi;
+   - importanza del concetto;
+   - piano per concetti e dipendenze, generazione concetto per concetto;
+   - controllo automatico: ogni concetto essenziale ha almeno una slide e una domanda.
+   - Risolve anche i doppioni del punto 2.
+4. **Verifiche automatiche al posto della revisione obbligatoria:**
+   - controllo dei numeri sulla fonte citata come regola della generazione;
+   - verificatore cieco: un secondo modello risponde leggendo solo il passaggio citato; se sbaglia o trova due risposte giuste, la domanda è rigenerata o non mostrata;
+   - in Formazione: revisione per eccezione, solo le domande segnalate;
+   - misura su una decina di corsi del confronto fra il giudizio automatico e quello umano.
+5. **Pulsante «Questa domanda è sbagliata»:**
+   - segnalazione con correzione proposta, valida per la copia dello studente;
+   - ogni segnalazione salvata come misura degli errori sfuggiti.
+6. **Figure e OCR:**
+   - lettura delle figure con un modello multimodale, come nuova fonte «interpretazione di figura» con la sua pagina;
+   - OCR misto: testo nativo, poi OCR locale pagina per pagina con avanzamento e ripresa, poi modello multimodale sulle pagine a bassa confidenza;
+   - misura sulle pagine annotate a mano del corpus;
+   - finché la lettura delle figure non c'è, la prima versione pubblica lo dichiara esplicitamente.
+7. **Domande aperte** (dopo il registro dei concetti):
+   - risposta modello e punti chiave con le loro fonti, prodotti in generazione;
+   - correzione per punti con una chiamata breve;
+   - autovalutazione gratuita come base, correzione AI a quota.
+8. **Studio come prodotto:**
+   - ripasso degli errori e simulazione d'esame, dal motore Civis già estratto;
+   - account, sincronizzazione su server, abbonamenti;
+   - foto delle pagine come fonte.
+9. **Conservazione e riuso:**
+   - tutti i corsi nel nostro database;
+   - riuso per file identico e stessa configurazione;
+   - catalogo di fonti pubbliche;
+   - appunti condivisi solo con il consenso dello studente.
+10. **Prima del lancio pubblico:**
+    - parere legale su conservazione, riuso, termini di servizio e privacy;
+    - avvisi di sicurezza delle dipendenze;
+    - build e prova su dispositivi Android e iOS reali.
+
+**Fornitori AI.** Il confronto di qualità con modelli gratuiti, come Gemini, si fa solo sul corpus pubblico: i piani gratuiti letti alla fonte usano i dati inviati e non vanno usati per il materiale degli studenti.
+
 ## Obiettivo e percorso utente
 
 Privato o azienda carica un documento → sceglie tutto o una parte → imposta destinatari e obiettivi → riceve un programma → genera slide e quiz → revisiona → pubblica → assegna o svolge il corso → vede risultati e ripasso.
