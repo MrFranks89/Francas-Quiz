@@ -19,14 +19,26 @@ class OcrIncompleto(RuntimeError):
 def _converter(artifacts, pages=1):
     try:
         from docling.datamodel.base_models import InputFormat
-        from docling.datamodel.pipeline_options import PdfPipelineOptions, RapidOcrOptions
+        from docling.datamodel.pipeline_options import OcrMode, PdfPipelineOptions, RapidOcrOptions
         from docling.document_converter import DocumentConverter, PdfFormatOption
     except ImportError as error:
         raise RuntimeError('Docling non installato: installare requirements-ocr.txt.') from error
     # Docling 2.138 pipeline_options.artifacts_path and rapid_ocr_model.py:
     # a non-null artifacts directory enforces local weights, without fallback downloads.
+    #
+    # OcrMode.FULL_PAGE (Docling 2.138, datamodel/pipeline_options.py, OcrOptions.mode; sostituisce
+    # il deprecato force_full_page_ocr). Con il predefinito (DEFAULT = PDF_AWARE_LAYOUT_REGIONS)
+    # l'OCR legge le zone sopra un'immagine, ma poi BaseOcrModel.post_process_cells
+    # (models/base_ocr_model.py) unisce con priorità PDF_FIRST: _merge_cells_by_priority scarta ogni
+    # cella OCR che interseca una cella di testo nativo. In 01-dlgs-81-2008, pp. 94-325, la
+    # filigrana nativa diagonale «COPIA TRATTA DA GURITEL…» ha un riquadro di 454×642 punti su
+    # 595×842: tutte le celle OCR la intersecano e restava solo la filigrana (misurato: pp. 94-98,
+    # 1429 caratteri letti dall'OCR a p. 94, 0 conservati). FULL_PAGE usa solo le celle OCR
+    # («Any existing PDF cells are ignored», post_process_cells). Misure in docs/VERIFICHE.md: su
+    # 01 pp. 94-98 legge quanto LAYOUT_REGIONS ma in meno tempo (52 s contro 84 s per 5 pagine);
+    # sulle pagine native il testo diventa OCR (per quelle resta il motore nativo).
     options = PdfPipelineOptions(artifacts_path=artifacts, do_ocr=True,
-                                 ocr_options=RapidOcrOptions(lang=['iso:it']),
+                                 ocr_options=RapidOcrOptions(lang=['iso:it'], mode=OcrMode.FULL_PAGE),
                                  document_timeout=max(MIN_TIMEOUT, SECONDS_PER_PAGE * pages))
     return DocumentConverter(allowed_formats=[InputFormat.PDF],
                              format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=options)})
