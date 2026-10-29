@@ -54,7 +54,7 @@ class FornitoreFinto:
         refs = list(dict.fromkeys(p.source_id for p in chunk.pieces))
         return ModuleDraft(title='Modulo', objectives=['Obiettivo'],
                            slides=[dict(heading='Titolo', body='Testo', highlight='', sourceRefs=refs)],
-                           questions=[dict(prompt='Domanda?', options=['A', 'B'], correctIndex=0,
+                           questions=[dict(kind='single', rationales=['', ''], difficulty='base', prompt='Domanda?', options=['A', 'B'], correctIndex=0,
                                            explanation='Perché', sourceRefs=refs)])
 
 

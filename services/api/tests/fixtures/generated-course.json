@@ -44,17 +44,27 @@
             }
           ],
           "questionIds": [
-            "question-1-1"
+            "question-1-1",
+            "question-1-2",
+            "question-1-3",
+            "question-1-4",
+            "question-1-5",
+            "question-1-6"
           ]
         }
       ],
       "exam": {
         "id": "exam-1",
         "questionIds": [
-          "question-1-1"
+          "question-1-1",
+          "question-1-2",
+          "question-1-3",
+          "question-1-4",
+          "question-1-5",
+          "question-1-6"
         ],
         "mode": "practice",
-        "passingScore": 1,
+        "passingScore": 4,
         "maxAttempts": null
       }
     },
@@ -77,17 +87,27 @@
             }
           ],
           "questionIds": [
-            "question-2-1"
+            "question-2-1",
+            "question-2-2",
+            "question-2-3",
+            "question-2-4",
+            "question-2-5",
+            "question-2-6"
           ]
         }
       ],
       "exam": {
         "id": "exam-2",
         "questionIds": [
-          "question-2-1"
+          "question-2-1",
+          "question-2-2",
+          "question-2-3",
+          "question-2-4",
+          "question-2-5",
+          "question-2-6"
         ],
         "mode": "practice",
-        "passingScore": 1,
+        "passingScore": 4,
         "maxAttempts": null
       }
     }
@@ -99,6 +119,7 @@
       "lessonId": "lesson-1",
       "kind": "single",
       "prompt": "Quale risposta?",
+      "difficulty": "base",
       "options": [
         {
           "id": "option-0",
@@ -117,11 +138,140 @@
       ]
     },
     {
+      "id": "question-1-2",
+      "moduleId": "module-1",
+      "lessonId": "lesson-1",
+      "kind": "truefalse",
+      "prompt": "Il testo ha un secondo paragrafo.",
+      "difficulty": "base",
+      "options": [
+        {
+          "id": "option-0",
+          "text": "Vero"
+        },
+        {
+          "id": "option-1",
+          "text": "Falso"
+        }
+      ],
+      "correctOptionId": "option-0",
+      "explanation": "Spiegazione di prova",
+      "sourceRefs": [
+        "page-201",
+        "page-202"
+      ]
+    },
+    {
+      "id": "question-1-3",
+      "moduleId": "module-1",
+      "lessonId": "lesson-1",
+      "kind": "fillblank",
+      "prompt": "Il ___ paragrafo segue il testo di formazione.",
+      "difficulty": "base",
+      "options": [
+        {
+          "id": "option-0",
+          "text": "secondo"
+        },
+        {
+          "id": "option-1",
+          "text": "terzo"
+        }
+      ],
+      "correctOptionId": "option-0",
+      "explanation": "Spiegazione di prova",
+      "sourceRefs": [
+        "page-201",
+        "page-202"
+      ]
+    },
+    {
+      "id": "question-1-4",
+      "moduleId": "module-1",
+      "lessonId": "lesson-1",
+      "kind": "scenario",
+      "prompt": "Che cosa trova dopo il testo di formazione?",
+      "situation": "Un collega legge il materiale dall'inizio.",
+      "difficulty": "medio",
+      "options": [
+        {
+          "id": "option-0",
+          "text": "Il secondo paragrafo"
+        },
+        {
+          "id": "option-1",
+          "text": "Una tabella riassuntiva",
+          "rationale": "Il materiale non contiene tabelle."
+        }
+      ],
+      "correctOptionId": "option-0",
+      "explanation": "Spiegazione di prova",
+      "sourceRefs": [
+        "page-201",
+        "page-202"
+      ]
+    },
+    {
+      "id": "question-1-5",
+      "moduleId": "module-1",
+      "lessonId": "lesson-1",
+      "kind": "oddOneOut",
+      "prompt": "Quale elemento non compare nel materiale?",
+      "difficulty": "base",
+      "options": [
+        {
+          "id": "option-0",
+          "text": "Testo di formazione"
+        },
+        {
+          "id": "option-1",
+          "text": "Secondo paragrafo"
+        },
+        {
+          "id": "option-2",
+          "text": "Tabella"
+        }
+      ],
+      "correctOptionId": "option-2",
+      "explanation": "Spiegazione di prova",
+      "sourceRefs": [
+        "page-201",
+        "page-202"
+      ]
+    },
+    {
+      "id": "question-1-6",
+      "moduleId": "module-1",
+      "lessonId": "lesson-1",
+      "kind": "correctStatement",
+      "prompt": "Quale parola sostituisce quella sbagliata?",
+      "sentence": "Il terzo paragrafo segue il testo di formazione.",
+      "wrong": "terzo",
+      "difficulty": "avanzato",
+      "options": [
+        {
+          "id": "option-0",
+          "text": "secondo"
+        },
+        {
+          "id": "option-1",
+          "text": "quarto"
+        }
+      ],
+      "correctOptionId": "option-0",
+      "explanation": "Spiegazione di prova",
+      "sourceRefs": [
+        "page-201",
+        "page-202"
+      ]
+    },
+    {
       "id": "question-2-1",
       "moduleId": "module-2",
       "lessonId": "lesson-2",
       "kind": "single",
       "prompt": "Quale risposta?",
+      "difficulty": "base",
       "options": [
         {
           "id": "option-0",
@@ -130,6 +280,129 @@
         {
           "id": "option-1",
           "text": "Seconda"
+        }
+      ],
+      "correctOptionId": "option-0",
+      "explanation": "Spiegazione di prova",
+      "sourceRefs": [
+        "page-202"
+      ]
+    },
+    {
+      "id": "question-2-2",
+      "moduleId": "module-2",
+      "lessonId": "lesson-2",
+      "kind": "truefalse",
+      "prompt": "Il testo ha un secondo paragrafo.",
+      "difficulty": "base",
+      "options": [
+        {
+          "id": "option-0",
+          "text": "Vero"
+        },
+        {
+          "id": "option-1",
+          "text": "Falso"
+        }
+      ],
+      "correctOptionId": "option-0",
+      "explanation": "Spiegazione di prova",
+      "sourceRefs": [
+        "page-202"
+      ]
+    },
+    {
+      "id": "question-2-3",
+      "moduleId": "module-2",
+      "lessonId": "lesson-2",
+      "kind": "fillblank",
+      "prompt": "Il ___ paragrafo segue il testo di formazione.",
+      "difficulty": "base",
+      "options": [
+        {
+          "id": "option-0",
+          "text": "secondo"
+        },
+        {
+          "id": "option-1",
+          "text": "terzo"
+        }
+      ],
+      "correctOptionId": "option-0",
+      "explanation": "Spiegazione di prova",
+      "sourceRefs": [
+        "page-202"
+      ]
+    },
+    {
+      "id": "question-2-4",
+      "moduleId": "module-2",
+      "lessonId": "lesson-2",
+      "kind": "scenario",
+      "prompt": "Che cosa trova dopo il testo di formazione?",
+      "situation": "Un collega legge il materiale dall'inizio.",
+      "difficulty": "medio",
+      "options": [
+        {
+          "id": "option-0",
+          "text": "Il secondo paragrafo"
+        },
+        {
+          "id": "option-1",
+          "text": "Una tabella riassuntiva",
+          "rationale": "Il materiale non contiene tabelle."
+        }
+      ],
+      "correctOptionId": "option-0",
+      "explanation": "Spiegazione di prova",
+      "sourceRefs": [
+        "page-202"
+      ]
+    },
+    {
+      "id": "question-2-5",
+      "moduleId": "module-2",
+      "lessonId": "lesson-2",
+      "kind": "oddOneOut",
+      "prompt": "Quale elemento non compare nel materiale?",
+      "difficulty": "base",
+      "options": [
+        {
+          "id": "option-0",
+          "text": "Testo di formazione"
+        },
+        {
+          "id": "option-1",
+          "text": "Secondo paragrafo"
+        },
+        {
+          "id": "option-2",
+          "text": "Tabella"
+        }
+      ],
+      "correctOptionId": "option-2",
+      "explanation": "Spiegazione di prova",
+      "sourceRefs": [
+        "page-202"
+      ]
+    },
+    {
+      "id": "question-2-6",
+      "moduleId": "module-2",
+      "lessonId": "lesson-2",
+      "kind": "correctStatement",
+      "prompt": "Quale parola sostituisce quella sbagliata?",
+      "sentence": "Il terzo paragrafo segue il testo di formazione.",
+      "wrong": "terzo",
+      "difficulty": "avanzato",
+      "options": [
+        {
+          "id": "option-0",
+          "text": "secondo"
+        },
+        {
+          "id": "option-1",
+          "text": "quarto"
         }
       ],
       "correctOptionId": "option-0",

@@ -1,9 +1,19 @@
-from typing import ClassVar, Literal
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_validator, model_serializer, model_validator
+from typing import Annotated, ClassVar, Literal
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, WithJsonSchema, field_validator, model_serializer, model_validator
 
 
 class Model(BaseModel):
     model_config = ConfigDict(extra='forbid')
+
+
+# Tipi di domanda: stessi valori e stesse regole di packages/contracts/src/tipi.ts.
+TipoDomanda = Literal['single', 'truefalse', 'fillblank', 'scenario', 'oddOneOut', 'correctStatement']
+# Livelli letti da DifficultyBadge di Civis (packages/civis-ui/src/comune/DifficultyBadge.tsx).
+Difficolta = Literal['base', 'medio', 'avanzato']
+# Opzioni fisse del vero/falso, nell'ordine di Civis (TrueFalseStep, normalizzaPerRipasso).
+OPZIONI_VERO_FALSO = ('Vero', 'Falso')
+# Segnaposto della parola mancante (FillBlankStep di Civis).
+SPAZIO = '___'
 
 
 class SlideDraft(Model):
@@ -13,12 +23,31 @@ class SlideDraft(Model):
     sourceRefs: list[str] = Field(min_length=1)
 
 
-class QuestionDraft(Model):
-    prompt: str = Field(min_length=1)
-    options: list[str] = Field(min_length=2, max_length=6)
-    correctIndex: StrictInt
-    explanation: str = Field(min_length=1)
-    sourceRefs: list[str] = Field(min_length=1)
+def _tipo(valore: str):
+    """Literal a un solo valore, descritto nello schema come `enum` e non come `const`.
+
+    anthropic.transform_schema (anthropic/lib/_parse/_transform.py, SDK 1.15.0) non conserva `const`:
+    lo sposta nella descrizione, e il discriminante resterebbe una stringa libera. `enum` è conservato
+    da transform_schema ed è fra le parole chiave ammesse da OpenAI (Structured Outputs, «Supported
+    schemas»). Così il tipo è vincolato nello schema di entrambi i fornitori.
+    """
+    return Annotated[Literal[valore], WithJsonSchema({'type': 'string', 'enum': [valore]})]
+
+
+# Bozze di domanda: un'unione distinta da `kind`. Si usa un'unione semplice (anyOf nello schema), non
+# Field(discriminator=...), che Pydantic descrive con oneOf + discriminator: OpenAI non elenca oneOf fra
+# le parole chiave ammesse; transform_schema di Anthropic converte oneOf in anyOf. La scelta resta univoca
+# perché ogni variante ha il suo `kind` e rifiuta i campi estranei (extra='forbid').
+#
+# Nessun campo facoltativo né nullable: OpenAI richiede tutti i campi in `required`, e Anthropic limita a 24
+# i parametri facoltativi e a 16 quelli con unione (anyOf o tipi multipli) per richiesta
+# (platform.claude.com/docs/en/build-with-claude/structured-outputs, «Explicit limits»). Quindi:
+# - `rationales`: un testo per opzione, stringa vuota se non serve (la pipeline la omette);
+# - `difficulty`: sempre presente, uno dei livelli di Civis.
+# L'unica unione dello schema è l'elemento di `questions`.
+
+class _Scelta(Model):
+    """Regole comuni alle bozze con opzioni scritte dal modello."""
 
     @model_validator(mode='after')
     def correct_answer(self):
@@ -26,7 +55,87 @@ class QuestionDraft(Model):
             raise ValueError('correctIndex fuori intervallo')
         if any(not item.strip() for item in self.options):
             raise ValueError('Opzione vuota')
+        if len(self.rationales) != len(self.options):
+            raise ValueError('rationales deve avere un elemento per opzione')
+        errori = errori_tipo(self.kind, self.prompt, [(f'option-{k}', t) for k, t in enumerate(self.options)],
+                             f'option-{self.correctIndex}', getattr(self, 'situation', None),
+                             getattr(self, 'sentence', None), getattr(self, 'wrong', None))
+        if errori:
+            raise ValueError('; '.join(m for _, m in errori))
         return self
+
+
+class SingleDraft(_Scelta):
+    kind: _tipo('single')
+    prompt: str = Field(min_length=1)
+    options: list[str] = Field(min_length=2, max_length=6)
+    correctIndex: StrictInt
+    rationales: list[str]
+    explanation: str = Field(min_length=1)
+    sourceRefs: list[str] = Field(min_length=1)
+    difficulty: Difficolta
+
+
+class TrueFalseDraft(Model):
+    """Vero o falso: `prompt` è un'affermazione, `correct` dice se è vera. Le opzioni «Vero» e «Falso» le aggiunge il server."""
+    kind: _tipo('truefalse')
+    prompt: str = Field(min_length=1)
+    correct: bool
+    explanation: str = Field(min_length=1)
+    sourceRefs: list[str] = Field(min_length=1)
+    difficulty: Difficolta
+
+
+class FillBlankDraft(_Scelta):
+    kind: _tipo('fillblank')
+    prompt: str = Field(min_length=1)
+    options: list[str] = Field(min_length=2, max_length=6)
+    correctIndex: StrictInt
+    rationales: list[str]
+    explanation: str = Field(min_length=1)
+    sourceRefs: list[str] = Field(min_length=1)
+    difficulty: Difficolta
+
+
+class ScenarioDraft(_Scelta):
+    kind: _tipo('scenario')
+    situation: str = Field(min_length=1)
+    prompt: str = Field(min_length=1)
+    options: list[str] = Field(min_length=2, max_length=6)
+    correctIndex: StrictInt
+    rationales: list[str]
+    explanation: str = Field(min_length=1)
+    sourceRefs: list[str] = Field(min_length=1)
+    difficulty: Difficolta
+
+
+class OddOneOutDraft(_Scelta):
+    """Trova l'intruso: `correctIndex` indica l'opzione che non appartiene al gruppo."""
+    kind: _tipo('oddOneOut')
+    prompt: str = Field(min_length=1)
+    options: list[str] = Field(min_length=2, max_length=6)
+    correctIndex: StrictInt
+    rationales: list[str]
+    explanation: str = Field(min_length=1)
+    sourceRefs: list[str] = Field(min_length=1)
+    difficulty: Difficolta
+
+
+class CorrectStatementDraft(_Scelta):
+    """Correggi l'errore: `sentence` contiene `wrong` una sola volta; le opzioni sostituiscono `wrong` e la giusta corregge la frase."""
+    kind: _tipo('correctStatement')
+    prompt: str = Field(min_length=1)
+    sentence: str = Field(min_length=1)
+    wrong: str = Field(min_length=1)
+    options: list[str] = Field(min_length=2, max_length=6)
+    correctIndex: StrictInt
+    rationales: list[str]
+    explanation: str = Field(min_length=1)
+    sourceRefs: list[str] = Field(min_length=1)
+    difficulty: Difficolta
+
+
+QuestionDraft = SingleDraft | TrueFalseDraft | FillBlankDraft | ScenarioDraft | OddOneOutDraft | CorrectStatementDraft
 
 
 class ModuleDraft(Model):
@@ -57,14 +166,6 @@ class Source(Model):
         return self
 
 
-# Tipi di domanda: stessi valori e stesse regole di packages/contracts/src/tipi.ts.
-TipoDomanda = Literal['single', 'truefalse', 'fillblank', 'scenario', 'oddOneOut', 'correctStatement']
-# Livelli letti da DifficultyBadge di Civis (packages/civis-ui/src/comune/DifficultyBadge.tsx).
-Difficolta = Literal['base', 'medio', 'avanzato']
-# Opzioni fisse del vero/falso, nell'ordine di Civis (TrueFalseStep, normalizzaPerRipasso).
-OPZIONI_VERO_FALSO = ('Vero', 'Falso')
-# Segnaposto della parola mancante (FillBlankStep di Civis).
-SPAZIO = '___'
 _CAMPI_DEL_TIPO = {'situation': 'scenario', 'sentence': 'correctStatement', 'wrong': 'correctStatement'}
 
 

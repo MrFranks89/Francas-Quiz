@@ -23,8 +23,26 @@ class FakeProvider:
         refs = list(dict.fromkeys(p.source_id for p in chunk.pieces))
         return ModuleDraft(title='Modulo di prova', objectives=['Comprendere la procedura'],
                            slides=[dict(heading='Procedura', body='Contenuto di prova', highlight='', sourceRefs=refs)],
-                           questions=[dict(prompt='Quale risposta?', options=['Prima', 'Seconda'], correctIndex=0,
-                                           explanation='Spiegazione di prova', sourceRefs=refs)])
+                           questions=domande_di_prova(refs))
+
+
+def domande_di_prova(refs):
+    """Una bozza per ogni tipo di domanda, come le restituirebbe un fornitore (forma di QuestionDraft)."""
+    comuni = dict(explanation='Spiegazione di prova', sourceRefs=refs, difficulty='base')
+    return [
+        dict(kind='single', prompt='Quale risposta?', options=['Prima', 'Seconda'], correctIndex=0, rationales=['', ''], **comuni),
+        dict(kind='truefalse', prompt='Il testo ha un secondo paragrafo.', correct=True, **comuni),
+        dict(kind='fillblank', prompt='Il ___ paragrafo segue il testo di formazione.', options=['secondo', 'terzo'],
+             correctIndex=0, rationales=['', ''], **comuni),
+        dict(kind='scenario', situation="Un collega legge il materiale dall'inizio.",
+             prompt='Che cosa trova dopo il testo di formazione?', options=['Il secondo paragrafo', 'Una tabella riassuntiva'],
+             correctIndex=0, rationales=['', 'Il materiale non contiene tabelle.'], **{**comuni, 'difficulty': 'medio'}),
+        dict(kind='oddOneOut', prompt='Quale elemento non compare nel materiale?',
+             options=['Testo di formazione', 'Secondo paragrafo', 'Tabella'], correctIndex=2, rationales=['', '', ''], **comuni),
+        dict(kind='correctStatement', prompt='Quale parola sostituisce quella sbagliata?',
+             sentence='Il terzo paragrafo segue il testo di formazione.', wrong='terzo', options=['secondo', 'quarto'],
+             correctIndex=0, rationales=['', ''], **{**comuni, 'difficulty': 'avanzato'}),
+    ]
 
 
 def test_pipeline_100_pages_lossless_original_numbers():
