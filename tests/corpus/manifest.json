@@ -71,7 +71,13 @@
       "fonteLicenza": "https://www.istat.it/note-legali/",
       "misure": { "pagine": 242, "testoNativo": "presente nelle pagine interne" },
       "usoPrevisto": "Dati presenti solo nei grafici"
-    },
+    }
+  ],
+  "daCostruire": [
+    { "id": "06-docx-sintetico", "tipologia": "DOCX", "nota": "Da costruire da articoli del D.Lgs. 81/2008, dichiarato sintetico" },
+    { "id": "08-appunti-sintetici", "tipologia": "Markdown", "nota": "Appunti originali su articoli del D.Lgs. 81/2008, dichiarati sintetici" }
+  ],
+  "esclusi": [
     {
       "id": "07-istat-asi-2024-d08",
       "tipologia": "XLSX",
@@ -86,11 +92,9 @@
         "contenuto": "D08/C08_Tavole.xlsx (29 fogli, 3 formule), D08/C08_Prospetti.xlsx (3 fogli, 3 formule), D08/C08_Figure.xlsx (27 fogli, 67 formule); nessun percorso sospetto nell'archivio",
         "estrattoIn": "estratto/"
       },
-      "usoPrevisto": "Fogli reali con unità e note; valori di riferimento per 04"
+      "usoPrevisto": "Fogli reali con unità e note; valori di riferimento per 04",
+      "esclusoIl": "2026-10-29",
+      "motivo": "Decisione dell'utente: i fogli di calcolo (XLSX, CSV) non sono ammessi come fonte, perché con un foglio di dati sarebbe facile «barare» (docs/decisions/004-niente-fogli-di-calcolo.md). Il file resta su disco; la voce resta per lo sha256 e la storia delle misure."
     }
-  ],
-  "daCostruire": [
-    { "id": "06-docx-sintetico", "tipologia": "DOCX", "nota": "Da costruire da articoli del D.Lgs. 81/2008, dichiarato sintetico" },
-    { "id": "08-appunti-sintetici", "tipologia": "Markdown", "nota": "Appunti originali su articoli del D.Lgs. 81/2008, dichiarati sintetici" }
   ]
 }

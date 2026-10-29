@@ -13,8 +13,6 @@
     { "id": "04-tutto", "documento": "04-istat-asi-2024-c08", "motore": "native",
       "motivo": "Tabelle con intestazioni a più livelli" },
     { "id": "05-figure-p166-195", "documento": "05-istat-ra-2025", "pagine": [166, 195], "motore": "native",
-      "motivo": "Finestra di 30 pagine con più riferimenti 'Figura N' nel testo nativo (75 su 317 del volume)" },
-    { "id": "07-tavole", "documento": "07-istat-asi-2024-d08", "membro": "D08/C08_Tavole.xlsx", "motore": "native",
-      "motivo": "Fogli reali con unità e note; il file estratto è verificato contro il membro dello ZIP del manifest" }
+      "motivo": "Finestra di 30 pagine con più riferimenti 'Figura N' nel testo nativo (75 su 317 del volume)" }
   ]
 }
