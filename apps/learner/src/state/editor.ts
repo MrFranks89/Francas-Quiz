@@ -1,4 +1,4 @@
-import {erroreSogliaMinima,type Course} from '@formazione/contracts';
+import {erroreSogliaMinima,erroriTipo,type Course,type TipoDomanda} from '@formazione/contracts';
 export function changeField(course:Course,path:(string|number)[],value:unknown):Course{
  // Copy only the edited path. JSON cloning coerces NaN to null, accidentally
  // turning an invalid attempt limit into the valid "unlimited" sentinel.
@@ -30,3 +30,19 @@ export function editorReducer(state:EditorState,action:EditorAction):EditorState
   case 'reviewed':return {...state,reviewed:action.value};
  }
 }
+/** Nome del tipo di domanda per chi rivede, con le etichette dei formati di Civis. */
+export const NOMI_TIPO:Record<TipoDomanda,string>={single:'Scelta singola',truefalse:'Vero o falso',fillblank:'Completa la frase',scenario:'Scenario',oddOneOut:'Trova l\'intruso',correctStatement:'Correggi l\'errore'};
+/** Etichetta del campo `prompt`, che cambia significato secondo il tipo. */
+export const ETICHETTA_PROMPT:Record<TipoDomanda,string>={single:'Domanda',truefalse:'Affermazione',fillblank:'Frase con lo spazio ___',scenario:'Domanda sulla situazione',oddOneOut:'Consegna',correctStatement:'Consegna'};
+/**
+ * Errori per tipo di ogni domanda, per indice di domanda e campo ('prompt', 'situation', 'options'...).
+ * Stesse regole di CourseSchema (erroriTipo del contratto): l'errore si mostra sotto il campo, il valore
+ * non viene corretto.
+ */
+export function erroriDomande(course:Course):Record<number,Record<string,string[]>>{
+ const errori:Record<number,Record<string,string[]>>={};
+ course.questions.forEach((q,qi)=>{for(const e of erroriTipo(q)){((errori[qi]??={})[e.campo]??=[]).push(e.messaggio);}});
+ return errori;
+}
+/** Testo facoltativo: vuoto o di soli spazi diventa assente, perché il contratto rifiuta un testo vuoto. */
+export function facoltativo(text:string):string|undefined{return text.trim()?text:undefined;}
