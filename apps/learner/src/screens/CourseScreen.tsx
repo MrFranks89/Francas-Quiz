@@ -12,6 +12,7 @@ import {course,loadProgress,saveProgress,resetProgress} from '../state/course';
 import {slidePerCivis} from '../state/slide';
 import {fontiDellaSlide} from '../state/fonti';
 import {riepilogoUltimoTentativo} from '../state/riepilogo';
+import {presentazione} from '../state/presentazione';
 import {SourceNote} from '../components/SourceNote';
 import {DomandaInCorso,RiepilogoDomanda} from '../components/ExamView';
 import {Avviso,Pillola} from '../components/lettore';
@@ -96,7 +97,7 @@ export function CourseScreen({currentCourse=course,kind='demo'}:{currentCourse?:
    <Text style={{color:C.textDim,fontSize:TESTO.minuscolo,marginTop:4,marginBottom:14}}>Soglia: {exam.passingScore}/{exam.questionIds.length} risposte corrette · {exam.maxAttempts===null?'tentativi illimitati':`${attempts.length}/${exam.maxAttempts} tentativi usati`}</Text>
    {!lessonsDone&&<Avviso testo="Completa tutte le lezioni del modulo per sostenere il test."/>}
    {answering&&<>
-    {exam.questionIds.map((id,qi)=>{const q=course.questions.find(q=>q.id===id)!;return <DomandaInCorso key={id} numero={qi+1} totale={exam.questionIds.length} prompt={q.prompt} opzioni={displayOptions(course,exam.id,attempts.length,id).map(o=>({id:o.id,text:o.text}))} scelta={answers[id]} disabled={saving} onScegli={optionId=>setAnswers(current=>({...current,[id]:optionId}))}/>;})}
+    {exam.questionIds.map((id,qi)=>{const q=course.questions.find(q=>q.id===id)!;return <DomandaInCorso key={id} numero={qi+1} totale={exam.questionIds.length} domanda={presentazione(q)} opzioni={displayOptions(course,exam.id,attempts.length,id).map(o=>({id:o.id,text:o.text}))} scelta={answers[id]} disabled={saving} onScegli={optionId=>setAnswers(current=>({...current,[id]:optionId}))}/>;})}
     <Btn label="Consegna il test" primary color={C.indigo} disabled={!ready||saving||!lessonsDone||gatePassed||!!exhausted||exam.questionIds.some(id=>!answers[id])} onPress={submit}/>
     {last&&<Pressable onPress={()=>{setRetrying(false);setAnswers({});}} accessibilityRole="button" accessibilityLabel="Torna al riepilogo" hitSlop={8} style={{alignSelf:'center'}}><Text style={{color:C.textDim,fontSize:TESTO.piccolo,fontWeight:'700'}}>Torna al riepilogo del tentativo precedente</Text></Pressable>}
    </>}

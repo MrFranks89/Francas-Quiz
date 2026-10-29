@@ -2,10 +2,13 @@ import type {Course} from '@formazione/contracts';
 import {displayOptions,type Attempt} from '@formazione/learning-engine';
 import {optState} from '@formazione/civis-ui/src/lezione/util';
 import type {OptSt} from '@formazione/civis-ui/src/comune/OptLetter';
+import {presentazione,type Presentazione} from './presentazione';
 
 type Exam=NonNullable<Course['modules'][number]['exam']>;
-export type OpzioneMostrata={id:string;text:string;stato:OptSt};
-export type RigaRiepilogo={questionId:string;prompt:string;explanation:string;scelta:string|null;giusta:boolean;opzioni:OpzioneMostrata[]};
+export type OpzioneMostrata={id:string;text:string;stato:OptSt;rationale?:string};
+export type RigaRiepilogo={questionId:string;prompt:string;explanation:string;scelta:string|null;giusta:boolean;opzioni:OpzioneMostrata[];domanda:Presentazione;
+ /** Testo dell'opzione scelta, per riempire lo spazio di «Completa la frase»; null se senza risposta. */
+ testoScelto:string|null};
 
 /**
  * Stato visivo di un'opzione mentre si risponde: selezionata o neutra.
@@ -39,7 +42,8 @@ export function riepilogoUltimoTentativo(course:Course,exam:Exam,attempts:Attemp
   const q=course.questions.find(q=>q.id===id);
   if(!q)throw new Error(`Domanda sconosciuta ${id}`);
   const scelta=last.answers.find(a=>a.questionId===id)?.optionId??null;
-  const opzioni=displayOptions(course,exam.id,indice,id).map(o=>({id:o.id,text:o.text,stato:optState(true,o.id===scelta,o.id===q.correctOptionId)}));
-  return {questionId:id,prompt:q.prompt,explanation:q.explanation,scelta,giusta:scelta===q.correctOptionId,opzioni};
+  const opzioni=displayOptions(course,exam.id,indice,id).map(o=>({id:o.id,text:o.text,stato:optState(true,o.id===scelta,o.id===q.correctOptionId),...(o.rationale?{rationale:o.rationale}:{})}));
+  const testoScelto=q.options.find(o=>o.id===scelta)?.text??null;
+  return {questionId:id,prompt:q.prompt,explanation:q.explanation,scelta,giusta:scelta===q.correctOptionId,opzioni,domanda:presentazione(q),testoScelto};
  });
 }

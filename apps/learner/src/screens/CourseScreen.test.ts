@@ -16,3 +16,14 @@ it('shows percentage and grade of the last attempt through valutaTentativo', () 
   expect(source).not.toMatch(/last\.passed\?/);
   expect(source).not.toMatch(/\*\s*100|\/\s*last\.total/);
 });
+
+// I tipi di domanda servono solo se il lettore li disegna: la domanda passa per
+// presentazione() e la vista ha un caso per ogni tipo diverso dalla scelta singola.
+it('presents every question kind through presentazione and a case in the exam view', async () => {
+  const {TIPI_DOMANDA}=await import('@formazione/contracts');
+  const source = readFileSync(new URL('./CourseScreen.tsx', import.meta.url), 'utf8');
+  expect(source).toMatch(/domanda=\{presentazione\(q\)\}/);
+  const vista = readFileSync(new URL('../components/ExamView.tsx', import.meta.url), 'utf8');
+  for (const kind of TIPI_DOMANDA.filter(k => k !== 'single' && k !== 'oddOneOut')) expect(vista).toContain(`case '${kind}':`);
+  expect(vista).toMatch(/<RiepilogoDomanda|export function RiepilogoDomanda/);
+});
