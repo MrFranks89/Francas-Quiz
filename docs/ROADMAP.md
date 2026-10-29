@@ -85,7 +85,7 @@ Per altri formati:
 | Formato | Selezione |
 |---|---|
 | DOCX | Tutto oppure sezioni/titoli. Per «Da pagina a pagina», creare un PDF di riferimento con LibreOffice, far verificare l'anteprima e congelare quella paginazione |
-| XLSX/CSV | Tutto, fogli e intervalli di celle; conservare intestazioni, unità e valori. Non usare pagine di stampa come struttura principale |
+| ~~XLSX/CSV~~ | **Escluso il 29 ottobre 2026** per decisione dell'utente: con un foglio di dati sarebbe facile «barare» ([decisione 004](decisions/004-niente-fogli-di-calcolo.md)). Requisito precedente, conservato per la storia: ~~tutto, fogli e intervalli di celle; conservare intestazioni, unità e valori. Non usare pagine di stampa come struttura principale~~ |
 | TXT/Markdown/appunti incollati | Tutto oppure selezione di testo/sezioni; le pagine non sono intrinseche |
 | PPTX, estensione successiva | Tutta la presentazione oppure intervallo di slide |
 

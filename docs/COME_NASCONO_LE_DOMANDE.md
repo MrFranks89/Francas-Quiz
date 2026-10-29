@@ -10,7 +10,7 @@ Il testo del documento viene tagliato in blocchi; **per ogni blocco** un modello
 
 ### 1. Dal file al testo con la sua provenienza
 
-Il documento caricato (PDF, DOCX, XLSX, testo) viene letto e diviso in **blocchi di fonte**. Ogni blocco conserva il testo **esatto** e da dove viene: per un PDF la pagina originale (se scegli le pagine 201–300, la pagina 201 resta «201»), per Excel foglio e riga, per Word il paragrafo o la tabella.
+Il documento caricato (PDF, DOCX, testo o Markdown; niente fogli di calcolo) viene letto e diviso in **blocchi di fonte**. Ogni blocco conserva il testo **esatto** e da dove viene: per un PDF la pagina originale (se scegli le pagine 201–300, la pagina 201 resta «201»), per Word il paragrafo o la tabella.
 
 Se l'estrazione ha problemi (pagine senza testo, immagini non lette), lo stato diventa «da rivedere» e la generazione non parte finché qualcuno non conferma di aver visto gli avvisi.
 

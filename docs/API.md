@@ -25,18 +25,18 @@ Test del percorso HTTP reale:
 ## Contratto HTTP
 
 - `GET /health`: stato e `mode: local-single-operator`.
-- `POST /documents`: multipart campo `file`, massimo 25 MiB; PDF, DOCX, XLSX, TXT, MD, CSV UTF-8. Restituisce 201 `{id,name,kind,pageCount,sheets}`. Per i formati senza paginazione stabile `pageCount` è null.
+- `POST /documents`: multipart campo `file`, massimo 25 MiB; PDF, DOCX, TXT o MD UTF-8. Restituisce 201 `{id,name,kind,pageCount}`. Per i formati senza paginazione stabile `pageCount` è null. I fogli di calcolo sono rifiutati con 422 e il messaggio `Formato non supportato: i fogli di calcolo (XLSX, CSV) non sono ammessi come fonte.`: per estensione (`.xlsx`, `.csv`) e, qualunque sia l'estensione, per contenuto (un archivio con `xl/workbook.xml`). Un CSV rinominato in `.txt` è testo e non si distingue. Decisione in `docs/decisions/004-niente-fogli-di-calcolo.md`.
 - `GET /documents/{id}/pages/{page}/preview`: PNG PDF, dimensione massima lato 1400px, header `X-Original-Page`. Numerazione da 1.
-- `POST /documents/{id}/extract`: JSON sotto; restituisce 201 `{id,documentId,selection,pageCount,blocks,warnings,status,engine}`.
+- `POST /documents/{id}/extract`: JSON sotto; restituisce 201 `{id,documentId,selection,pageCount,blocks,warnings,status,engine}`. Un documento XLSX o CSV salvato prima del 29 ottobre 2026 non si riapre: 422 con lo stesso messaggio del caricamento.
 - `GET /extractions/{id}`: risultato persistente, anche dopo riavvio.
 
 ```json
 {"selection":{"mode":"range","fromPage":201,"toPage":300},"engine":"native"}
 ```
 
-Oppure `selection: {"mode":"all"}`. Gli estremi sono interi JSON rigorosi, inclusivi e riferiti alle pagine fisiche PDF originali; stringhe, booleani, decimali e intervalli fuori limite vengono rifiutati. Il range non è disponibile per DOCX/XLSX/testo: usare tutto il documento. La numerazione stampata nel manuale può differire dalle pagine PDF.
+Oppure `selection: {"mode":"all"}`. Gli estremi sono interi JSON rigorosi, inclusivi e riferiti alle pagine fisiche PDF originali; stringhe, booleani, decimali e intervalli fuori limite vengono rifiutati. Il range non è disponibile per DOCX/testo: usare tutto il documento. La numerazione stampata nel manuale può differire dalle pagine PDF.
 
-Ogni blocco contiene `{id,text,page,label}`; `page` è null per formati non paginati. `status: needs_review` segnala contenuti o accuratezza da verificare. Non equivale a un corso pronto alla pubblicazione. Le pagine bianche/scansioni non diventano contenuto inventato. Il parser nativo PDF non interpreta figure, OCR o struttura delle tabelle. DOCX conserva l'ordine di paragrafi e tabelle; XLSX conserva foglio e coordinate e segnala formule senza risultato memorizzato. Le pagine PDF con meno di 400 caratteri nativi e immagini leggibili che coprono almeno il 5% della pagina ricevono l'avviso `Pagina N: probabile scansione: richiede OCR.` (criterio e misure in `extractors.py`). CSV è attualmente testo grezzo, non una tabella strutturata.
+Ogni blocco contiene `{id,text,page,label}`; `page` è null per formati non paginati. `status: needs_review` segnala contenuti o accuratezza da verificare. Non equivale a un corso pronto alla pubblicazione. Le pagine bianche/scansioni non diventano contenuto inventato. Il parser nativo PDF non interpreta figure, OCR o struttura delle tabelle. DOCX conserva l'ordine di paragrafi e tabelle. Le pagine PDF con meno di 400 caratteri nativi e immagini leggibili che coprono almeno il 5% della pagina ricevono l'avviso `Pagina N: probabile scansione: richiede OCR.` (criterio e misure in `extractors.py`).
 
 Errori: 404 risorsa inesistente, 413 upload troppo grande, 422 documento/selezione non validi, 503 motore opzionale non configurato. I file Office sono verificati come archivi reali, con limite complessivo di decompressione 100 MiB e 10.000 elementi. Questi limiti non sostituiscono isolamento di processo e quote per un servizio pubblico.
 
@@ -80,4 +80,4 @@ Il server richiede `OPENAI_API_KEY` e `OPENAI_MODEL`; l'integrazione usa il prov
 
 ## Passi successivi
 
-Job asincroni con cancellazione, quote CPU/memoria, timeout e limiti di pagine; autenticazione e storage per organizzazione; estrazione strutturata CSV; immagini/tabelle con coordinate; revisione e copertura dei contenuti; generazione didattica con citazioni. Il servizio nativo attuale esegue l'estrazione in una richiesta sincrona.
+Job asincroni con cancellazione, quote CPU/memoria, timeout e limiti di pagine; autenticazione e storage per organizzazione; immagini/tabelle con coordinate; revisione e copertura dei contenuti; generazione didattica con citazioni. Il servizio nativo attuale esegue l'estrazione in una richiesta sincrona.

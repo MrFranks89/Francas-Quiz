@@ -17,7 +17,7 @@ Rilevazione del 15 ottobre 2026. Versioni e licenze seguenti sono state lette ne
 | Uvicorn | 0.54.0 | BSD-3-Clause |
 | python-multipart | 0.0.32 | Apache-2.0 |
 | pypdf | 6.10.0 | BSD-3-Clause |
-| python-docx / openpyxl | 1.2.0 / 3.1.5 | MIT |
+| python-docx | 1.2.0 | MIT |
 | pypdfium2 | 5.14.0 | BSD-3-Clause, Apache-2.0 e licenze delle dipendenze incluse |
 | Pillow | 12.3.0 | MIT-CMU |
 | OpenAI SDK Python | 3.31.0 | Apache-2.0 |

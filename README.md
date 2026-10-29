@@ -25,7 +25,7 @@ L'ambiente è per un solo operatore locale. Account, aziende, classi e risultati
 
 ## Percorso disponibile
 
-- Caricare PDF, DOCX, XLSX, TXT, Markdown o CSV; per PDF scegliere tutto oppure un intervallo inclusivo di pagine originali.
+- Caricare PDF, DOCX, TXT o Markdown; per PDF scegliere tutto oppure un intervallo inclusivo di pagine originali. I fogli di calcolo (XLSX, CSV) non sono ammessi come fonte, anche se rinominati: vedere [docs/decisions/004-niente-fogli-di-calcolo.md](docs/decisions/004-niente-fogli-di-calcolo.md).
 - Controllare le anteprime PDF e i blocchi estratti, con riferimenti e avvisi.
 - Generare una bozza con slide e quiz quando il provider AI è configurato; la mancata configurazione è esplicita.
 - Revisionare la bozza, impostare esami di controllo o sbarramento e pubblicare uno snapshot locale sul server.

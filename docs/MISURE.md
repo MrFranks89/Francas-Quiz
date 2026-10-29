@@ -78,4 +78,4 @@ Prima di una corsa reale, rileggere la fonte e aggiornare valori e data.
 ## Selezioni non stimate (2026-10-19)
 
 - `01-ocr-p94-143`, `02-ocr-tutto`: Docling gira in locale (campione di 5 pagine di 02: 134 s), ma `docling_adapter.py` imposta `document_timeout=120`; oltre quel tempo Docling restituisce un'estrazione parziale **senza errore** (13 pagine su 50, 0 su 48). Il preventivo segna «estrazione OCR incompleta» e la guardia rifiuta la corsa reale.
-- `07-tavole`: `native_extract` fallisce su `C08_Tavole.xlsx` (`AttributeError: 'EmptyCell' object has no attribute 'coordinate'`, modalità `read_only` di openpyxl); la rotta di estrazione risponderebbe 422.
+- `07-tavole`: `native_extract` fallisce su `C08_Tavole.xlsx` (`AttributeError: 'EmptyCell' object has no attribute 'coordinate'`, modalità `read_only` di openpyxl); la rotta di estrazione risponderebbe 422. Il 29 ottobre 2026 la selezione è stata tolta: i fogli di calcolo non sono più una fonte (decisione 004).
