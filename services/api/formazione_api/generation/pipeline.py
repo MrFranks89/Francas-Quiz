@@ -5,17 +5,8 @@ from .chunks import plan_chunks
 from .errors import GenerationError
 from .models import OPZIONI_VERO_FALSO, Course, ModuleDraft, Source, violazioni_domanda
 from .selection import create_provider
+from .soglia import SOGLIA_SUPERAMENTO_PERCENTO, soglia_predefinita  # noqa: F401 (letti anche come pipeline.*)
 from .telemetry import aggregate_usage, call_usage
-
-# Soglia predefinita dei quiz generati, in percentuale. Deve coincidere con
-# packages/contracts/fixtures/grading-scale.json (sogliaSuperamentoPercento), letto dal
-# motore TypeScript: lo controlla services/api/tests/test_grading_scale.py.
-SOGLIA_SUPERAMENTO_PERCENTO = 60
-
-
-def soglia_predefinita(n: int) -> int:
-    """Risposte corrette minime su n domande: il più piccolo k con k/n >= 60%, in aritmetica intera."""
-    return (SOGLIA_SUPERAMENTO_PERCENTO * n + 99) // 100
 
 
 def avviso_scarti(n: int) -> str:
