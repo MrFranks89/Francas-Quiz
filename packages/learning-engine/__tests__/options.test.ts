@@ -28,3 +28,18 @@ it('shows every option of the course question with its id, stable per attempt', 
   expect(first.every(o => course.questions[0].options.some(x => x.id === o.id && x.text === o.text))).toBe(true);
   expect(() => displayOptions(course, 'exam-1', 0, 'question-x')).toThrow('Unknown question');
 });
+it('vero/falso non si mescola: Vero sempre prima di Falso, in ogni tentativo', () => {
+  const course = sample();
+  const q = course.questions.find(q => q.kind === 'truefalse')!;
+  for (let attempt = 0; attempt < 20; attempt++) {
+    expect(displayOptions(course, 'exam-2', attempt, q.id).map(o => o.text)).toEqual(['Vero', 'Falso']);
+  }
+});
+it('gli altri tipi si mescolano con lo stesso seme', () => {
+  const course = sample();
+  for (const kind of ['fillblank', 'scenario', 'oddOneOut', 'correctStatement'] as const) {
+    const q = course.questions.find(q => q.kind === kind)!;
+    const ordini = new Set(Array.from({ length: 20 }, (_, n) => displayOptions(course, 'exam-2', n, q.id).map(o => o.id).join()));
+    expect(ordini.size).toBeGreaterThan(1);
+  }
+});

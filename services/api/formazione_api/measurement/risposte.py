@@ -20,7 +20,11 @@ def _coda_binomiale(n: int, k: int, p: float) -> float:
 
 
 def analizza_risposte(course: dict) -> dict:
-    domande = course['questions']
+    # Vero/falso escluso: opzioni fisse «Vero», «Falso» in quest'ordine e mai mescolate
+    # (displayOptions in packages/learning-engine/src/options.ts), quindi né la posizione né la
+    # lunghezza della giusta dicono qualcosa sul generatore. `kind` assente vale 'single'.
+    domande = [q for q in course['questions'] if q.get('kind', 'single') != 'truefalse']
+    escluse = len(course['questions']) - len(domande)
     larghezza = max((len(q['options']) for q in domande), default=0)
     posizioni, attese = [0] * larghezza, [0.0] * larghezza
     piu_lunga, attesa_lunga = 0, 0.0
@@ -45,7 +49,7 @@ def analizza_risposte(course: dict) -> dict:
     if p_lunga < ALFA_LUNGHEZZA:
         avvisi.append(f'Risposta giusta sistematicamente la più lunga: {piu_lunga} su {n} domande '
                       f'(attese {attesa_lunga:.1f}).')
-    return dict(domande=n, posizioni=posizioni, posizioniValutabili=valutabili, chiQuadro=chi,
+    return dict(domande=n, escluseVeroFalso=escluse, posizioni=posizioni, posizioniValutabili=valutabili, chiQuadro=chi,
                 piuLunga=piu_lunga, attesaPiuLunga=round(attesa_lunga, 2), avvisi=avvisi)
 
 

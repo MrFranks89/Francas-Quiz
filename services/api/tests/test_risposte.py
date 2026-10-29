@@ -58,3 +58,14 @@ def test_risposta_piu_lunga_al_caso_nessun_avviso():
     domande = [(lunga, 0)] * 5 + [(['ab', 'risposta sbagliata più lunga', 'cd', 'ef'], i % 4) for i in range(35)]
     esito = analizza_risposte(corso(domande))
     assert not any('più lunga' in a for a in esito['avvisi'])
+
+
+def test_vero_falso_escluso_da_posizione_e_lunghezza():
+    # Vero/falso ha opzioni fisse e non mescolate: «Falso» è più lungo di «Vero» e la giusta
+    # in posizione 1 non dice nulla sul generatore. Quaranta domande tutte «Falso» non danno avvisi.
+    vf = [dict(id=f'v{n}', kind='truefalse', options=[dict(id='option-0', text='Vero'), dict(id='option-1', text='Falso')],
+               correctOptionId='option-1') for n in range(40)]
+    esito = analizza_risposte(dict(questions=vf))
+    assert esito['domande'] == 0 and esito['avvisi'] == [] and esito['escluseVeroFalso'] == 40
+    misto = analizza_risposte(dict(questions=vf + per_posizione([10, 10, 11, 9])['questions']))
+    assert misto['domande'] == 40 and misto['posizioni'] == [10, 10, 11, 9] and misto['avvisi'] == []

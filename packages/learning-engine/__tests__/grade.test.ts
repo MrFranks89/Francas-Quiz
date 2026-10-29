@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
-import { valutaTentativo, sogliaPredefinita, descriviValutazione } from '@formazione/learning-engine';
+import { CourseSchema } from '@formazione/contracts';
+import { valutaTentativo, sogliaPredefinita, descriviValutazione, gradeQuestions } from '@formazione/learning-engine';
 
 const scala = JSON.parse(readFileSync(new URL('../../contracts/fixtures/grading-scale.json', import.meta.url), 'utf8'));
 // Esame con soglia predefinita (60%) su `total` domande.
@@ -40,4 +41,21 @@ it('descrive il risultato come «percentuale · Giudizio»', () => {
   expect(descriviValutazione(esito(5, 7))).toBe('71% · Buono');
   expect(descriviValutazione(esito(4, 7))).toBe('57% · Non superato');
   expect(descriviValutazione(esito(7, 7))).toBe('100% · Perfetto');
+});
+
+describe('correzione dei tipi di domanda', () => {
+  it('ogni tipo si corregge per opzione, come la scelta singola', () => {
+    const course = CourseSchema.parse(JSON.parse(readFileSync(new URL('../../contracts/fixtures/sample-course.json', import.meta.url), 'utf8')));
+    const ids = course.modules[1].exam!.questionIds;
+    const giuste = ids.map(id => ({ questionId: id, optionId: course.questions.find(q => q.id === id)!.correctOptionId }));
+    expect(gradeQuestions(course, ids, giuste)).toMatchObject({ correct: ids.length, total: ids.length });
+    for (const id of ids) {
+      const q = course.questions.find(q => q.id === id)!;
+      const sbagliata = q.options.find(o => o.id !== q.correctOptionId)!;
+      const risposte = giuste.map(a => a.questionId === id ? { questionId: id, optionId: sbagliata.id } : a);
+      const esito = gradeQuestions(course, ids, risposte);
+      expect(esito.correct).toBe(ids.length - 1);
+      expect(esito.rows.find(r => r.questionId === id)!.correct).toBe(false);
+    }
+  });
 });

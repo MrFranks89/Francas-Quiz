@@ -22,5 +22,9 @@ export function seededOrder<T>(items: T[], seed: string): T[] {
 export function displayOptions(course: Course, examId: string, attempt: number, questionId: string) {
   const question = course.questions.find(q => q.id === questionId);
   if (!question) throw new Error(`Unknown question ${questionId}`);
+  // Vero/falso: opzioni fisse nell'ordine Vero, Falso (garantito dal contratto, tipi.ts),
+  // escluse dal mescolamento come in TrueFalseStep di Civis. La posizione non è un indizio:
+  // le opzioni sono sempre le stesse due.
+  if (question.kind === 'truefalse') return [...question.options];
   return seededOrder(question.options, `${course.id}:${course.version}:${examId}:${attempt}:${questionId}`);
 }
