@@ -6,7 +6,7 @@ import {apiErrorMessage} from './errors';
 // Android emulator reaches the host through 10.0.2.2; devices require a reachable configured URL.
 // Official emulator host-loopback alias: https://developer.android.com/studio/run/emulator-networking-address
 export const apiUrl = (process.env.EXPO_PUBLIC_API_URL || (Platform.OS === 'android' ? 'http://10.0.2.2:8000' : 'http://127.0.0.1:8000')).replace(/\/$/, '');
-export type Document = { id: string; name: string; kind: string; pageCount: number | null; sheets: string[] };
+export type Document = { id: string; name: string; kind: string; pageCount: number | null };
 export type Extraction = { id: string; status: 'ready' | 'needs_review'; blocks: {id: string; text: string; page: number | null; label: string}[]; warnings: string[]; engine: string };
 async function request<T>(path: string, init: RequestInit): Promise<T> {
   let response: Response;

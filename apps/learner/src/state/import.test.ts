@@ -6,6 +6,6 @@ it('invalidates extracted text when pages or OCR engine change',()=>{
  for(const action of [{type:'from',value:'201'},{type:'to',value:'300'},{type:'range',value:true},{type:'engine',value:'docling'}] as const)expect(importReducer(state,action).result).toBeNull();
 });
 it('new upload clears range and extraction associated with old file',()=>{
- const result=importReducer({...initialImport,range:true,from:'201',to:'300',result:extraction},{type:'document',value:{id:'new',name:'note.txt',kind:'txt',pageCount:null,sheets:[]}});
+ const result=importReducer({...initialImport,range:true,from:'201',to:'300',result:extraction},{type:'document',value:{id:'new',name:'note.txt',kind:'txt',pageCount:null}});
  expect(result).toMatchObject({range:false,from:'1',to:'1',result:null,document:{id:'new'}});
 });

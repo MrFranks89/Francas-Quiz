@@ -1,8 +1,9 @@
 import React, {useState,useReducer} from 'react';
-import {Text,TextInput,View,Image} from 'react-native';
+import {Text,TextInput,View,Image,Platform} from 'react-native';
 import * as Picker from 'expo-document-picker';
 import {parsePageSelection,type Course} from '@formazione/contracts';
 import {apiUrl,uploadDocument,extractDocument,type Document,type Extraction} from '../api/documents';
+import {FORMATI_AMMESSI,tipiSelettore} from '../api/formats';
 import {Button,Card,Notice,styles} from '../components/ui';
 import {importReducer,initialImport} from '../state/import';
 import {GenerationPanel} from '../components/GenerationPanel';
@@ -17,7 +18,7 @@ export function ImportScreen({onDraft}:{onDraft:(draft:Draft)=>void}) {
  const setEngine=(value:'native'|'docling')=>dispatch({type:'engine',value});
  async function pick() {
   setBusy(true);setError('');
-  try { const selected=await Picker.getDocumentAsync({copyToCacheDirectory:true,multiple:false});
+  try { const selected=await Picker.getDocumentAsync({type:tipiSelettore(Platform.OS==='web'),copyToCacheDirectory:true,multiple:false});
    if (!selected.canceled) { const value=await uploadDocument(selected.assets[0]);dispatch({type:'document',value});setPreview([]); }
   } catch(e){setError(e instanceof Error?e.message:'Caricamento non riuscito.');}finally{setBusy(false);}
  }
@@ -29,8 +30,8 @@ export function ImportScreen({onDraft}:{onDraft:(draft:Draft)=>void}) {
  return <View style={{gap:20}}>
   <Text style={styles.title}>Dal documento alla conoscenza</Text>
   <Text style={styles.body}>Scegli il materiale, delimita le pagine e controlla le fonti estratte. Il tuo documento rimane distinto dal corso dimostrativo.</Text>
-  <Card><Text style={styles.subtitle}>01 · Carica il materiale</Text><Text style={styles.muted}>PDF, Word, Excel, TXT, Markdown e CSV · massimo 25 MB</Text><Button label={busy?'Operazione in corso…':'Scegli un documento'} onPress={pick} disabled={busy}/>
-   {document&&<><Text style={styles.body}>{document.name}</Text><Text style={styles.muted}>{document.pageCount?`${document.pageCount} pagine originali`:document.sheets.length?`Fogli: ${document.sheets.join(', ')}`:'Documento senza paginazione fissa'}</Text></>}
+  <Card><Text style={styles.subtitle}>01 · Carica il materiale</Text><Text style={styles.muted}>{FORMATI_AMMESSI} · massimo 25 MB</Text><Button label={busy?'Operazione in corso…':'Scegli un documento'} onPress={pick} disabled={busy}/>
+   {document&&<><Text style={styles.body}>{document.name}</Text><Text style={styles.muted}>{document.pageCount?`${document.pageCount} pagine originali`:'Documento senza paginazione fissa'}</Text></>}
   </Card>
   {document&&<Card><Text style={styles.subtitle}>02 · Scegli cosa studiare</Text><View style={styles.row}><Button label="Tutto il volume" disabled={busy} secondary={range} onPress={()=>setRange(false)}/><Button label="Da pagina… a pagina…" secondary={!range} disabled={busy||document.kind!=='pdf'} onPress={()=>setRange(true)}/></View>
    {document.kind!=='pdf'&&<Text style={styles.muted}>La selezione per pagina richiede un PDF. Per gli altri formati si elabora tutto il documento.</Text>}
