@@ -40,7 +40,15 @@ Decisione: [003-due-modalita.md](decisions/003-due-modalita.md). La piattaforma 
 8. **Studio come prodotto:**
    - ripasso degli errori e simulazione d'esame, dal motore Civis già estratto;
    - account, sincronizzazione su server, abbonamenti;
-   - foto delle pagine come fonte.
+   - foto delle pagine come fonte;
+   - registrazioni audio delle lezioni come fonte, **dopo il nucleo di Studio** (punti 3–5):
+     - la trascrizione è divisa in segmenti con il loro minutaggio, che prende il posto della pagina come fonte («minuto 12:30»); poi si segue lo stesso percorso di concetti, domande e verifiche;
+     - il modello di trascrizione è a basso costo e si sceglie su un campione: lezioni vere trascritte in parte a mano, confrontando i candidati sugli errori di trascrizione in italiano, sul costo all'ora e sull'uso dei dati;
+     - candidati:
+       - Gladia: Solaria-3 a 0,16 €/ora; addestramento sui dati attivo per impostazione predefinita e da disattivare; conservazione e località dei dati da chiedere. Letto il 29 ottobre 2026;
+       - modelli open source in locale;
+     - da verificare: distinzione delle voci;
+     - consenso e diritto di usare la registrazione vanno inclusi nel parere legale prima del lancio.
 9. **Conservazione e riuso:**
    - tutti i corsi nel nostro database;
    - riuso per file identico e stessa configurazione;
