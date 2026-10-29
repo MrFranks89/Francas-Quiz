@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 1,
+  "id": "generated-fixture-con-scarti",
+  "version": 1,
+  "title": "Corso dal documento",
+  "description": "Bozza generata dal materiale selezionato. Revisione umana richiesta.",
+  "objectives": [
+    "Comprendere la procedura"
+  ],
+  "sources": [
+    {
+      "id": "page-201",
+      "documentId": "document-1",
+      "page": 201,
+      "label": "Pagina 201",
+      "excerpt": "Testo di formazione.\n\nSecondo paragrafo."
+    }
+  ],
+  "modules": [
+    {
+      "id": "module-1",
+      "title": "Modulo di prova",
+      "lessons": [
+        {
+          "id": "lesson-1",
+          "title": "Modulo di prova",
+          "slides": [
+            {
+              "heading": "Procedura",
+              "body": "Contenuto di prova",
+              "highlight": "",
+              "sourceRefs": [
+                "page-201"
+              ],
+              "id": "slide-1-1"
+            }
+          ],
+          "questionIds": [
+            "question-1-1",
+            "question-1-2",
+            "question-1-3"
+          ]
+        }
+      ],
+      "exam": {
+        "id": "exam-1",
+        "questionIds": [
+          "question-1-1",
+          "question-1-2",
+          "question-1-3"
+        ],
+        "mode": "practice",
+        "passingScore": 2,
+        "maxAttempts": null
+      }
+    }
+  ],
+  "questions": [
+    {
+      "id": "question-1-1",
+      "moduleId": "module-1",
+      "lessonId": "lesson-1",
+      "kind": "single",
+      "prompt": "Quale risposta?",
+      "difficulty": "base",
+      "options": [
+        {
+          "id": "option-0",
+          "text": "Prima"
+        },
+        {
+          "id": "option-1",
+          "text": "Seconda"
+        }
+      ],
+      "correctOptionId": "option-0",
+      "explanation": "Spiegazione di prova",
+      "sourceRefs": [
+        "page-201"
+      ]
+    },
+    {
+      "id": "question-1-2",
+      "moduleId": "module-1",
+      "lessonId": "lesson-1",
+      "kind": "truefalse",
+      "prompt": "Il testo ha un secondo paragrafo.",
+      "difficulty": "base",
+      "options": [
+        {
+          "id": "option-0",
+          "text": "Vero"
+        },
+        {
+          "id": "option-1",
+          "text": "Falso"
+        }
+      ],
+      "correctOptionId": "option-0",
+      "explanation": "Spiegazione di prova",
+      "sourceRefs": [
+        "page-201"
+      ]
+    },
+    {
+      "id": "question-1-3",
+      "moduleId": "module-1",
+      "lessonId": "lesson-1",
+      "kind": "multiple",
+      "prompt": "Che cosa contiene il materiale?",
+      "difficulty": "base",
+      "options": [
+        {
+          "id": "option-0",
+          "text": "Testo di formazione"
+        },
+        {
+          "id": "option-1",
+          "text": "Secondo paragrafo"
+        },
+        {
+          "id": "option-2",
+          "text": "Una tabella"
+        },
+        {
+          "id": "option-3",
+          "text": "Un grafico"
+        }
+      ],
+      "correctOptionIds": [
+        "option-0",
+        "option-1"
+      ],
+      "explanation": "Spiegazione di prova",
+      "sourceRefs": [
+        "page-201"
+      ]
+    }
+  ]
+}

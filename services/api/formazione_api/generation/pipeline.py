@@ -3,7 +3,7 @@ from time import perf_counter
 from pydantic import ValidationError
 from .chunks import plan_chunks
 from .errors import GenerationError
-from .models import OPZIONI_VERO_FALSO, Course, ModuleDraft, Source
+from .models import OPZIONI_VERO_FALSO, Course, ModuleDraft, Source, violazioni_domanda
 from .selection import create_provider
 from .telemetry import aggregate_usage, call_usage
 
@@ -16,6 +16,11 @@ SOGLIA_SUPERAMENTO_PERCENTO = 60
 def soglia_predefinita(n: int) -> int:
     """Risposte corrette minime su n domande: il più piccolo k con k/n >= 60%, in aritmetica intera."""
     return (SOGLIA_SUPERAMENTO_PERCENTO * n + 99) // 100
+
+
+def avviso_scarti(n: int) -> str:
+    """Avviso della bozza per n > 0 domande scartate (elenco completo in `scarti` del risultato)."""
+    return f"{n} {'domanda scartata' if n == 1 else 'domande scartate'} dai controlli di qualità"
 
 
 def domanda_del_contratto(question, qid: str, module_id: str, lesson_id: str) -> dict:
@@ -53,7 +58,7 @@ def generate(extraction: dict, provider=None, *, title='Corso dal documento', ma
         raise GenerationError('invalid_sources', 'Metadati delle fonti non validi') from error
     chunks = plan_chunks(blocks, max_chars, max_chunks)
     provider = provider or create_provider()
-    modules, questions, objectives, coverage, usage_calls = [], [], [], [], []
+    modules, questions, objectives, coverage, usage_calls, scarti = [], [], [], [], [], []
     for i, chunk in enumerate(chunks, 1):
         try:
             started = perf_counter()
@@ -64,15 +69,29 @@ def generate(extraction: dict, provider=None, *, title='Corso dal documento', ma
         except (ValidationError, ValueError) as error:
             raise GenerationError('invalid_generated_content', 'Contenuto AI non valido') from error
         allowed = {p.source_id for p in chunk.pieces}
+        # Prima delle regole di qualità e su tutte le domande, anche quelle che verranno scartate:
+        # una fonte inventata resta fatale.
         for item in [*draft.slides, *draft.questions]:
             if len(set(item.sourceRefs)) != len(item.sourceRefs) or not set(item.sourceRefs) <= allowed:
                 raise GenerationError('invented_source', 'La risposta AI cita una fonte assente dal blocco')
         module_id, lesson_id = f'module-{i}', f'lesson-{i}'
-        ids = []
-        for j, question in enumerate(draft.questions, 1):
-            qid = f'question-{i}-{j}'
+        ids, scarti_blocco = [], []
+        for position, question in enumerate(draft.questions, 1):
+            qid = f'question-{i}-{len(ids) + 1}'
+            domanda = domanda_del_contratto(question, qid, module_id, lesson_id)
+            if violazioni := violazioni_domanda(domanda):
+                (rule, message), *altre = violazioni
+                scarti_blocco.append(dict(moduleId=module_id, chunkId=chunk.id, position=position, kind=question.kind,
+                                          prompt=question.prompt, rule=rule, message=message,
+                                          otherRules=[dict(rule=r, message=m) for r, m in altre]))
+                continue
             ids.append(qid)
-            questions.append(domanda_del_contratto(question, qid, module_id, lesson_id))
+            questions.append(domanda)
+        if not ids:
+            # Un modulo senza domande non è un modulo valido: il blocco fallisce come prima dello scarto.
+            raise GenerationError('invalid_generated_content', f'Contenuto AI non valido: {avviso_scarti(len(scarti_blocco))} '
+                                  f'nel blocco {chunk.id} ({", ".join(s["rule"] for s in scarti_blocco)}), nessuna rimasta')
+        scarti.extend(scarti_blocco)
         slides = [dict(id=f'slide-{i}-{j}', **slide.model_dump()) for j, slide in enumerate(draft.slides, 1)]
         modules.append(dict(id=module_id, title=draft.title, lessons=[dict(id=lesson_id, title=draft.title, slides=slides, questionIds=ids)],
                             exam=dict(id=f'exam-{i}', questionIds=ids, mode='practice', passingScore=soglia_predefinita(len(ids)), maxAttempts=None)))
@@ -87,5 +106,6 @@ def generate(extraction: dict, provider=None, *, title='Corso dal documento', ma
         raise GenerationError('invalid_course', 'Corso assemblato non valido') from error
     return dict(status='draft', course=course.model_dump(), usage=aggregate_usage(usage_calls), coverage=dict(
         processedChunks=len(chunks), totalChunks=len(chunks), processedCharacters=sum(len(b['text']) for b in blocks),
-        semanticCompleteness='not_verified', chunks=coverage), warnings=[
-            *extraction.get('warnings', []), 'Bozza da revisionare: il tracciamento del testo non certifica completezza o correttezza didattica.'])
+        semanticCompleteness='not_verified', chunks=coverage), scarti=scarti, warnings=[
+            *extraction.get('warnings', []), *([avviso_scarti(len(scarti))] if scarti else []),
+            'Bozza da revisionare: il tracciamento del testo non certifica completezza o correttezza didattica.'])

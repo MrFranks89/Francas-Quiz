@@ -88,13 +88,19 @@ def test_null_esplicito_su_campo_facoltativo_rifiutato_anche_da_zod():
 
 
 def test_bozza_multipla_non_piu_di_meta_giuste():
+    # Regole di qualità: non rifiutano la bozza, la pipeline scarta la domanda (test_scarto_domande.py).
     from test_generation import domande_di_prova
-    from formazione_api.generation.models import MultipleDraft
+    from formazione_api.generation.models import MultipleDraft, violazioni_domanda
+    from formazione_api.generation.pipeline import domanda_del_contratto
     base = next(d for d in domande_di_prova(['page-1']) if d['kind'] == 'multiple')
     assert MultipleDraft.model_validate(base).correctIndexes == [0, 1]
-    with pytest.raises(ValidationError, match='metà'):
-        MultipleDraft.model_validate({**base, 'correctIndexes': [0, 1, 2]})
-    with pytest.raises(ValidationError, match='almeno 2'):
-        MultipleDraft.model_validate({**base, 'correctIndexes': [0]})
+
+    def violazioni(**campi):
+        bozza = MultipleDraft.model_validate({**base, **campi})
+        return [codice for codice, _ in violazioni_domanda(domanda_del_contratto(bozza, 'q', 'm', 'l'))]
+    assert violazioni() == []
+    assert violazioni(correctIndexes=[0, 1, 2]) == ['multipla_oltre_meta_giuste']
+    assert violazioni(correctIndexes=[0]) == ['multipla_meno_di_due_giuste']
+    # Indice fuori dalle opzioni: errore strutturale, la bozza resta rifiutata.
     with pytest.raises(ValidationError):
         MultipleDraft.model_validate({**base, 'correctIndexes': [0, 9]})

@@ -47,7 +47,14 @@ def _tipo(valore: str):
 # L'unica unione dello schema è l'elemento di `questions`.
 
 class _Scelta(Model):
-    """Regole comuni alle bozze con opzioni scritte dal modello."""
+    """Regole strutturali comuni alle bozze con opzioni scritte dal modello.
+
+    Le regole di qualità di singola domanda (errori_tipo e la regola della multipla) NON stanno qui:
+    le applica la pipeline con violazioni_domanda e scarta la domanda invece di rifiutare il modulo.
+    Devono restare fuori dai validatori perché lo SDK OpenAI valida con text_format=ModuleDraft dentro
+    responses.parse() e AnthropicProvider con ModuleDraft.model_validate_json: una regola di qualità
+    qui farebbe fallire il modulo intero prima che la pipeline possa scartare la sola domanda.
+    """
 
     @model_validator(mode='after')
     def correct_answer(self):
@@ -57,11 +64,6 @@ class _Scelta(Model):
             raise ValueError('Opzione vuota')
         if len(self.rationales) != len(self.options):
             raise ValueError('rationales deve avere un elemento per opzione')
-        errori = errori_tipo(self.kind, self.prompt, [(f'option-{k}', t) for k, t in enumerate(self.options)],
-                             f'option-{self.correctIndex}', getattr(self, 'situation', None),
-                             getattr(self, 'sentence', None), getattr(self, 'wrong', None))
-        if errori:
-            raise ValueError('; '.join(m for _, m in errori))
         return self
 
 
@@ -154,14 +156,8 @@ class MultipleDraft(Model):
             raise ValueError('Opzione vuota')
         if len(self.rationales) != len(self.options):
             raise ValueError('rationales deve avere un elemento per opzione')
-        # Regola della generazione, più stretta del contratto (che chiede solo almeno una sbagliata):
-        # con più giuste che sbagliate la domanda si indovina scegliendo quasi tutto.
-        if 2 * len(self.correctIndexes) > len(self.options):
-            raise ValueError('Risposta multipla: non più di metà delle opzioni può essere giusta')
-        errori = errori_tipo('multiple', self.prompt, [(f'option-{k}', t) for k, t in enumerate(self.options)], None,
-                             correct_ids=[f'option-{i}' for i in self.correctIndexes])
-        if errori:
-            raise ValueError('; '.join(m for _, m in errori))
+        # Le regole di qualità (almeno 2 giuste, non più di metà, opzioni diverse) le applica la pipeline:
+        # violazioni_domanda, vedi _Scelta.
         return self
 
 
@@ -208,11 +204,23 @@ def errori_tipo(kind, prompt, options, correct_id, situation=None, sentence=None
     stesso ordine e stessi messaggi di erroriTipo in packages/contracts/src/tipi.ts. Una sola giusta
     è garantita dalla forma (un correctOptionId); che sia fra le opzioni lo controlla il corso.
     """
+    return [(campo, messaggio) for campo, _, messaggio in
+            violazioni_tipo(kind, prompt, options, correct_id, situation, sentence, wrong, correct_ids)]
+
+
+def violazioni_tipo(kind, prompt, options, correct_id, situation=None, sentence=None, wrong=None,
+                    correct_ids=None) -> list[tuple[str, str, str]]:
+    """Le regole di errori_tipo con il loro codice stabile: (campo, codice, messaggio).
+
+    Il codice identifica la regola negli scarti della generazione e nel rapporto della misura, e non
+    cambia se cambia il testo del messaggio. Codici solo lato Python: erroriTipo del contratto
+    TypeScript espone campo e messaggio.
+    """
     errori = []
     campi = dict(situation=situation, sentence=sentence, wrong=wrong)
     for campo, tipo in _CAMPI_DEL_TIPO.items():
         if kind != tipo and campi[campo] is not None:
-            errori.append((campo, f'Il campo {campo} vale solo per il tipo {tipo}'))
+            errori.append((campo, 'campo_di_altro_tipo', f'Il campo {campo} vale solo per il tipo {tipo}'))
     testi = [t.strip() for _, t in options]
     # Risposta multipla: più giuste in correctOptionIds (almeno 2, almeno una sbagliata), mai correctOptionId;
     # tutti gli altri tipi l'opposto. Decisione dell'utente del 28 ottobre 2026.
@@ -220,45 +228,63 @@ def errori_tipo(kind, prompt, options, correct_id, situation=None, sentence=None
         giuste = correct_ids or []
         ids = {i for i, _ in options}
         if correct_id is not None:
-            errori.append(('correctOptionId', 'Risposta multipla: le giuste vanno in correctOptionIds'))
+            errori.append(('correctOptionId', 'multipla_giusta_singola', 'Risposta multipla: le giuste vanno in correctOptionIds'))
         if len(giuste) < 2:
-            errori.append(('correctOptionIds', 'Risposta multipla: servono almeno 2 risposte giuste'))
+            errori.append(('correctOptionIds', 'multipla_meno_di_due_giuste', 'Risposta multipla: servono almeno 2 risposte giuste'))
         elif len(set(giuste)) != len(giuste) or not set(giuste) <= ids:
-            errori.append(('correctOptionIds', 'Risposta multipla: le giuste devono essere opzioni diverse della domanda'))
+            errori.append(('correctOptionIds', 'multipla_giuste_non_valide', 'Risposta multipla: le giuste devono essere opzioni diverse della domanda'))
         elif len(giuste) >= len(options):
-            errori.append(('correctOptionIds', 'Risposta multipla: serve almeno una risposta sbagliata'))
+            errori.append(('correctOptionIds', 'multipla_senza_sbagliate', 'Risposta multipla: serve almeno una risposta sbagliata'))
         if len(set(testi)) != len(testi):
-            errori.append(('options', 'Opzioni duplicate'))
+            errori.append(('options', 'opzioni_duplicate', 'Opzioni duplicate'))
     else:
         if correct_ids is not None:
-            errori.append(('correctOptionIds', 'Il campo correctOptionIds vale solo per il tipo multiple'))
+            errori.append(('correctOptionIds', 'giuste_multiple_fuori_tipo', 'Il campo correctOptionIds vale solo per il tipo multiple'))
         if not correct_id:
-            errori.append(('correctOptionId', 'Manca la risposta giusta'))
+            errori.append(('correctOptionId', 'giusta_mancante', 'Manca la risposta giusta'))
     if kind == 'truefalse' and tuple(testi) != OPZIONI_VERO_FALSO:
-        errori.append(('options', 'Vero o falso: le opzioni sono esattamente «Vero» e «Falso», in quest\'ordine'))
+        errori.append(('options', 'vero_falso_opzioni', 'Vero o falso: le opzioni sono esattamente «Vero» e «Falso», in quest\'ordine'))
     if kind == 'fillblank' and prompt.count(SPAZIO) != 1:
-        errori.append(('prompt', f'Completa la frase: il testo deve contenere esattamente uno spazio {SPAZIO}'))
+        errori.append(('prompt', 'spazio_non_unico', f'Completa la frase: il testo deve contenere esattamente uno spazio {SPAZIO}'))
     if kind == 'scenario' and not (situation or '').strip():
-        errori.append(('situation', 'Scenario: la situazione è obbligatoria'))
+        errori.append(('situation', 'situazione_mancante', 'Scenario: la situazione è obbligatoria'))
     if kind == 'correctStatement':
         if not (sentence or '').strip():
-            errori.append(('sentence', 'Correggi l\'errore: la frase è obbligatoria'))
+            errori.append(('sentence', 'frase_mancante', 'Correggi l\'errore: la frase è obbligatoria'))
         if not (wrong or '').strip():
-            errori.append(('wrong', 'Correggi l\'errore: la parte sbagliata è obbligatoria'))
+            errori.append(('wrong', 'parte_sbagliata_mancante', 'Correggi l\'errore: la parte sbagliata è obbligatoria'))
         elif (sentence or '').strip() and sentence.count(wrong) != 1:
-            errori.append(('wrong', 'Correggi l\'errore: la parte sbagliata deve comparire esattamente una volta nella frase'))
+            errori.append(('wrong', 'parte_sbagliata_non_unica', 'Correggi l\'errore: la parte sbagliata deve comparire esattamente una volta nella frase'))
     if kind in ('scenario', 'oddOneOut', 'correctStatement'):
         if len(set(testi)) != len(testi):
-            errori.append(('options', 'Opzioni duplicate'))
+            errori.append(('options', 'opzioni_duplicate', 'Opzioni duplicate'))
         ids = [i for i, _ in options]
         if correct_id in ids and len(options) > 1:
             giusta = ids.index(correct_id)
             rivale = max(len(t) for k, t in enumerate(testi) if k != giusta)
             # len() conta punti di codice, come Array.from in TypeScript; 2·giusta > 3·rivale ⇔ giusta > 1,5·rivale.
             if 2 * len(testi[giusta]) > 3 * rivale:
-                errori.append(('options', 'La risposta giusta è più lunga di 1,5 volte la più lunga delle altre: '
+                errori.append(('options', 'giusta_troppo_lunga', 'La risposta giusta è più lunga di 1,5 volte la più lunga delle altre: '
                                           'si riconosce senza conoscere la materia'))
     return errori
+
+
+def violazioni_domanda(domanda: dict) -> list[tuple[str, str]]:
+    """Regole di qualità di una domanda generata, già nella forma del contratto: (codice, messaggio).
+
+    Sono le regole di errori_tipo, applicate alla stessa forma che Question valida nel corso (così
+    una domanda che le supera non può far fallire Course né CourseSchema per queste regole), più la
+    regola della generazione sulla risposta multipla. Elenco vuoto = domanda da tenere.
+    """
+    giuste = domanda.get('correctOptionIds')
+    violazioni = [(codice, messaggio) for _, codice, messaggio in violazioni_tipo(
+        domanda['kind'], domanda['prompt'], [(o['id'], o['text']) for o in domanda['options']],
+        domanda.get('correctOptionId'), domanda.get('situation'), domanda.get('sentence'), domanda.get('wrong'), giuste)]
+    # Regola della generazione, più stretta del contratto (che chiede solo almeno una sbagliata):
+    # con più giuste che sbagliate la domanda si indovina scegliendo quasi tutto.
+    if domanda['kind'] == 'multiple' and giuste is not None and 2 * len(giuste) > len(domanda['options']):
+        violazioni.append(('multipla_oltre_meta_giuste', 'Risposta multipla: non più di metà delle opzioni può essere giusta'))
+    return violazioni
 
 
 class _SenzaNulli(Model):
