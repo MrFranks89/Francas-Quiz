@@ -1,11 +1,12 @@
 from io import BytesIO
+from zipfile import ZipFile
 
 import pytest
 from docx import Document
 from fastapi.testclient import TestClient
-from openpyxl import Workbook
 from reportlab.pdfgen import canvas
 
+from formazione_api.documents import MESSAGGIO_FOGLI
 from formazione_api.main import create_app
 
 
@@ -98,21 +99,72 @@ def test_docx(client):
     assert extraction(client, doc, {'mode': 'range', 'fromPage': 1, 'toPage': 1}).status_code == 422
 
 
-def test_xlsx_preserves_coordinates_and_warns_formula(client):
+def xlsx_minimo():
+    """Un XLSX ridotto alle parti che lo identificano (OOXML, ECMA-376 parte 2: [Content_Types].xml
+    e la parte principale xl/workbook.xml): basta al controllo sul contenuto, senza openpyxl."""
     output = BytesIO()
-    workbook = Workbook()
-    sheet = workbook.active
-    sheet.title = 'Vendite'
-    sheet.append(['Prodotto', 'Totale'])
-    sheet.append(['Esempio', '=1+2'])
-    workbook.save(output)
-    doc = upload(client, 'data.xlsx', output.getvalue())
-    assert doc['sheets'] == ['Vendite']
-    result = extraction(client, doc, {'mode': 'all'}).json()
-    assert result['status'] == 'needs_review'
-    assert 'A1: Prodotto' in result['blocks'][0]['text']
-    assert 'Vendite' in result['blocks'][1]['label']
-    assert any('B2' in warning for warning in result['warnings'])
+    with ZipFile(output, 'w') as archive:
+        archive.writestr('[Content_Types].xml', '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>')
+        archive.writestr('xl/workbook.xml', '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"/>')
+    return output.getvalue()
+
+
+# Decisione del 29 ottobre 2026 (docs/decisions/004-niente-fogli-di-calcolo.md): i fogli di
+# calcolo non sono una fonte. Il rifiuto guarda il contenuto, non solo l'estensione.
+@pytest.mark.parametrize('name,data', [
+    ('dati.xlsx', xlsx_minimo()),
+    ('DATI.XLSX', xlsx_minimo()),
+    ('dati.csv', b'prodotto,totale\nesempio,3\n'),
+    ('dati.txt', xlsx_minimo()),
+    ('dati.md', xlsx_minimo()),
+    ('dati.docx', xlsx_minimo()),
+    ('dati.pdf', xlsx_minimo()),
+], ids=lambda value: value if isinstance(value, str) else '')
+def test_fogli_di_calcolo_rifiutati(tmp_path, name, data):
+    client = TestClient(create_app(tmp_path))
+    response = client.post('/documents', files={'file': (name, data)})
+    assert response.status_code == 422
+    assert response.json()['detail'] == MESSAGGIO_FOGLI
+    assert not list(tmp_path.glob('*.source'))
+    assert not list(tmp_path.glob('*.document.json'))
+
+
+def docx_bytes():
+    output = BytesIO()
+    document = Document()
+    document.add_paragraph('Introduzione')
+    document.save(output)
+    return output.getvalue()
+
+
+@pytest.mark.parametrize('name,data,kind', [
+    ('manuale.pdf', pdf_bytes(), 'pdf'),
+    ('note.docx', docx_bytes(), 'docx'),
+    ('note.txt', b'Testo semplice', 'text'),
+    ('note.md', b'# Titolo\n\nTesto', 'text'),
+], ids=lambda value: value if isinstance(value, str) else '')
+def test_formati_ammessi_si_caricano_e_si_estraggono(client, name, data, kind):
+    doc = upload(client, name, data)
+    assert doc['kind'] == kind
+    assert 'sheets' not in doc
+    assert extraction(client, doc, {'mode': 'all'}).status_code == 201
+
+
+@pytest.mark.parametrize('record', [
+    {'name': 'dati.xlsx', 'kind': 'xlsx', 'pageCount': None, 'sheets': ['Vendite']},
+    {'name': 'dati.csv', 'kind': 'text', 'pageCount': None, 'sheets': []},
+])
+@pytest.mark.parametrize('engine', ['native', 'docling'])
+def test_foglio_salvato_prima_della_decisione_rifiutato_alla_riapertura(tmp_path, record, engine):
+    client = TestClient(create_app(tmp_path))
+    store = client.app.state.store
+    identifier = store.new_id()
+    store.path(identifier, 'source').write_bytes(xlsx_minimo() if record['kind'] == 'xlsx' else b'a,b\n1,2\n')
+    store.save(identifier, 'document.json', {'id': identifier, **record})
+    response = extraction(client, {'id': identifier}, {'mode': 'all'}, engine)
+    assert response.status_code == 422
+    assert response.json()['detail'] == MESSAGGIO_FOGLI
+    assert client.get(f'/documents/{identifier}/pages/1/preview').status_code == 422
 
 
 def test_upload_limit(client, monkeypatch):

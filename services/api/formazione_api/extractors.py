@@ -1,8 +1,6 @@
 import pypdfium2 as pdfium
 import pypdfium2.raw as pdfium_c
 from docx import Document
-from openpyxl import load_workbook
-from openpyxl.cell.read_only import ReadOnlyCell
 from pypdf import PdfReader
 
 # Criterio «probabile scansione», misurato sul corpus pubblico (tests/corpus/manifest.json, sha256
@@ -83,38 +81,6 @@ def native_extract(path, kind, start, end):
                 add(item.text, None, 'Paragrafo')
         if document.inline_shapes:
             warnings.append('Il documento contiene immagini non interpretate: revisione necessaria.')
-    elif kind == 'xlsx':
-        value_source = path.open('rb')
-        formula_source = path.open('rb')
-        values = load_workbook(value_source, read_only=True, data_only=True)
-        formulas = load_workbook(formula_source, read_only=True, data_only=False)
-        try:
-            for sheet in formulas:
-                # In read_only, values[...][coordinata] rilegge il foglio dall'inizio a ogni cella
-                # (openpyxl 3.1.5, worksheet/_read_only.py, _get_cell -> _cells_by_row): su un foglio
-                # reale diventa quadratico. Le due letture dello stesso XML producono le stesse righe,
-                # nello stesso ordine: si scorrono in parallelo, e strict=True rende visibile un disallineamento.
-                for row, value_row in zip(sheet.iter_rows(), values[sheet.title].iter_rows(), strict=True):
-                    # openpyxl 3.1.5, worksheet/_read_only.py (_get_row, _cells_by_row): i buchi di una
-                    # riga sono riempiti con EMPTY_CELL, che non ha né coordinate né riga. Le celle vere
-                    # sono ReadOnlyCell (cell/read_only.py).
-                    row = [cell for cell in row if isinstance(cell, ReadOnlyCell)]
-                    computed = {cell.column: cell.value for cell in value_row if isinstance(cell, ReadOnlyCell)}
-                    cells = []
-                    for cell in row:
-                        value = computed.get(cell.column)
-                        if cell.data_type == 'f' and value is None:
-                            warnings.append(f'Foglio {sheet.title}, cella {cell.coordinate}: formula senza valore calcolato disponibile.')
-                            value = f'[formula senza risultato: {cell.value}]'
-                        if value is not None:
-                            cells.append(f'{cell.coordinate}: {value}')
-                    if cells:
-                        add(' | '.join(cells), None, f'Foglio {sheet.title}, riga {row[0].row}')
-        finally:
-            values.close()
-            formulas.close()
-            value_source.close()
-            formula_source.close()
     else:
         add(path.read_text(encoding='utf-8-sig'), None, 'Testo')
     if not blocks:

@@ -10,7 +10,6 @@ from pathlib import Path
 from zipfile import ZipFile
 
 import pytest
-from openpyxl import Workbook
 from PIL import Image
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
@@ -40,53 +39,6 @@ def file_corpus(documento, membro=None):
         if hashlib.sha256(zip_file.read(membro)).digest() != hashlib.sha256(estratto.read_bytes()).digest():
             pytest.skip(f'file estratto diverso dal membro dello ZIP: {estratto}')
     return estratto
-
-
-# --- XLSX: celle vuote di riempimento in modalità read_only -------------------------------
-
-def xlsx_sparso():
-    """Righe con buchi e una riga che comincia con una cella vuota: in read_only openpyxl 3.1.5
-    riempie i buchi con EMPTY_CELL (worksheet/_read_only.py, _get_row), che non ha coordinate."""
-    workbook = Workbook()
-    sheet = workbook.active
-    sheet.title = 'Tavola'
-    sheet['A1'] = 'Titolo'
-    sheet['D1'] = 'Nota'
-    sheet['C2'] = 42
-    sheet['B3'] = '=1+2'
-    output = BytesIO()
-    workbook.save(output)
-    return output.getvalue()
-
-
-def test_xlsx_con_celle_vuote_conserva_foglio_celle_valori_e_avviso(tmp_path):
-    path = tmp_path / 'sparso.xlsx'
-    path.write_bytes(xlsx_sparso())
-    blocks, warnings, status = native_extract(path, 'xlsx', None, None)
-    assert [(b['label'], b['text']) for b in blocks] == [
-        ('Foglio Tavola, riga 1', 'A1: Titolo | D1: Nota'),
-        ('Foglio Tavola, riga 2', 'C2: 42'),
-        ('Foglio Tavola, riga 3', 'B3: [formula senza risultato: =1+2]'),
-    ]
-    assert warnings == ['Foglio Tavola, cella B3: formula senza valore calcolato disponibile.']
-    assert status == 'needs_review'
-
-
-def test_xlsx_con_celle_vuote_dalla_rotta(client):  # noqa: F811
-    doc = upload(client, 'sparso.xlsx', xlsx_sparso())
-    response = extraction(client, doc, {'mode': 'all'})
-    assert response.status_code == 201, response.text
-    data = response.json()
-    assert data['blocks'][1]['text'] == 'C2: 42'
-    assert any('cella B3' in w for w in data['warnings'])
-
-
-@pytest.mark.parametrize('nome', ['C08_Tavole.xlsx', 'C08_Prospetti.xlsx', 'C08_Figure.xlsx'])
-def test_xlsx_reali_del_corpus_si_leggono(nome):
-    path = file_corpus('07-istat-asi-2024-d08', f'D08/{nome}')
-    blocks, _warnings, _status = native_extract(path, 'xlsx', None, None)
-    assert blocks
-    assert all(b['label'].startswith('Foglio ') and ': ' in b['text'] for b in blocks)
 
 
 # --- PDF: pagine scansionate con un'intestazione testuale ---------------------------------

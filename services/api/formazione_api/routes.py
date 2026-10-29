@@ -6,7 +6,7 @@ from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from fastapi.responses import Response
 from io import BytesIO
 
-from .documents import MAX_BYTES, inspect_document
+from .documents import MAX_BYTES, MESSAGGIO_FOGLI, fonte_ammessa, inspect_document
 from .extractors import native_extract
 from .models import ExtractionRequest, selected_pages
 
@@ -42,8 +42,8 @@ async def upload(request: Request, file: UploadFile = File(...)):
                 target.write(chunk)
         if not size:
             raise ValueError('Il file è vuoto.')
-        kind, count, sheets = inspect_document(path, filename)
-        result = {'id': identifier, 'name': filename, 'kind': kind, 'pageCount': count, 'sheets': sheets}
+        kind, count = inspect_document(path, filename)
+        result = {'id': identifier, 'name': filename, 'kind': kind, 'pageCount': count}
         store.save(identifier, 'document.json', result)
         return result
     except HTTPException:
@@ -87,6 +87,8 @@ def preview(identifier: str, page: int, request: Request):
 def extract(identifier: str, body: ExtractionRequest, request: Request):
     store = request.app.state.store
     document = read_record(store, identifier, 'document.json')
+    if not fonte_ammessa(document):
+        raise HTTPException(422, MESSAGGIO_FOGLI)
     try:
         start, end = selected_pages(body.selection, document['pageCount'], document['kind'])
     except ValueError as error:
