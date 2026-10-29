@@ -1,6 +1,6 @@
 import React,{useEffect,useState} from 'react';
 import {Pressable,Text,View} from 'react-native';
-import {canAccessModule,completeLesson,submitExam,createProgress,displayOptions,valutaTentativo,descriviValutazione,type Progress} from '@formazione/learning-engine';
+import {canAccessModule,completeLesson,submitExam,createProgress,displayOptions,valutaTentativo,descriviValutazione,type Answer,type Progress} from '@formazione/learning-engine';
 import {usePalette} from '@formazione/civis-ui/src/ThemeProvider';
 import {useStyles} from '@formazione/civis-ui/src/comune/stili';
 import {TESTO} from '@formazione/civis-ui/src/tema';
@@ -27,7 +27,7 @@ export function CourseScreen({currentCourse=course,kind='demo'}:{currentCourse?:
  const course=currentCourse;
  const C=usePalette(),s=useStyles();
  const [progress,setProgress]=useState<Progress>(createProgress(course)),[ready,setReady]=useState(false),[error,setError]=useState('');
- const [active,setActive]=useState(course.modules[0].id),[answers,setAnswers]=useState<Record<string,string>>({}),[saving,setSaving]=useState(false);
+ const [active,setActive]=useState(course.modules[0].id),[answers,setAnswers]=useState<Record<string,string[]>>({}),[saving,setSaving]=useState(false);
  // Lezione aperta e slide corrente; «retrying»: nuovo tentativo avviato dopo il riepilogo.
  const [openLesson,setOpenLesson]=useState<string|null>(null),[slideIndex,setSlideIndex]=useState(0),[retrying,setRetrying]=useState(false);
  useEffect(()=>{let live=true;loadProgress(course).then(p=>{if(live)setProgress(p);}).catch(e=>{if(live)setError(String(e.message));}).finally(()=>{if(live)setReady(true);});return()=>{live=false;};},[course]);
@@ -42,7 +42,10 @@ export function CourseScreen({currentCourse=course,kind='demo'}:{currentCourse?:
  // Si risponde al primo tentativo, oppure dopo «Nuovo tentativo»; altrimenti si vede il riepilogo dell'ultimo.
  const answering=!!exam&&lessonsDone&&!gatePassed&&!exhausted&&(!last||retrying);
  // Dopo la consegna le risposte restano visibili: il riepilogo le legge dal tentativo salvato, non da `answers`.
- async function submit(){if(!exam)return;try{await update(submitExam(course,progress,exam.id,`attempt-${Date.now()}-${Math.random().toString(36).slice(2)}`,exam.questionIds.filter(id=>answers[id]).map(questionId=>({questionId,optionId:answers[questionId]}))));setAnswers({});setRetrying(false);}catch(e){setError(e instanceof Error?e.message:'Valutazione non riuscita.');}}
+ async function submit(){if(!exam)return;try{await update(submitExam(course,progress,exam.id,`attempt-${Date.now()}-${Math.random().toString(36).slice(2)}`,exam.questionIds.filter(id=>answers[id]?.length).map(questionId=>risposta(questionId,answers[questionId]))));setAnswers({});setRetrying(false);}catch(e){setError(e instanceof Error?e.message:'Valutazione non riuscita.');}}
+ // Risposta multipla: ogni tocco aggiunge o toglie l'opzione; negli altri tipi la sostituisce.
+ function scegli(q:Course['questions'][number],attuali:string[],optionId:string){return q.kind!=='multiple'?[optionId]:attuali.includes(optionId)?attuali.filter(x=>x!==optionId):[...attuali,optionId];}
+ function risposta(questionId:string,scelte:string[]):Answer{return course.questions.find(q=>q.id===questionId)!.kind==='multiple'?{questionId,optionIds:scelte}:{questionId,optionId:scelte[0]};}
  function chooseModule(id:string){setActive(id);setAnswers({});setRetrying(false);setOpenLesson(null);}
  function openAt(lessonId:string){setOpenLesson(lessonId);setSlideIndex(0);}
  function nextSlide(lessonId:string,count:number){
@@ -97,8 +100,8 @@ export function CourseScreen({currentCourse=course,kind='demo'}:{currentCourse?:
    <Text style={{color:C.textDim,fontSize:TESTO.minuscolo,marginTop:4,marginBottom:14}}>Soglia: {exam.passingScore}/{exam.questionIds.length} risposte corrette · {exam.maxAttempts===null?'tentativi illimitati':`${attempts.length}/${exam.maxAttempts} tentativi usati`}</Text>
    {!lessonsDone&&<Avviso testo="Completa tutte le lezioni del modulo per sostenere il test."/>}
    {answering&&<>
-    {exam.questionIds.map((id,qi)=>{const q=course.questions.find(q=>q.id===id)!;return <DomandaInCorso key={id} numero={qi+1} totale={exam.questionIds.length} domanda={presentazione(q)} opzioni={displayOptions(course,exam.id,attempts.length,id).map(o=>({id:o.id,text:o.text}))} scelta={answers[id]} disabled={saving} onScegli={optionId=>setAnswers(current=>({...current,[id]:optionId}))}/>;})}
-    <Btn label="Consegna il test" primary color={C.indigo} disabled={!ready||saving||!lessonsDone||gatePassed||!!exhausted||exam.questionIds.some(id=>!answers[id])} onPress={submit}/>
+    {exam.questionIds.map((id,qi)=>{const q=course.questions.find(q=>q.id===id)!;return <DomandaInCorso key={id} numero={qi+1} totale={exam.questionIds.length} domanda={presentazione(q)} opzioni={displayOptions(course,exam.id,attempts.length,id).map(o=>({id:o.id,text:o.text}))} scelte={answers[id]??[]} disabled={saving} onScegli={optionId=>setAnswers(current=>({...current,[id]:scegli(q,current[id]??[],optionId)}))}/>;})}
+    <Btn label="Consegna il test" primary color={C.indigo} disabled={!ready||saving||!lessonsDone||gatePassed||!!exhausted||exam.questionIds.some(id=>!answers[id]?.length)} onPress={submit}/>
     {last&&<Pressable onPress={()=>{setRetrying(false);setAnswers({});}} accessibilityRole="button" accessibilityLabel="Torna al riepilogo" hitSlop={8} style={{alignSelf:'center'}}><Text style={{color:C.textDim,fontSize:TESTO.piccolo,fontWeight:'700'}}>Torna al riepilogo del tentativo precedente</Text></Pressable>}
    </>}
    {last&&valutazione&&!answering&&<>

@@ -31,9 +31,9 @@ export function editorReducer(state:EditorState,action:EditorAction):EditorState
  }
 }
 /** Nome del tipo di domanda per chi rivede, con le etichette dei formati di Civis. */
-export const NOMI_TIPO:Record<TipoDomanda,string>={single:'Scelta singola',truefalse:'Vero o falso',fillblank:'Completa la frase',scenario:'Scenario',oddOneOut:'Trova l\'intruso',correctStatement:'Correggi l\'errore'};
+export const NOMI_TIPO:Record<TipoDomanda,string>={single:'Scelta singola',truefalse:'Vero o falso',fillblank:'Completa la frase',scenario:'Scenario',oddOneOut:'Trova l\'intruso',correctStatement:'Correggi l\'errore',multiple:'Risposta multipla'};
 /** Etichetta del campo `prompt`, che cambia significato secondo il tipo. */
-export const ETICHETTA_PROMPT:Record<TipoDomanda,string>={single:'Domanda',truefalse:'Affermazione',fillblank:'Frase con lo spazio ___',scenario:'Domanda sulla situazione',oddOneOut:'Consegna',correctStatement:'Consegna'};
+export const ETICHETTA_PROMPT:Record<TipoDomanda,string>={single:'Domanda',truefalse:'Affermazione',fillblank:'Frase con lo spazio ___',scenario:'Domanda sulla situazione',oddOneOut:'Consegna',correctStatement:'Consegna',multiple:'Domanda'};
 /**
  * Errori per tipo di ogni domanda, per indice di domanda e campo ('prompt', 'situation', 'options'...).
  * Stesse regole di CourseSchema (erroriTipo del contratto): l'errore si mostra sotto il campo, il valore

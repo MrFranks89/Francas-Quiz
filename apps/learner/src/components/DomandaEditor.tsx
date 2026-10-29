@@ -21,7 +21,7 @@ export function DomandaEditor({question,qi,errori,disabled,change}:{question:Que
     onChangeText={text=>change([...base,...path],options.optional?facoltativo(text):text)}/>
   </View>;
  }
- const kind=question.kind;
+ const kind=question.kind,giuste=question.correctOptionIds??[];
  return <View style={{gap:12}}>
   <Text style={styles.subtitle}>Domanda {n} · {NOMI_TIPO[kind]}</Text>
   {kind==='scenario'&&<>{field(`Situazione ${n}`,['situation'],question.situation??'',{multiline:true})}{sotto('situation')}</>}
@@ -34,8 +34,13 @@ export function DomandaEditor({question,qi,errori,disabled,change}:{question:Que
    {/* Vero/falso: le due opzioni sono fisse, si sceglie solo quale è giusta. */}
    {field(`Risposta ${n}.${oi+1}`,['options',oi,'text'],option.text,{editable:kind!=='truefalse'})}
    {kind!=='truefalse'&&field(`Motivazione ${n}.${oi+1} (facoltativa)`,['options',oi,'rationale'],option.rationale??'',{optional:true})}
-   <Button label={question.correctOptionId===option.id?'Risposta corretta ✓':'Segna come corretta'} disabled={disabled} secondary={question.correctOptionId!==option.id} onPress={()=>change([...base,'correctOptionId'],option.id)}/>
+   {kind==='multiple'
+    ?<Button label={giuste.includes(option.id)?'Giusta, tocca per togliere':'Segna anche questa come giusta'} disabled={disabled} secondary={!giuste.includes(option.id)} onPress={()=>change([...base,'correctOptionIds'],giuste.includes(option.id)?giuste.filter(g=>g!==option.id):[...giuste,option.id])}/>
+    :<Button label={question.correctOptionId===option.id?'Risposta corretta ✓':'Segna come corretta'} disabled={disabled} secondary={question.correctOptionId!==option.id} onPress={()=>change([...base,'correctOptionId'],option.id)}/>}
   </View>)}
+  {/* Risposta multipla: l'insieme delle giuste, con l'errore sotto (almeno 2, almeno una sbagliata). */}
+  {kind==='multiple'&&<Text style={styles.muted}>Risposte giuste: {giuste.length} su {question.options.length}</Text>}
+  {sotto('correctOptionIds')}{sotto('correctOptionId')}
   {sotto('options')}
   <Text style={styles.muted}>Difficoltà</Text>
   <View style={styles.row}>

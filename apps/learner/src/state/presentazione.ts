@@ -23,6 +23,8 @@ export type Presentazione={
 
 const ETICHETTE:Record<Question['kind'],string|null>={
  single:null,truefalse:'Vero o falso',fillblank:'Completa la frase',scenario:'Scenario',oddOneOut:'Trova l\'intruso',correctStatement:'Correggi l\'errore',
+ // Risposta multipla: l'indicazione che le giuste sono più d'una (decisione dell'utente).
+ multiple:'Più risposte corrette',
 };
 
 function dividi(testo:string,parte:string){

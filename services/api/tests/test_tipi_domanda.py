@@ -20,7 +20,7 @@ def sample():
 
 def test_il_backend_accetta_il_corso_campione_con_ogni_tipo():
     course = Course.model_validate(sample())
-    assert {q.kind for q in course.questions} == {'single', 'truefalse', 'fillblank', 'scenario', 'oddOneOut', 'correctStatement'}
+    assert {q.kind for q in course.questions} == {'single', 'truefalse', 'fillblank', 'scenario', 'oddOneOut', 'correctStatement', 'multiple'}
     # Il JSON del backend resta leggibile da Zod: niente null per i campi facoltativi assenti.
     dumped = course.model_dump()
     assert dumped['questions'][0]['kind'] == 'single'
@@ -52,6 +52,12 @@ def domanda(course, kind):
      'più lunga di 1,5 volte'),
     (lambda c: domanda(c, 'correctStatement').update(wrong='cliente'), 'esattamente una volta'),
     (lambda c: domanda(c, 'correctStatement').update(sentence='Il fornitore e il fornitore accolgono.'), 'esattamente una volta'),
+    (lambda c: domanda(c, 'multiple').update(correctOptionIds=['option-2-mu-0']), 'almeno 2 risposte giuste'),
+    (lambda c: domanda(c, 'multiple').update(correctOptionIds=[f'option-2-mu-{k}' for k in range(4)]), 'almeno una risposta sbagliata'),
+    (lambda c: domanda(c, 'multiple').update(correctOptionIds=['option-2-mu-0', 'inventata']), 'opzioni diverse'),
+    (lambda c: domanda(c, 'multiple').update(correctOptionId='option-2-mu-0'), 'vanno in correctOptionIds'),
+    (lambda c: c['questions'][0].update(correctOptionIds=['option-1-a', 'option-1-b']), 'vale solo per il tipo multiple'),
+    (lambda c: c['questions'][0].pop('correctOptionId'), 'Manca la risposta giusta'),
     (lambda c: c['questions'][0].update(difficulty='facile'), None),
     (lambda c: domanda(c, 'fillblank')['options'][1].update(rationale='  '), None),
 ])
@@ -79,3 +85,16 @@ def test_null_esplicito_su_campo_facoltativo_rifiutato_anche_da_zod():
     course['questions'][0]['situation'] = None
     dumped = Course.model_validate(deepcopy(course)).model_dump()
     assert 'situation' not in dumped['questions'][0]
+
+
+def test_bozza_multipla_non_piu_di_meta_giuste():
+    from test_generation import domande_di_prova
+    from formazione_api.generation.models import MultipleDraft
+    base = next(d for d in domande_di_prova(['page-1']) if d['kind'] == 'multiple')
+    assert MultipleDraft.model_validate(base).correctIndexes == [0, 1]
+    with pytest.raises(ValidationError, match='metà'):
+        MultipleDraft.model_validate({**base, 'correctIndexes': [0, 1, 2]})
+    with pytest.raises(ValidationError, match='almeno 2'):
+        MultipleDraft.model_validate({**base, 'correctIndexes': [0]})
+    with pytest.raises(ValidationError):
+        MultipleDraft.model_validate({**base, 'correctIndexes': [0, 9]})

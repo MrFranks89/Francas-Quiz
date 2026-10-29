@@ -74,7 +74,8 @@
             "question-2-fb",
             "question-2-sc",
             "question-2-in",
-            "question-2-ce"
+            "question-2-ce",
+            "question-2-mu"
           ]
         }
       ],
@@ -86,10 +87,11 @@
           "question-2-fb",
           "question-2-sc",
           "question-2-in",
-          "question-2-ce"
+          "question-2-ce",
+          "question-2-mu"
         ],
         "mode": "practice",
-        "passingScore": 4,
+        "passingScore": 5,
         "maxAttempts": null
       }
     }
@@ -270,6 +272,41 @@
       ],
       "correctOptionId": "option-2-ce-0",
       "explanation": "Secondo il manuale è il referente ad accogliere il nuovo collega.",
+      "sourceRefs": [
+        "source-1"
+      ]
+    },
+    {
+      "id": "question-2-mu",
+      "moduleId": "module-2",
+      "lessonId": "lesson-2",
+      "kind": "multiple",
+      "prompt": "Quali azioni spettano al referente secondo il manuale?",
+      "difficulty": "medio",
+      "options": [
+        {
+          "id": "option-2-mu-0",
+          "text": "Accogliere il nuovo collega"
+        },
+        {
+          "id": "option-2-mu-1",
+          "text": "Presentare il team"
+        },
+        {
+          "id": "option-2-mu-2",
+          "text": "Firmare il contratto",
+          "rationale": "Il manuale non parla del contratto: riguarda altri uffici."
+        },
+        {
+          "id": "option-2-mu-3",
+          "text": "Scegliere la scrivania"
+        }
+      ],
+      "correctOptionIds": [
+        "option-2-mu-0",
+        "option-2-mu-1"
+      ],
+      "explanation": "Il manuale affida al referente l’accoglienza e la presentazione del team.",
       "sourceRefs": [
         "source-1"
       ]

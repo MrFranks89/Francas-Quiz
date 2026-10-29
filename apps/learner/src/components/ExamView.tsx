@@ -32,17 +32,18 @@ const descriviStato=(stato:OptSt)=>stato==='cor'?', giusta':stato==='wr'?', sbag
 // Colore della pillola per tipo, come negli step di Civis: teal per «Completa la frase», scenario per gli altri formati.
 const colorePillola=(C:Palette,kind:Presentazione['kind'])=>kind==='fillblank'?C.teal:kind==='truefalse'?C.indigo:C.scenario;
 
-function RigaOpzione({i,text,stato,onPress,disabled}:{i:number;text:string;stato:OptSt;onPress?:()=>void;disabled?:boolean}){
+/** `mancata`: risposta multipla, giusta non scelta: bordo verde senza riempimento e la parola «Mancata». */
+function RigaOpzione({i,text,stato,onPress,disabled,mancata}:{i:number;text:string;stato:OptSt;onPress?:()=>void;disabled?:boolean;mancata?:boolean}){
  const C=usePalette(),s=useStyles();
- const c=coloriOpzione(C,stato);
+ const c=mancata?{...coloriOpzione(C,'cor'),backgroundColor:C.surfaceDark}:coloriOpzione(C,stato);
  const forte=stato==='sel'||stato==='cor'||stato==='wr';
  const contenuto=<>
   <OptLetter i={i} state={stato}/>
   <Text style={[s.quizOptionText,{marginLeft:11,color:c.text},forte&&{fontWeight:'800'}]}>{text}</Text>
-  <OptMark state={stato}/>
+  {mancata?<Text style={{color:C.greenText,fontSize:17,fontWeight:'800'}}>Mancata</Text>:<OptMark state={stato}/>}
  </>;
  const stile=[s.quizOption,{borderColor:c.borderColor,backgroundColor:c.backgroundColor},forte&&{borderWidth:2}];
- if(!onPress)return <View style={stile} accessibilityLabel={`Opzione ${String.fromCharCode(65+i)}: ${text}${descriviStato(stato)}`}>{contenuto}</View>;
+ if(!onPress)return <View style={stile} accessibilityLabel={`Opzione ${String.fromCharCode(65+i)}: ${text}${mancata?', giusta, non scelta':descriviStato(stato)}`}>{contenuto}</View>;
  return <TouchableOpacity onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={`Opzione ${String.fromCharCode(65+i)}: ${text}`} accessibilityState={{selected:stato==='sel',disabled:!!disabled}} style={stile}>{contenuto}</TouchableOpacity>;
 }
 
@@ -78,7 +79,7 @@ function ChipParole({opzioni,onScegli,disabled}:{opzioni:OpzioneMostrata[];onSce
 function CorpoDomanda({domanda,opzioni,onScegli,disabled,parola,coloreParola}:{domanda:Presentazione;opzioni:OpzioneMostrata[];onScegli?:(id:string)=>void;disabled?:boolean;parola:string|null;coloreParola:string}){
  const C=usePalette(),s=useStyles();
  const domandaTesto=<Text style={[s.questionText,{marginBottom:12,color:C.text}]}>{domanda.prompt}</Text>;
- const righe=opzioni.map((o,i)=><RigaOpzione key={o.id} i={i} text={o.text} stato={o.stato} disabled={disabled} onPress={onScegli&&(()=>onScegli(o.id))}/>);
+ const righe=opzioni.map((o,i)=><RigaOpzione key={o.id} i={i} text={o.text} stato={o.stato} mancata={o.mancata} disabled={disabled} onPress={onScegli&&(()=>onScegli(o.id))}/>);
  switch(domanda.kind){
   case 'truefalse':
    return <><Text style={[s.questionText,{marginBottom:12,color:C.text}]}>«{domanda.prompt}»</Text><BottoniVeroFalso opzioni={opzioni} onScegli={onScegli} disabled={disabled}/></>;
@@ -98,6 +99,8 @@ function CorpoDomanda({domanda,opzioni,onScegli,disabled,parola,coloreParola}:{d
     <Text style={[s.label,{marginBottom:8}]}>Sostituisci la parte sbagliata con:</Text>
     {righe}
    </>;
+  case 'multiple':
+   return <>{domandaTesto}<Text style={[s.label,{marginBottom:8}]}>Seleziona tutte le risposte corrette</Text>{righe}</>;
   default:
    return <>{domandaTesto}{righe}</>;
  }
@@ -115,10 +118,11 @@ function Intestazione({testo,colore,domanda}:{testo:string;colore:string;domanda
 }
 
 /** Una domanda mentre si risponde: la scelta è evidenziata in indaco, senza rivelare nulla. */
-export function DomandaInCorso({numero,totale,domanda,opzioni,scelta,onScegli,disabled}:{numero:number;totale:number;domanda:Presentazione;opzioni:{id:string;text:string}[];scelta:string|undefined;onScegli:(id:string)=>void;disabled?:boolean}){
+/** `scelte`: opzioni selezionate (al più una, tranne nella risposta multipla). */
+export function DomandaInCorso({numero,totale,domanda,opzioni,scelte,onScegli,disabled}:{numero:number;totale:number;domanda:Presentazione;opzioni:{id:string;text:string}[];scelte:string[];onScegli:(id:string)=>void;disabled?:boolean}){
  const C=usePalette();
- const mostrate=opzioni.map(o=>({...o,stato:statoInCorso(scelta===o.id)}));
- const parola=opzioni.find(o=>o.id===scelta)?.text??null;
+ const mostrate=opzioni.map(o=>({...o,stato:statoInCorso(scelte.includes(o.id))}));
+ const parola=opzioni.find(o=>o.id===scelte[0])?.text??null;
  return <View style={{marginBottom:18}}>
   <Intestazione testo={`Domanda ${numero} di ${totale}`} colore={C.textVeryDim} domanda={domanda}/>
   <CorpoDomanda domanda={domanda} opzioni={mostrate} onScegli={onScegli} disabled={disabled} parola={parola} coloreParola={parola?C.text:C.textDim}/>
@@ -128,11 +132,11 @@ export function DomandaInCorso({numero,totale,domanda,opzioni,scelta,onScegli,di
 /** Una domanda nel riepilogo dell'ultimo tentativo: card con bordo verde o rosso, come in EsameScreen. */
 export function RiepilogoDomanda({numero,riga}:{numero:number;riga:RigaRiepilogo}){
  const C=usePalette(),s=useStyles();
- const esito=riga.giusta?'GIUSTA':riga.scelta===null?'SENZA RISPOSTA':'SBAGLIATA';
+ const esito=riga.giusta?'GIUSTA':riga.senzaRisposta?'SENZA RISPOSTA':'SBAGLIATA';
  const motivate=riga.opzioni.filter(o=>o.rationale);
  return <View style={[s.card,{marginBottom:12,borderColor:riga.giusta?C.green:C.red,borderWidth:1.5}]}>
   <Intestazione testo={`${numero} · ${esito}`} colore={riga.giusta?C.greenText:C.redText} domanda={riga.domanda}/>
-  {riga.scelta===null&&<Text style={{color:C.redText,fontSize:TESTO.piccolo,fontWeight:'700',marginBottom:8}}>Nessuna risposta data: conta come sbagliata.</Text>}
+  {riga.senzaRisposta&&<Text style={{color:C.redText,fontSize:TESTO.piccolo,fontWeight:'700',marginBottom:8}}>Nessuna risposta data: conta come sbagliata.</Text>}
   <CorpoDomanda domanda={riga.domanda} opzioni={riga.opzioni} parola={riga.testoScelto} coloreParola={riga.giusta?C.greenText:C.redText}/>
   {motivate.map(o=><View key={o.id} style={{marginBottom:8}}>
    <Text style={[s.label,{textTransform:'none',marginBottom:2,color:o.stato==='wr'?C.redText:o.stato==='cor'?C.greenText:C.textDim}]}>{o.stato==='wr'?'Un errore comprensibile':`Perché «${o.text}»`}</Text>

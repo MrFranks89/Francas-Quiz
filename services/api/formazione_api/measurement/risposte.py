@@ -19,12 +19,37 @@ def _coda_binomiale(n: int, k: int, p: float) -> float:
     return sum(comb(n, i) * p ** i * (1 - p) ** (n - i) for i in range(k, n + 1))
 
 
+def _multiple(domande: list[dict]) -> tuple[dict, list[str]]:
+    """Risposte multiple: le giuste sono sistematicamente le opzioni più lunghe?
+
+    Una domanda conta se le k giuste sono esattamente le k opzioni più lunghe (la più corta delle giuste
+    più lunga della più lunga delle sbagliate). Se la lunghezza non dice nulla, accade con probabilità
+    1/C(n, k); come per la scelta singola si usa la coda binomiale con soglia ALFA_LUNGHEZZA.
+    """
+    giuste_piu_lunghe, attesa = 0, 0.0
+    for q in domande:
+        giuste = set(q['correctOptionIds'])
+        lunghezze = {o['id']: len(o['text'].strip()) for o in q['options']}
+        sbagliate = [l for i, l in lunghezze.items() if i not in giuste]
+        if sbagliate and min(lunghezze[i] for i in giuste) > max(sbagliate):
+            giuste_piu_lunghe += 1
+        attesa += 1 / comb(len(q['options']), len(giuste))
+    n = len(domande)
+    p = _coda_binomiale(n, giuste_piu_lunghe, attesa / n) if n and giuste_piu_lunghe > attesa else 1.0
+    avvisi = [f'Risposta multipla: le giuste sono sistematicamente le opzioni più lunghe in {giuste_piu_lunghe} '
+              f'su {n} domande (attese {attesa:.1f}).'] if p < ALFA_LUNGHEZZA else []
+    return dict(domande=n, giustePiuLunghe=giuste_piu_lunghe, attesaGiustePiuLunghe=round(attesa, 2)), avvisi
+
+
 def analizza_risposte(course: dict) -> dict:
     # Vero/falso escluso: opzioni fisse «Vero», «Falso» in quest'ordine e mai mescolate
     # (displayOptions in packages/learning-engine/src/options.ts), quindi né la posizione né la
     # lunghezza della giusta dicono qualcosa sul generatore. `kind` assente vale 'single'.
-    domande = [q for q in course['questions'] if q.get('kind', 'single') != 'truefalse']
-    escluse = len(course['questions']) - len(domande)
+    # La risposta multipla ha più giuste: non entra in posizione e lunghezza della scelta singola,
+    # si controlla a parte (_multiple).
+    domande = [q for q in course['questions'] if q.get('kind', 'single') not in ('truefalse', 'multiple')]
+    escluse = sum(q.get('kind') == 'truefalse' for q in course['questions'])
+    multiple, avviso_multiple = _multiple([q for q in course['questions'] if q.get('kind') == 'multiple'])
     larghezza = max((len(q['options']) for q in domande), default=0)
     posizioni, attese = [0] * larghezza, [0.0] * larghezza
     piu_lunga, attesa_lunga = 0, 0.0
@@ -49,7 +74,8 @@ def analizza_risposte(course: dict) -> dict:
     if p_lunga < ALFA_LUNGHEZZA:
         avvisi.append(f'Risposta giusta sistematicamente la più lunga: {piu_lunga} su {n} domande '
                       f'(attese {attesa_lunga:.1f}).')
-    return dict(domande=n, escluseVeroFalso=escluse, posizioni=posizioni, posizioniValutabili=valutabili, chiQuadro=chi,
+    avvisi.extend(avviso_multiple)
+    return dict(domande=n, escluseVeroFalso=escluse, multiple=multiple, posizioni=posizioni, posizioniValutabili=valutabili, chiQuadro=chi,
                 piuLunga=piu_lunga, attesaPiuLunga=round(attesa_lunga, 2), avvisi=avvisi)
 
 

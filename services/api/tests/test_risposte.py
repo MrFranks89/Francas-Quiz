@@ -69,3 +69,24 @@ def test_vero_falso_escluso_da_posizione_e_lunghezza():
     assert esito['domande'] == 0 and esito['avvisi'] == [] and esito['escluseVeroFalso'] == 40
     misto = analizza_risposte(dict(questions=vf + per_posizione([10, 10, 11, 9])['questions']))
     assert misto['domande'] == 40 and misto['posizioni'] == [10, 10, 11, 9] and misto['avvisi'] == []
+
+
+def multipla(n, opzioni, giuste):
+    return dict(id=f'm{n}', kind='multiple', options=[dict(id=f'option-{k}', text=t) for k, t in enumerate(opzioni)],
+                correctOptionIds=[f'option-{k}' for k in giuste])
+
+
+def test_multipla_trattata_a_parte():
+    # Le multiple non entrano in posizione e lunghezza della scelta singola (hanno più giuste):
+    # si controlla a parte se le giuste sono sistematicamente le opzioni più lunghe.
+    lunghe = [multipla(n, ['giusta lunga uno', 'giusta lunga due', 'no', 'mai'], [0, 1]) for n in range(12)]
+    esito = analizza_risposte(dict(questions=lunghe + per_posizione([10, 10, 11, 9])['questions']))
+    assert esito['domande'] == 40 and esito['posizioni'] == [10, 10, 11, 9]
+    assert esito['multiple'] == dict(domande=12, giustePiuLunghe=12, attesaGiustePiuLunghe=2.0)
+    assert any('multipla' in a for a in esito['avvisi'])
+
+
+def test_multipla_senza_indizio_di_lunghezza_nessun_avviso():
+    pari = [multipla(n, ['aaaa', 'bbbb', 'cccc', 'dddd'], [n % 4, (n + 1) % 4]) for n in range(12)]
+    esito = analizza_risposte(dict(questions=pari))
+    assert esito['multiple']['giustePiuLunghe'] == 0 and esito['avvisi'] == []

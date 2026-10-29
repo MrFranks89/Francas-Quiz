@@ -1,6 +1,6 @@
 // Tipi di domanda e loro regole di qualità.
 //
-// Tutti i tipi qui si correggono come una scelta singola (un'opzione giusta fra
+// Tutti i tipi tranne `multiple` si correggono come una scelta singola (un'opzione giusta fra
 // quelle mostrate): motore d'esame, soglia, giudizio e riepilogo non cambiano.
 // La traduzione di riferimento di ogni tipo in scelta singola è
 // `normalizzaPerRipasso` in packages/civis-ui/src/ripasso.ts (copiata da Civis).
@@ -11,7 +11,7 @@
 // services/api/formazione_api/generation/models.py (errori_tipo); i casi
 // condivisi stanno in services/api/tests/fixtures/invalid-course-cases.json.
 
-export const TIPI_DOMANDA = ['single', 'truefalse', 'fillblank', 'scenario', 'oddOneOut', 'correctStatement'] as const;
+export const TIPI_DOMANDA = ['single', 'truefalse', 'fillblank', 'scenario', 'oddOneOut', 'correctStatement', 'multiple'] as const;
 export type TipoDomanda = (typeof TIPI_DOMANDA)[number];
 
 // Livelli letti da DifficultyBadge di Civis (packages/civis-ui/src/comune/DifficultyBadge.tsx):
@@ -29,7 +29,8 @@ export const SPAZIO = '___';
 const CAMPI_DEL_TIPO: Record<string, TipoDomanda> = { situation: 'scenario', sentence: 'correctStatement', wrong: 'correctStatement' };
 
 export type DomandaDaControllare = {
-  kind: TipoDomanda; prompt: string; options: { id: string; text: string }[]; correctOptionId: string;
+  kind: TipoDomanda; prompt: string; options: { id: string; text: string }[];
+  correctOptionId?: string | null; correctOptionIds?: string[] | null;
   situation?: string | null; sentence?: string | null; wrong?: string | null;
 };
 /** `campo`: percorso relativo alla domanda ('prompt', 'situation', 'options'...), per mostrare l'errore sotto il campo. */
@@ -57,6 +58,21 @@ export function erroriTipo(q: DomandaDaControllare): ErroreDomanda[] {
   for (const [campo, tipo] of Object.entries(CAMPI_DEL_TIPO)) {
     const valore = (q as Record<string, unknown>)[campo];
     if (q.kind !== tipo && valore !== undefined && valore !== null) err(campo, `Il campo ${campo} vale solo per il tipo ${tipo}`);
+  }
+  // Risposta multipla: più giuste in `correctOptionIds` (almeno 2, almeno una sbagliata), mai
+  // `correctOptionId`; tutti gli altri tipi l'opposto. Decisione dell'utente del 28 ottobre 2026.
+  if (q.kind === 'multiple') {
+    const giuste = q.correctOptionIds ?? [];
+    const ids = new Set(q.options.map(o => o.id));
+    if (q.correctOptionId !== undefined && q.correctOptionId !== null) err('correctOptionId', 'Risposta multipla: le giuste vanno in correctOptionIds');
+    if (giuste.length < 2) err('correctOptionIds', 'Risposta multipla: servono almeno 2 risposte giuste');
+    else if (new Set(giuste).size !== giuste.length || giuste.some(g => !ids.has(g))) err('correctOptionIds', 'Risposta multipla: le giuste devono essere opzioni diverse della domanda');
+    else if (giuste.length >= q.options.length) err('correctOptionIds', 'Risposta multipla: serve almeno una risposta sbagliata');
+    const testi = q.options.map(o => o.text.trim());
+    if (new Set(testi).size !== testi.length) err('options', 'Opzioni duplicate');
+  } else {
+    if (q.correctOptionIds !== undefined && q.correctOptionIds !== null) err('correctOptionIds', 'Il campo correctOptionIds vale solo per il tipo multiple');
+    if (!q.correctOptionId) err('correctOptionId', 'Manca la risposta giusta');
   }
   if (q.kind === 'truefalse') {
     const testi = q.options.map(o => o.text.trim());

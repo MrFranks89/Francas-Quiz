@@ -28,10 +28,12 @@ def domanda_del_contratto(question, qid: str, module_id: str, lesson_id: str) ->
         # Motivazione vuota = assente: il contratto rifiuta un testo vuoto.
         options = [dict(id=f'option-{k}', text=text, **({'rationale': why} if why.strip() else {}))
                    for k, (text, why) in enumerate(zip(question.options, question.rationales))]
-        correct = question.correctIndex
+        correct = None if question.kind == 'multiple' else question.correctIndex
     extra = {name: getattr(question, name) for name in ('situation', 'sentence', 'wrong') if hasattr(question, name)}
     return dict(id=qid, moduleId=module_id, lessonId=lesson_id, kind=question.kind, prompt=question.prompt, **extra,
-                difficulty=question.difficulty, options=options, correctOptionId=f'option-{correct}',
+                difficulty=question.difficulty, options=options,
+                **({'correctOptionIds': [f'option-{i}' for i in question.correctIndexes]} if question.kind == 'multiple'
+                   else {'correctOptionId': f'option-{correct}'}),
                 explanation=question.explanation, sourceRefs=question.sourceRefs)
 
 

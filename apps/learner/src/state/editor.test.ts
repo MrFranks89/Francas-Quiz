@@ -71,3 +71,12 @@ it('una motivazione cancellata diventa assente, non vuota',()=>{
 it('ogni tipo ha nome ed etichetta della domanda per l\'editor',()=>{
  for(const kind of TIPI_DOMANDA){expect(NOMI_TIPO[kind]).toBeTruthy();expect(ETICHETTA_PROMPT[kind]).toBeTruthy();}
 });
+it('risposta multipla: l\'insieme delle giuste si modifica e l\'errore sta sotto il campo',()=>{
+ const course=CourseSchema.parse(sample);const qi=course.questions.findIndex(q=>q.kind==='multiple');
+ const una=editorReducer(createEditorState(course),{type:'change',path:['questions',qi,'correctOptionIds'],value:['option-2-mu-0']});
+ expect(erroriDomande(una.course)[qi]).toEqual({correctOptionIds:['Risposta multipla: servono almeno 2 risposte giuste']});
+ const tutte=changeField(course,['questions',qi,'correctOptionIds'],course.questions[qi].options.map(o=>o.id));
+ expect(erroriDomande(tutte)[qi]).toEqual({correctOptionIds:['Risposta multipla: serve almeno una risposta sbagliata']});
+ const tre=changeField(course,['questions',qi,'correctOptionIds'],['option-2-mu-0','option-2-mu-1','option-2-mu-2']);
+ expect(erroriDomande(tre)).toEqual({});expect(CourseSchema.safeParse(tre).success).toBe(true);
+});

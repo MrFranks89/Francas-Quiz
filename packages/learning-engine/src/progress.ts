@@ -36,7 +36,9 @@ export function submitExam(course: Course, progress: Progress, examId: string, a
   const result = gradeQuestions(course, module.exam.questionIds, answers);
   const previous = progress.attempts.find(a => a.id === attemptId);
   if (previous) {
-    const canonical = (items: Answer[]) => JSON.stringify([...items].sort((a, b) => a.questionId.localeCompare(b.questionId)));
+    // L'ordine delle opzioni di una risposta multipla non conta: si confrontano ordinate.
+    const canonical = (items: Answer[]) => JSON.stringify([...items].sort((a, b) => a.questionId.localeCompare(b.questionId))
+      .map(a => 'optionIds' in a ? { ...a, optionIds: [...a.optionIds].sort() } : a));
     if (previous.examId !== examId || canonical(previous.answers) !== canonical(answers)) throw new Error('Attempt id conflict');
     return progress;
   }
@@ -45,7 +47,7 @@ export function submitExam(course: Course, progress: Progress, examId: string, a
   const attempts = progress.attempts.filter(a => a.examId === examId);
   if (module.exam.maxAttempts !== null && attempts.length >= module.exam.maxAttempts) throw new Error('Attempt limit reached');
   if (module.exam.mode === 'gate' && attempts.some(a => a.passed)) throw new Error('Gate already passed');
-  const attempt: Attempt = { id: attemptId, examId, answers: answers.map(a => ({ ...a })), correct: result.correct,
+  const attempt: Attempt = { id: attemptId, examId, answers: answers.map(a => 'optionIds' in a ? { ...a, optionIds: [...a.optionIds] } : { ...a }), correct: result.correct,
     total: result.total, passed: valutaTentativo(result, module.exam).superato };
   return { ...progress, attempts: [...progress.attempts, attempt] };
 }

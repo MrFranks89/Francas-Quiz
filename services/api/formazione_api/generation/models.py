@@ -7,7 +7,7 @@ class Model(BaseModel):
 
 
 # Tipi di domanda: stessi valori e stesse regole di packages/contracts/src/tipi.ts.
-TipoDomanda = Literal['single', 'truefalse', 'fillblank', 'scenario', 'oddOneOut', 'correctStatement']
+TipoDomanda = Literal['single', 'truefalse', 'fillblank', 'scenario', 'oddOneOut', 'correctStatement', 'multiple']
 # Livelli letti da DifficultyBadge di Civis (packages/civis-ui/src/comune/DifficultyBadge.tsx).
 Difficolta = Literal['base', 'medio', 'avanzato']
 # Opzioni fisse del vero/falso, nell'ordine di Civis (TrueFalseStep, normalizzaPerRipasso).
@@ -135,7 +135,38 @@ class CorrectStatementDraft(_Scelta):
     difficulty: Difficolta
 
 
-QuestionDraft = SingleDraft | TrueFalseDraft | FillBlankDraft | ScenarioDraft | OddOneOutDraft | CorrectStatementDraft
+class MultipleDraft(Model):
+    """Risposta multipla: `correctIndexes` elenca le giuste, almeno 2 e non più di metà delle opzioni."""
+    kind: _tipo('multiple')
+    prompt: str = Field(min_length=1)
+    options: list[str] = Field(min_length=4, max_length=6)
+    correctIndexes: list[StrictInt]
+    rationales: list[str]
+    explanation: str = Field(min_length=1)
+    sourceRefs: list[str] = Field(min_length=1)
+    difficulty: Difficolta
+
+    @model_validator(mode='after')
+    def correct_answers(self):
+        if any(not 0 <= i < len(self.options) for i in self.correctIndexes):
+            raise ValueError('correctIndexes fuori intervallo')
+        if any(not item.strip() for item in self.options):
+            raise ValueError('Opzione vuota')
+        if len(self.rationales) != len(self.options):
+            raise ValueError('rationales deve avere un elemento per opzione')
+        # Regola della generazione, più stretta del contratto (che chiede solo almeno una sbagliata):
+        # con più giuste che sbagliate la domanda si indovina scegliendo quasi tutto.
+        if 2 * len(self.correctIndexes) > len(self.options):
+            raise ValueError('Risposta multipla: non più di metà delle opzioni può essere giusta')
+        errori = errori_tipo('multiple', self.prompt, [(f'option-{k}', t) for k, t in enumerate(self.options)], None,
+                             correct_ids=[f'option-{i}' for i in self.correctIndexes])
+        if errori:
+            raise ValueError('; '.join(m for _, m in errori))
+        return self
+
+
+QuestionDraft = (SingleDraft | TrueFalseDraft | FillBlankDraft | ScenarioDraft | OddOneOutDraft | CorrectStatementDraft
+                 | MultipleDraft)
 
 
 class ModuleDraft(Model):
@@ -169,7 +200,8 @@ class Source(Model):
 _CAMPI_DEL_TIPO = {'situation': 'scenario', 'sentence': 'correctStatement', 'wrong': 'correctStatement'}
 
 
-def errori_tipo(kind, prompt, options, correct_id, situation=None, sentence=None, wrong=None) -> list[tuple[str, str]]:
+def errori_tipo(kind, prompt, options, correct_id, situation=None, sentence=None, wrong=None,
+                correct_ids=None) -> list[tuple[str, str]]:
     """Regole per tipo, (campo, messaggio). `options`: elenco di (id, testo).
 
     Riscritte, non copiate, da C:\\Civica\\CivicaApp\\scripts\\verifica-contenuti.mjs (righe 281–331);
@@ -182,6 +214,26 @@ def errori_tipo(kind, prompt, options, correct_id, situation=None, sentence=None
         if kind != tipo and campi[campo] is not None:
             errori.append((campo, f'Il campo {campo} vale solo per il tipo {tipo}'))
     testi = [t.strip() for _, t in options]
+    # Risposta multipla: più giuste in correctOptionIds (almeno 2, almeno una sbagliata), mai correctOptionId;
+    # tutti gli altri tipi l'opposto. Decisione dell'utente del 28 ottobre 2026.
+    if kind == 'multiple':
+        giuste = correct_ids or []
+        ids = {i for i, _ in options}
+        if correct_id is not None:
+            errori.append(('correctOptionId', 'Risposta multipla: le giuste vanno in correctOptionIds'))
+        if len(giuste) < 2:
+            errori.append(('correctOptionIds', 'Risposta multipla: servono almeno 2 risposte giuste'))
+        elif len(set(giuste)) != len(giuste) or not set(giuste) <= ids:
+            errori.append(('correctOptionIds', 'Risposta multipla: le giuste devono essere opzioni diverse della domanda'))
+        elif len(giuste) >= len(options):
+            errori.append(('correctOptionIds', 'Risposta multipla: serve almeno una risposta sbagliata'))
+        if len(set(testi)) != len(testi):
+            errori.append(('options', 'Opzioni duplicate'))
+    else:
+        if correct_ids is not None:
+            errori.append(('correctOptionIds', 'Il campo correctOptionIds vale solo per il tipo multiple'))
+        if not correct_id:
+            errori.append(('correctOptionId', 'Manca la risposta giusta'))
     if kind == 'truefalse' and tuple(testi) != OPZIONI_VERO_FALSO:
         errori.append(('options', 'Vero o falso: le opzioni sono esattamente «Vero» e «Falso», in quest\'ordine'))
     if kind == 'fillblank' and prompt.count(SPAZIO) != 1:
@@ -227,7 +279,8 @@ class Option(_SenzaNulli):
 
 
 class Question(_SenzaNulli):
-    _FACOLTATIVI: ClassVar[frozenset[str]] = frozenset({'situation', 'sentence', 'wrong', 'difficulty'})
+    _FACOLTATIVI: ClassVar[frozenset[str]] = frozenset({'situation', 'sentence', 'wrong', 'difficulty',
+                                                        'correctOptionId', 'correctOptionIds'})
     id: str
     moduleId: str
     lessonId: str
@@ -239,14 +292,16 @@ class Question(_SenzaNulli):
     wrong: str | None = None
     difficulty: Difficolta | None = None
     options: list[Option] = Field(min_length=2)
-    correctOptionId: str
+    # Una sola giusta in correctOptionId; per `multiple` più giuste in correctOptionIds (errori_tipo).
+    correctOptionId: str | None = None
+    correctOptionIds: list[str] | None = None
     explanation: str = Field(min_length=1)
     sourceRefs: list[str] = Field(min_length=1)
 
     @model_validator(mode='after')
     def regole_del_tipo(self):
         errori = errori_tipo(self.kind, self.prompt, [(o.id, o.text) for o in self.options], self.correctOptionId,
-                             self.situation, self.sentence, self.wrong)
+                             self.situation, self.sentence, self.wrong, self.correctOptionIds)
         if errori:
             raise ValueError('; '.join(f'{messaggio} ({self.id})' for _, messaggio in errori))
         return self
@@ -359,7 +414,7 @@ class Course(Model):
                     raise ValueError('Domanda esame non valida')
         for question in self.questions:
             unique([o.id for o in question.options])
-            if question.correctOptionId not in {o.id for o in question.options}:
+            if question.correctOptionId is not None and question.correctOptionId not in {o.id for o in question.options}:
                 raise ValueError('Risposta corretta inesistente')
             lesson = owners.get((question.moduleId, question.lessonId))
             if not lesson or question.id not in lesson.questionIds:

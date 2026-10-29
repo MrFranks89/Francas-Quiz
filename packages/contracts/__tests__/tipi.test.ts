@@ -34,6 +34,13 @@ describe('tipi di domanda', () => {
     ['intruso con la giusta troppo lunga', (c: any) => { domanda(c, 'oddOneOut').options[2].text = 'Assegnare le ferie e decidere i turni di tutto il reparto'; }, 'più lunga di 1,5 volte'],
     ['correggi senza parte sbagliata', (c: any) => { delete domanda(c, 'correctStatement').wrong; }, 'la parte sbagliata è obbligatoria'],
     ['parte sbagliata assente dalla frase', (c: any) => { domanda(c, 'correctStatement').wrong = 'cliente'; }, 'esattamente una volta'],
+    ['multipla con una sola giusta', (c: any) => { domanda(c, 'multiple').correctOptionIds = ['option-2-mu-0']; }, 'almeno 2 risposte giuste'],
+    ['multipla tutta giusta', (c: any) => { domanda(c, 'multiple').correctOptionIds = ['option-2-mu-0', 'option-2-mu-1', 'option-2-mu-2', 'option-2-mu-3']; }, 'almeno una risposta sbagliata'],
+    ['multipla con giuste ripetute', (c: any) => { domanda(c, 'multiple').correctOptionIds = ['option-2-mu-0', 'option-2-mu-0']; }, 'opzioni diverse'],
+    ['multipla con giusta inventata', (c: any) => { domanda(c, 'multiple').correctOptionIds = ['option-2-mu-0', 'inventata']; }, 'opzioni diverse'],
+    ['multipla con correctOptionId', (c: any) => { domanda(c, 'multiple').correctOptionId = 'option-2-mu-0'; }, 'vanno in correctOptionIds'],
+    ['scelta singola con correctOptionIds', (c: any) => { c.questions[0].correctOptionIds = ['option-1-a', 'option-1-b']; }, 'vale solo per il tipo multiple'],
+    ['scelta singola senza giusta', (c: any) => { delete c.questions[0].correctOptionId; }, 'Manca la risposta giusta'],
     ['parte sbagliata due volte', (c: any) => { domanda(c, 'correctStatement').sentence = 'Il fornitore e il fornitore accolgono.'; }, 'esattamente una volta'],
   ])('rifiuta: %s', (_, muta, atteso) => {
     const c = sample(); muta(c);

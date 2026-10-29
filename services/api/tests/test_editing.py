@@ -27,7 +27,7 @@ def test_edit_gate_rules_and_publish_snapshot(editor):
     client, identifier, draft, store = editor
     course = deepcopy(draft['course'])
     course['title'] = 'Titolo rivisto'
-    course['modules'][0]['exam'].update(mode='gate', passingScore=4, maxAttempts=3)  # 4 su 6: la soglia minima del 60%
+    course['modules'][0]['exam'].update(mode='gate', passingScore=5, maxAttempts=3)  # 5 su 7: la soglia minima del 60%
     response = client.put(f'/drafts/{identifier}', json=dict(expectedRevision=1, course=course))
     assert response.status_code == 200
     assert response.json()['revision'] == 2

@@ -13,7 +13,8 @@ export const QuestionSchema = z.object({
   difficulty: z.enum(DIFFICOLTA).optional(),
   // `rationale`: perché l'opzione è (o non è) quella giusta, il `perche` di Civis.
   options: z.array(z.object({ id, text, rationale: text.optional() })).min(2),
-  correctOptionId: id, explanation: text, sourceRefs: refs,
+  // Una sola giusta in correctOptionId; per `multiple` più giuste in correctOptionIds (regole in tipi.ts).
+  correctOptionId: id.optional(), correctOptionIds: z.array(id).optional(), explanation: text, sourceRefs: refs,
 });
 export const CourseStructureSchema = z.object({
   schemaVersion: z.literal(1), id, version: z.number().int().min(1), title: text,

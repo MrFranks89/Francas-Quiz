@@ -1,12 +1,15 @@
 import type {Course} from '@formazione/contracts';
-import {displayOptions,type Attempt} from '@formazione/learning-engine';
+import {displayOptions,multiplaGiusta,opzioniScelte,type Attempt} from '@formazione/learning-engine';
 import {optState} from '@formazione/civis-ui/src/lezione/util';
 import type {OptSt} from '@formazione/civis-ui/src/comune/OptLetter';
 import {presentazione,type Presentazione} from './presentazione';
 
 type Exam=NonNullable<Course['modules'][number]['exam']>;
-export type OpzioneMostrata={id:string;text:string;stato:OptSt;rationale?:string};
-export type RigaRiepilogo={questionId:string;prompt:string;explanation:string;scelta:string|null;giusta:boolean;opzioni:OpzioneMostrata[];domanda:Presentazione;
+/** `mancata`: risposta multipla, opzione giusta non scelta (verde senza riempimento, «Mancata»). */
+export type OpzioneMostrata={id:string;text:string;stato:OptSt;rationale?:string;mancata?:boolean};
+export type RigaRiepilogo={questionId:string;prompt:string;explanation:string;
+ /** Opzione scelta (scelta singola e tipi riducibili); per la risposta multipla è null e valgono `scelte`. */
+ scelta:string|null;scelte:string[];senzaRisposta:boolean;giusta:boolean;opzioni:OpzioneMostrata[];domanda:Presentazione;
  /** Testo dell'opzione scelta, per riempire lo spazio di «Completa la frase»; null se senza risposta. */
  testoScelto:string|null};
 
@@ -41,9 +44,18 @@ export function riepilogoUltimoTentativo(course:Course,exam:Exam,attempts:Attemp
  return exam.questionIds.map(id=>{
   const q=course.questions.find(q=>q.id===id);
   if(!q)throw new Error(`Domanda sconosciuta ${id}`);
-  const scelta=last.answers.find(a=>a.questionId===id)?.optionId??null;
-  const opzioni=displayOptions(course,exam.id,indice,id).map(o=>({id:o.id,text:o.text,stato:optState(true,o.id===scelta,o.id===q.correctOptionId),...(o.rationale?{rationale:o.rationale}:{})}));
+  const risposta=last.answers.find(a=>a.questionId===id);
+  const scelte=risposta?opzioniScelte(risposta):[];
+  const multipla=q.kind==='multiple';
+  const scelta=multipla?null:scelte[0]??null;
+  const giusteIds=multipla?q.correctOptionIds??[]:[q.correctOptionId];
+  // Multipla: giuste scelte in verde, scelte sbagliate in rosso, giuste non scelte «mancate».
+  const opzioni=displayOptions(course,exam.id,indice,id).map(o=>{
+   const giustaO=giusteIds.includes(o.id),sceltaO=scelte.includes(o.id);
+   return {id:o.id,text:o.text,stato:optState(true,sceltaO,giustaO),...(multipla&&giustaO&&!sceltaO?{mancata:true}:{}),...(o.rationale?{rationale:o.rationale}:{})};
+  });
   const testoScelto=q.options.find(o=>o.id===scelta)?.text??null;
-  return {questionId:id,prompt:q.prompt,explanation:q.explanation,scelta,giusta:scelta===q.correctOptionId,opzioni,domanda:presentazione(q),testoScelto};
+  const giusta=multipla?scelte.length>0&&multiplaGiusta(q,scelte):scelta===q.correctOptionId;
+  return {questionId:id,prompt:q.prompt,explanation:q.explanation,scelta,scelte,senzaRisposta:scelte.length===0,giusta,opzioni,domanda:presentazione(q),testoScelto};
  });
 }

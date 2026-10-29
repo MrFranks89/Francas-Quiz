@@ -55,3 +55,21 @@ describe('riepilogo con i tipi', () => {
   expect(riga.opzioni.map(o=>[o.text,o.stato])).toEqual([['Vero','wr'],['Falso','cor']]);
  });
 });
+
+describe('riepilogo della risposta multipla', () => {
+ const exam=course.modules[1].exam!;
+ const primo=submitExam(course,completeLesson(course,createProgress(course),'lesson-1'),'exam-1','s1',[{questionId:'question-1',optionId:'option-1-a'}]);
+ const avvio=completeLesson(course,primo,'lesson-2');
+ const q=per('multiple');
+ const riga=(optionIds:string[])=>riepilogoUltimoTentativo(course,exam,submitExam(course,avvio,exam.id,'t1',[{questionId:q.id,optionIds}]).attempts.filter(a=>a.examId===exam.id)).find(r=>r.questionId===q.id)!;
+ it('giuste scelte in verde, scelta sbagliata in rosso, giusta non scelta «mancata»', () => {
+  const r=riga(['option-2-mu-0','option-2-mu-2']);
+  expect(r.giusta).toBe(false);expect(r.senzaRisposta).toBe(false);expect(r.scelte).toEqual(['option-2-mu-0','option-2-mu-2']);
+  const per_id=Object.fromEntries(r.opzioni.map(o=>[o.id,[o.stato,!!o.mancata]]));
+  expect(per_id).toEqual({'option-2-mu-0':['cor',false],'option-2-mu-1':['cor',true],'option-2-mu-2':['wr',false],'option-2-mu-3':['dim',false]});
+  expect(presentazione(q).etichetta).toBe('Più risposte corrette');
+ });
+ it('l\'insieme esatto è giusto', () => {
+  expect(riga(['option-2-mu-1','option-2-mu-0']).giusta).toBe(true);
+ });
+});

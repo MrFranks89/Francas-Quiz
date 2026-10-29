@@ -42,6 +42,9 @@ def domande_di_prova(refs):
         dict(kind='correctStatement', prompt='Quale parola sostituisce quella sbagliata?',
              sentence='Il terzo paragrafo segue il testo di formazione.', wrong='terzo', options=['secondo', 'quarto'],
              correctIndex=0, rationales=['', ''], **{**comuni, 'difficulty': 'avanzato'}),
+        dict(kind='multiple', prompt='Che cosa contiene il materiale?',
+             options=['Testo di formazione', 'Secondo paragrafo', 'Una tabella', 'Un grafico'], correctIndexes=[0, 1],
+             rationales=['', '', '', 'Il materiale è solo testo.'], **comuni),
     ]
 
 

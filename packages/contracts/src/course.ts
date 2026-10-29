@@ -21,7 +21,7 @@ export const CourseSchema = CourseStructureSchema.superRefine((course, ctx) => {
   const questions = new Map(course.questions.map(q => [q.id, q]));
   for (const q of course.questions) {
     unique(q.options.map(o => o.id), `option id in ${q.id}`);
-    if (!q.options.some(o => o.id === q.correctOptionId)) error(`Invalid correct option ${q.id}`);
+    if (q.correctOptionId !== undefined && !q.options.some(o => o.id === q.correctOptionId)) error(`Invalid correct option ${q.id}`);
     for (const e of erroriTipo(q)) error(`${e.messaggio} (${q.id})`);
     const module = course.modules.find(m => m.id === q.moduleId);
     const lesson = module?.lessons.find(l => l.id === q.lessonId);

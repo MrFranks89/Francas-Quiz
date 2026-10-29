@@ -46,9 +46,10 @@ it('descrive il risultato come «percentuale · Giudizio»', () => {
 describe('correzione dei tipi di domanda', () => {
   it('ogni tipo si corregge per opzione, come la scelta singola', () => {
     const course = CourseSchema.parse(JSON.parse(readFileSync(new URL('../../contracts/fixtures/sample-course.json', import.meta.url), 'utf8')));
-    const ids = course.modules[1].exam!.questionIds;
-    const giuste = ids.map(id => ({ questionId: id, optionId: course.questions.find(q => q.id === id)!.correctOptionId }));
+    const ids = course.modules[1].exam!.questionIds.filter(id => course.questions.find(q => q.id === id)!.kind !== 'multiple');
+    const giuste = ids.map(id => ({ questionId: id, optionId: course.questions.find(q => q.id === id)!.correctOptionId! }));
     expect(gradeQuestions(course, ids, giuste)).toMatchObject({ correct: ids.length, total: ids.length });
+    expect(ids.length).toBe(6);
     for (const id of ids) {
       const q = course.questions.find(q => q.id === id)!;
       const sbagliata = q.options.find(o => o.id !== q.correctOptionId)!;
@@ -57,5 +58,31 @@ describe('correzione dei tipi di domanda', () => {
       expect(esito.correct).toBe(ids.length - 1);
       expect(esito.rows.find(r => r.questionId === id)!.correct).toBe(false);
     }
+  });
+});
+
+describe('risposta multipla', () => {
+  const course = CourseSchema.parse(JSON.parse(readFileSync(new URL('../../contracts/fixtures/sample-course.json', import.meta.url), 'utf8')));
+  const q = course.questions.find(q => q.kind === 'multiple')!;
+  const giuste = q.correctOptionIds!;
+  const sbagliata = q.options.find(o => !giuste.includes(o.id))!.id;
+  const voto = (optionIds: string[]) => gradeQuestions(course, [q.id], [{ questionId: q.id, optionIds }]).correct;
+  it('tutto-o-niente: giusta solo con l\'insieme esatto, in qualunque ordine', () => {
+    expect(voto([...giuste])).toBe(1);
+    expect(voto([...giuste].reverse())).toBe(1);
+    expect(voto(giuste.slice(1))).toBe(0);
+    expect(voto([...giuste, sbagliata])).toBe(0);
+    expect(voto([sbagliata])).toBe(0);
+  });
+  it('senza risposta conta come sbagliata e non come risposta', () => {
+    expect(gradeQuestions(course, [q.id], [])).toMatchObject({ correct: 0, unanswered: 1 });
+  });
+  it('rifiuta forme sbagliate: elenco vuoto, duplicati, opzioni ignote, forma del tipo sbagliato', () => {
+    expect(() => voto([])).toThrow();
+    expect(() => voto([giuste[0], giuste[0]])).toThrow();
+    expect(() => voto(['inventata'])).toThrow();
+    expect(() => gradeQuestions(course, [q.id], [{ questionId: q.id, optionId: giuste[0] }])).toThrow('shape');
+    const singola = course.questions.find(x => x.kind === 'single')!;
+    expect(() => gradeQuestions(course, [singola.id], [{ questionId: singola.id, optionIds: [singola.correctOptionId!] }])).toThrow('shape');
   });
 });
