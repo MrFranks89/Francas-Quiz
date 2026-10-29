@@ -1,0 +1,605 @@
+{
+  "$defs": {
+    "CorrectStatementDraft": {
+      "additionalProperties": false,
+      "description": "Correggi l'errore: `sentence` contiene `wrong` una sola volta; le opzioni sostituiscono `wrong` e la giusta corregge la frase.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "correctStatement"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "prompt": {
+          "minLength": 1,
+          "title": "Prompt",
+          "type": "string"
+        },
+        "sentence": {
+          "minLength": 1,
+          "title": "Sentence",
+          "type": "string"
+        },
+        "wrong": {
+          "minLength": 1,
+          "title": "Wrong",
+          "type": "string"
+        },
+        "options": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 6,
+          "minItems": 2,
+          "title": "Options",
+          "type": "array"
+        },
+        "correctIndex": {
+          "title": "Correctindex",
+          "type": "integer"
+        },
+        "rationales": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Rationales",
+          "type": "array"
+        },
+        "explanation": {
+          "minLength": 1,
+          "title": "Explanation",
+          "type": "string"
+        },
+        "sourceRefs": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Sourcerefs",
+          "type": "array"
+        },
+        "difficulty": {
+          "enum": [
+            "base",
+            "medio",
+            "avanzato"
+          ],
+          "title": "Difficulty",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "prompt",
+        "sentence",
+        "wrong",
+        "options",
+        "correctIndex",
+        "rationales",
+        "explanation",
+        "sourceRefs",
+        "difficulty"
+      ],
+      "title": "CorrectStatementDraft",
+      "type": "object"
+    },
+    "FillBlankDraft": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "fillblank"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "prompt": {
+          "minLength": 1,
+          "title": "Prompt",
+          "type": "string"
+        },
+        "options": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 6,
+          "minItems": 2,
+          "title": "Options",
+          "type": "array"
+        },
+        "correctIndex": {
+          "title": "Correctindex",
+          "type": "integer"
+        },
+        "rationales": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Rationales",
+          "type": "array"
+        },
+        "explanation": {
+          "minLength": 1,
+          "title": "Explanation",
+          "type": "string"
+        },
+        "sourceRefs": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Sourcerefs",
+          "type": "array"
+        },
+        "difficulty": {
+          "enum": [
+            "base",
+            "medio",
+            "avanzato"
+          ],
+          "title": "Difficulty",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "prompt",
+        "options",
+        "correctIndex",
+        "rationales",
+        "explanation",
+        "sourceRefs",
+        "difficulty"
+      ],
+      "title": "FillBlankDraft",
+      "type": "object"
+    },
+    "MultipleDraft": {
+      "additionalProperties": false,
+      "description": "Risposta multipla: `correctIndexes` elenca le giuste, almeno 2 e non più di metà delle opzioni.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "multiple"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "prompt": {
+          "minLength": 1,
+          "title": "Prompt",
+          "type": "string"
+        },
+        "options": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 6,
+          "minItems": 4,
+          "title": "Options",
+          "type": "array"
+        },
+        "correctIndexes": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Correctindexes",
+          "type": "array"
+        },
+        "rationales": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Rationales",
+          "type": "array"
+        },
+        "explanation": {
+          "minLength": 1,
+          "title": "Explanation",
+          "type": "string"
+        },
+        "sourceRefs": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Sourcerefs",
+          "type": "array"
+        },
+        "difficulty": {
+          "enum": [
+            "base",
+            "medio",
+            "avanzato"
+          ],
+          "title": "Difficulty",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "prompt",
+        "options",
+        "correctIndexes",
+        "rationales",
+        "explanation",
+        "sourceRefs",
+        "difficulty"
+      ],
+      "title": "MultipleDraft",
+      "type": "object"
+    },
+    "OddOneOutDraft": {
+      "additionalProperties": false,
+      "description": "Trova l'intruso: `correctIndex` indica l'opzione che non appartiene al gruppo.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "oddOneOut"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "prompt": {
+          "minLength": 1,
+          "title": "Prompt",
+          "type": "string"
+        },
+        "options": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 6,
+          "minItems": 2,
+          "title": "Options",
+          "type": "array"
+        },
+        "correctIndex": {
+          "title": "Correctindex",
+          "type": "integer"
+        },
+        "rationales": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Rationales",
+          "type": "array"
+        },
+        "explanation": {
+          "minLength": 1,
+          "title": "Explanation",
+          "type": "string"
+        },
+        "sourceRefs": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Sourcerefs",
+          "type": "array"
+        },
+        "difficulty": {
+          "enum": [
+            "base",
+            "medio",
+            "avanzato"
+          ],
+          "title": "Difficulty",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "prompt",
+        "options",
+        "correctIndex",
+        "rationales",
+        "explanation",
+        "sourceRefs",
+        "difficulty"
+      ],
+      "title": "OddOneOutDraft",
+      "type": "object"
+    },
+    "ScenarioDraft": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "scenario"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "situation": {
+          "minLength": 1,
+          "title": "Situation",
+          "type": "string"
+        },
+        "prompt": {
+          "minLength": 1,
+          "title": "Prompt",
+          "type": "string"
+        },
+        "options": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 6,
+          "minItems": 2,
+          "title": "Options",
+          "type": "array"
+        },
+        "correctIndex": {
+          "title": "Correctindex",
+          "type": "integer"
+        },
+        "rationales": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Rationales",
+          "type": "array"
+        },
+        "explanation": {
+          "minLength": 1,
+          "title": "Explanation",
+          "type": "string"
+        },
+        "sourceRefs": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Sourcerefs",
+          "type": "array"
+        },
+        "difficulty": {
+          "enum": [
+            "base",
+            "medio",
+            "avanzato"
+          ],
+          "title": "Difficulty",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "situation",
+        "prompt",
+        "options",
+        "correctIndex",
+        "rationales",
+        "explanation",
+        "sourceRefs",
+        "difficulty"
+      ],
+      "title": "ScenarioDraft",
+      "type": "object"
+    },
+    "SingleDraft": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "single"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "prompt": {
+          "minLength": 1,
+          "title": "Prompt",
+          "type": "string"
+        },
+        "options": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 6,
+          "minItems": 2,
+          "title": "Options",
+          "type": "array"
+        },
+        "correctIndex": {
+          "title": "Correctindex",
+          "type": "integer"
+        },
+        "rationales": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Rationales",
+          "type": "array"
+        },
+        "explanation": {
+          "minLength": 1,
+          "title": "Explanation",
+          "type": "string"
+        },
+        "sourceRefs": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Sourcerefs",
+          "type": "array"
+        },
+        "difficulty": {
+          "enum": [
+            "base",
+            "medio",
+            "avanzato"
+          ],
+          "title": "Difficulty",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "prompt",
+        "options",
+        "correctIndex",
+        "rationales",
+        "explanation",
+        "sourceRefs",
+        "difficulty"
+      ],
+      "title": "SingleDraft",
+      "type": "object"
+    },
+    "SlideDraft": {
+      "additionalProperties": false,
+      "properties": {
+        "heading": {
+          "minLength": 1,
+          "title": "Heading",
+          "type": "string"
+        },
+        "body": {
+          "minLength": 1,
+          "title": "Body",
+          "type": "string"
+        },
+        "highlight": {
+          "title": "Highlight",
+          "type": "string"
+        },
+        "sourceRefs": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Sourcerefs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "heading",
+        "body",
+        "highlight",
+        "sourceRefs"
+      ],
+      "title": "SlideDraft",
+      "type": "object"
+    },
+    "TrueFalseDraft": {
+      "additionalProperties": false,
+      "description": "Vero o falso: `prompt` è un'affermazione, `correct` dice se è vera. Le opzioni «Vero» e «Falso» le aggiunge il server.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "truefalse"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "prompt": {
+          "minLength": 1,
+          "title": "Prompt",
+          "type": "string"
+        },
+        "correct": {
+          "title": "Correct",
+          "type": "boolean"
+        },
+        "explanation": {
+          "minLength": 1,
+          "title": "Explanation",
+          "type": "string"
+        },
+        "sourceRefs": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Sourcerefs",
+          "type": "array"
+        },
+        "difficulty": {
+          "enum": [
+            "base",
+            "medio",
+            "avanzato"
+          ],
+          "title": "Difficulty",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "prompt",
+        "correct",
+        "explanation",
+        "sourceRefs",
+        "difficulty"
+      ],
+      "title": "TrueFalseDraft",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "title": {
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    },
+    "objectives": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Objectives",
+      "type": "array"
+    },
+    "slides": {
+      "items": {
+        "$ref": "#/$defs/SlideDraft"
+      },
+      "minItems": 1,
+      "title": "Slides",
+      "type": "array"
+    },
+    "questions": {
+      "items": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/SingleDraft"
+          },
+          {
+            "$ref": "#/$defs/TrueFalseDraft"
+          },
+          {
+            "$ref": "#/$defs/FillBlankDraft"
+          },
+          {
+            "$ref": "#/$defs/ScenarioDraft"
+          },
+          {
+            "$ref": "#/$defs/OddOneOutDraft"
+          },
+          {
+            "$ref": "#/$defs/CorrectStatementDraft"
+          },
+          {
+            "$ref": "#/$defs/MultipleDraft"
+          }
+        ]
+      },
+      "minItems": 1,
+      "title": "Questions",
+      "type": "array"
+    }
+  },
+  "required": [
+    "title",
+    "objectives",
+    "slides",
+    "questions"
+  ],
+  "title": "ModuleDraft",
+  "type": "object"
+}
