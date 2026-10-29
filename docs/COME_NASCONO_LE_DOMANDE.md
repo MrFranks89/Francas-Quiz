@@ -52,7 +52,8 @@ Quello che torna dall'AI **non viene creduto sulla parola**. Prima di diventare 
 1. **Forma**: lo schema è rispettato (campi presenti, testi non vuoti, da 2 a 6 opzioni, l'indice della risposta giusta esiste davvero tra le opzioni).
 2. **Fonti vere**: ogni slide e ogni domanda deve citare solo fonti **presenti nel blocco che il modello ha ricevuto**. Se ne cita una inventata o di un altro blocco, la generazione si ferma con l'errore «La risposta AI cita una fonte assente dal blocco».
 3. **Rifiuti e risposte tronche**: se il fornitore rifiuta, si interrompe a metà o risponde vuoto, è un errore esplicito, mai un corso parziale.
-4. **Tutto o niente**: se un solo blocco fallisce, non esce nessun corso. Le chiamate già fatte però costano comunque.
+4. **Qualità della singola domanda**: una domanda che viola una regola di qualità viene **scartata** e il corso esce con le altre. Sono regole come risposta giusta troppo lunga rispetto alle altre, opzioni duplicate, frase da completare senza un solo spazio, troppe risposte giuste in una multipla. Lo scarto non è mai silenzioso: compare negli avvisi della bozza («2 domande scartate dai controlli di qualità») con la regola violata, e nel registro della misura. La soglia del test si calcola sulle domande rimaste.
+5. **Tutto o niente per gli errori gravi**: schema non rispettato, fonte inventata, risposta rifiutata o troncata, oppure un modulo rimasto senza domande dopo gli scarti, fermano l'intera generazione e non esce nessun corso. Le chiamate già fatte però costano comunque.
 
 ### 5. L'assemblaggio, fatto dal codice
 
