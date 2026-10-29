@@ -11,6 +11,9 @@ from zipfile import ZipFile
 
 import pytest
 from openpyxl import Workbook
+from PIL import Image
+from reportlab.lib.utils import ImageReader
+from reportlab.pdfgen import canvas
 
 from formazione_api.extractors import native_extract
 from test_api import client, extraction, upload  # noqa: F401  (fixture)
@@ -84,3 +87,94 @@ def test_xlsx_reali_del_corpus_si_leggono(nome):
     blocks, _warnings, _status = native_extract(path, 'xlsx', None, None)
     assert blocks
     assert all(b['label'].startswith('Foglio ') and ': ' in b['text'] for b in blocks)
+
+
+# --- PDF: pagine scansionate con un'intestazione testuale ---------------------------------
+
+INTESTAZIONE = 'COPIA TRATTA DA GURITEL - GAZZETTA UFFICIALE ON-LINE'
+AVVISO_SCANSIONE = 'probabile scansione: richiede OCR'
+
+
+def immagine(pixel=600):
+    output = BytesIO()
+    Image.new('L', (pixel, pixel), 200).save(output, 'PNG')
+    output.seek(0)
+    return ImageReader(output)
+
+
+def pdf_misto():
+    """1 scansione con intestazione · 2 pagina nativa · 3 quasi vuota con un codice piccolo
+    · 4 scansione dentro un Form XObject ridotto · 5 sfondo da 1 pixel esteso a tutta la pagina
+    · 6 logo piccolo dentro un Form XObject molto ridotto: segnalato solo se le coordinate del
+    form non vengono riportate sulla pagina."""
+    output = BytesIO()
+    c = canvas.Canvas(output, pagesize=(595, 842))
+    c.drawString(72, 800, INTESTAZIONE)
+    c.drawImage(immagine(), 70, 120, 450, 640)
+    c.showPage()
+    for riga in range(20):
+        c.drawString(72, 780 - riga * 14, f'Articolo {riga}: testo nativo della norma, abbastanza lungo da contare.')
+    c.showPage()
+    c.drawString(72, 800, 'pagina bianca')
+    c.drawImage(immagine(208), 323, 22, 55, 55)
+    c.showPage()
+    c.beginForm('scansione')
+    c.drawImage(immagine(), 0, 0, 900, 1300)
+    c.endForm()
+    c.drawString(72, 800, INTESTAZIONE)
+    c.saveState()
+    c.translate(70, 120)
+    c.scale(0.5, 0.5)
+    c.doForm('scansione')
+    c.restoreState()
+    c.showPage()
+    c.drawString(72, 800, 'Frontespizio')
+    c.drawImage(immagine(1), 0, 0, 595, 842)
+    c.showPage()
+    c.drawString(72, 800, 'Intestazione con logo')
+    c.saveState()
+    c.translate(500, 780)
+    c.scale(0.02, 0.02)
+    c.doForm('scansione')
+    c.restoreState()
+    c.showPage()
+    c.save()
+    return output.getvalue()
+
+
+def test_scansione_con_intestazione_riceve_un_avviso_per_pagina(tmp_path):
+    path = tmp_path / 'misto.pdf'
+    path.write_bytes(pdf_misto())
+    _blocks, warnings, status = native_extract(path, 'pdf', 1, 6)
+    segnalate = [w for w in warnings if AVVISO_SCANSIONE in w]
+    assert segnalate == [f'Pagina 1: {AVVISO_SCANSIONE}.', f'Pagina 4: {AVVISO_SCANSIONE}.']
+    assert status == 'needs_review'
+
+
+def test_scansione_con_intestazione_dalla_rotta(client):  # noqa: F811
+    doc = upload(client, 'misto.pdf', pdf_misto())
+    response = extraction(client, doc, {'mode': 'range', 'fromPage': 3, 'toPage': 4})
+    assert response.status_code == 201, response.text
+    assert [w for w in response.json()['warnings'] if AVVISO_SCANSIONE in w] == [f'Pagina 4: {AVVISO_SCANSIONE}.']
+
+
+def pagine_segnalate(path, inizio, fine):
+    _blocks, warnings, _status = native_extract(path, 'pdf', inizio, fine)
+    return [int(w.split()[1].rstrip(':')) for w in warnings if AVVISO_SCANSIONE in w]
+
+
+def test_corpus_dlgs_81_scansioni_segnalate():
+    # Misure sul corpus (commento in extractors.py): da 94 a 325 ogni pagina è una scansione
+    # sotto l'intestazione GURITEL; 326-354 e 1-93 sono native.
+    path = file_corpus('01-dlgs-81-2008')
+    assert pagine_segnalate(path, 1, 354) == list(range(94, 326))
+
+
+@pytest.mark.parametrize('documento,pagine,attese', [
+    ('03-gu-2025-119', 96, [6, 9, 12, 16, 17, 18, 19, 20, 22, 24]),   # relazione prefettizia allegata come immagine
+    ('04-istat-asi-2024-c08', 64, []),
+    ('05-istat-ra-2025', 242, []),
+])
+def test_corpus_pagine_native_non_segnalate(documento, pagine, attese):
+    path = file_corpus(documento)
+    assert pagine_segnalate(path, 1, pagine) == attese
