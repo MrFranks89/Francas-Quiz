@@ -27,3 +27,32 @@ Il fornitore si sceglie sul server con `GENERATION_PROVIDER` (`openai` | `anthro
 `AnthropicProvider` (`generation/anthropic_provider.py`) riceve le stesse istruzioni e lo stesso JSON del blocco (`generation/instructions.py`), con 6.000 token in uscita, timeout 90 secondi e un retry. Usa `client.messages.create(output_config={'format': {'type': 'json_schema', 'schema': transform_schema(ModuleDraft)}})` (SDK Python `anthropic` 1.15.0) e valida il testo con `ModuleDraft`. Non usa `messages.parse()` perché questo valida il JSON dentro la chiamata, prima che si possa leggere `stop_reason`. Mappatura: `stop_reason == 'refusal'` → `provider_refusal`; ogni altro valore diverso da `end_turn` (fra cui `max_tokens` e `model_context_window_exceeded`) → `provider_incomplete`; nessun testo → `provider_empty`; eccezione del client → `provider_error`; JSON non conforme → `invalid_generated_content`. Il parametro `thinking` non viene impostato: su modelli con ragionamento sempre attivo i token di ragionamento rientrano nei 6.000 e possono produrre `provider_incomplete`.
 
 Uso: `input_tokens` di Anthropic è la sola parte non in cache, quindi `inputTokens` = `input_tokens + cache_creation_input_tokens + cache_read_input_tokens` (se uno manca, `null`) e `cachedInputTokens` = `cache_read_input_tokens`. Così i due fornitori sono confrontabili: in entrambi `cachedInputTokens` è una parte di `inputTokens`. I test usano il vero SDK con un trasporto HTTP finto: nessuna chiave reale, nessuna chiamata di rete.
+
+## Tipi di domanda
+
+Oltre alla scelta singola il contratto ammette, con `kind` (facoltativo, predefinito `single`): `truefalse`, `fillblank`, `scenario`, `oddOneOut`, `correctStatement` e `multiple`. I primi cinque si correggono come una scelta singola (traduzione di riferimento: `normalizzaPerRipasso` di Civis, `packages/civis-ui/src/ripasso.ts`), quindi motore d'esame, soglia, giudizio, ordine con seme e riepilogo non cambiano. Campi di presentazione: `situation` (solo scenario), `sentence` e `wrong` (solo correggi l'errore); facoltativi `difficulty` (`base`, `medio`, `avanzato`, i livelli di `DifficultyBadge` di Civis) e `rationale` per opzione (il `perche` di Civis).
+
+Regole per tipo, identiche in `packages/contracts/src/tipi.ts` e `generation/models.py` (`errori_tipo`), con casi condivisi in `services/api/tests/fixtures/invalid-course-cases.json`; riscritte, non copiate, da `scripts/verifica-contenuti.mjs` di Civis (righe 281–331):
+
+- vero/falso: opzioni esattamente «Vero» e «Falso», in quest'ordine; non si mescolano (`displayOptions`);
+- completa la frase: esattamente un `___` nel testo (`prompt`);
+- scenario: situazione obbligatoria;
+- correggi l'errore: `wrong` compare esattamente una volta in `sentence`;
+- scenario, intruso, correggi l'errore: nessuna opzione duplicata e giusta non più lunga di 1,5 volte la più lunga delle altre (lunghezza in punti di codice, uguale in TypeScript e Python);
+- risposta multipla: `correctOptionIds` (almeno 2 giuste, almeno una sbagliata, opzioni diverse) al posto di `correctOptionId`, nessuna opzione duplicata. La risposta dell'allievo è un elenco di `optionIds`; la correzione è tutto-o-niente (giusta solo se l'insieme scelto coincide con quello delle giuste) ed entra in `valutaEsame` come esito sì/no, così soglia e giudizio restano per domanda.
+
+**Versione dello schema.** Resta `schemaVersion: 1`: l'aggiunta è retrocompatibile (un corso senza `kind` è una scelta singola, nessun corso salvato diventa invalido) e app e API sono distribuite insieme, senza lettori esterni da proteggere. Il prezzo: una versione vecchia dell'app scarterebbe in silenzio i campi nuovi; se il contratto avrà lettori indipendenti, il cambio successivo dovrà alzare la versione.
+
+**Bozze generate.** `QuestionDraft` è un'unione semplice di sette varianti (`SingleDraft`, `TrueFalseDraft`, `FillBlankDraft`, `ScenarioDraft`, `OddOneOutDraft`, `CorrectStatementDraft`, `MultipleDraft`), riconosciute da `kind`. Scelte imposte dai due fornitori, lette alla fonte e verificate da `tests/test_schema_fornitori.py` con gli SDK veri e un trasporto finto:
+
+- unione come `anyOf` e non `Field(discriminator=...)`: Pydantic la descriverebbe con `oneOf` + `discriminator`, che OpenAI non elenca fra le parole chiave ammesse;
+- `kind` descritto come `enum` a un valore e non come `const`: `anthropic.transform_schema` (SDK 1.15.0) sposta `const` nella descrizione;
+- nessun campo facoltativo né nullable: OpenAI li vuole tutti in `required`, Anthropic ammette al massimo 24 parametri facoltativi e 16 con unione per richiesta. Perciò `rationales` ha un elemento per opzione (stringa vuota = nessuna motivazione, la pipeline la omette) e `difficulty` è sempre presente. L'unica unione dello schema è l'elemento di `questions`;
+- vero/falso: il modello scrive solo l'affermazione e `correct`; le opzioni le aggiunge la pipeline;
+- risposta multipla: `correctIndexes`, almeno 4 opzioni e non più di metà giuste (regola della generazione, più stretta del contratto).
+
+Le istruzioni chiedono un mix di tipi adatto al materiale; scenario e correggi l'errore solo se il testo descrive comportamenti o fatti che lo permettono, senza fatti inventati; `sourceRefs` sempre. La pipeline mappa ogni variante nel contratto (`domanda_del_contratto`); la fixture `generated-course.json` contiene un esempio di ogni tipo per modulo ed è rigenerata dalla pipeline con il fornitore finto dei test.
+
+**Costo nel preventivo.** Lo schema inviato passa da 1.662 byte (OpenAI) e 1.723 (Anthropic) a 8.053 e 8.444, e le istruzioni da 396 a 1.409 byte per chiamata: con il limite «un byte, un token» il limite superiore in ingresso cresce di circa 7,7 k token per tentativo. Con i primi sei tipi (+6,5 k byte) il preventivo del corpus è salito di circa il 21% (es. 01-nativa-p1-90 con claude-opus-5-5 da 20,63 a 25,09 USD); la differenza è tutta nei byte di schema e istruzioni. Il limite d'uscita resta 6.000 token per blocco: domande più varie e motivazioni lo consumano più in fretta, e un'uscita troncata fa fallire l'intera generazione (`provider_incomplete`). Va misurato sulla prossima corsa reale.
+
+`measurement/risposte.py` esclude il vero/falso dai controlli di posizione e lunghezza (opzioni fisse) e tratta la risposta multipla a parte: segnala se le giuste sono sistematicamente le opzioni più lunghe (coda binomiale, attesa 1/C(n, k) per domanda).

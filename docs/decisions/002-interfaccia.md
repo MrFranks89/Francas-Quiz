@@ -64,3 +64,14 @@ Scelte del lettore:
   una (`state/tema.ts`). Interruttore Sistema/Chiaro/Scuro in testata.
   Importazione ed editor usano ancora `components/ui.tsx` con colori fissi:
   restano su un fondo chiaro anche nel tema scuro.
+
+## Tipi di domanda (aggiornamento del 29 ottobre 2026)
+
+La vista del test resta nostra (`components/ExamView.tsx`): gli step di Civis
+(`TrueFalseStep`, `FillBlankStep`, `ScenarioStep`, `OddOneOutStep`,
+`CorrectStatementStep`) mescolano con `Math.random` e confermano domanda per
+domanda. Se ne riprendono forme e stili (`s.tfBtn`, `s.fillSentenceBox`,
+`s.fillChip`, `s.scenarioBox`, la parte sbagliata barrata) e i componenti già
+copiati `FormatPill`, senza `icon`, e `DifficultyBadge`. Nessuna copia nuova,
+nessuna icona né emoji. La risposta multipla, che Civis non ha, segna la giusta
+non scelta con la parola «Mancata».
