@@ -104,6 +104,8 @@ def comando_esegui(args, manifest, campagna, prezzi):
                          ensure_ascii=False, default=str))
         for avviso in corsa.get('risposte', {}).get('avvisi', []):
             print(f"{selezione['id']}: {avviso}")
+        for voce in corsa.get('scarti', {}).get('voci', []):
+            print(f"{selezione['id']}: domanda scartata ({voce['regola']}, {voce['blocco']}): {voce['domanda']}")
         if corsa['esito'] == 'arrestata':
             return 3
     return 0

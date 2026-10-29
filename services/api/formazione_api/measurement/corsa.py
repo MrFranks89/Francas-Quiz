@@ -106,6 +106,15 @@ def preventivo_selezione(selezione: dict, estrazione: dict, prezzi: dict) -> dic
     return risultato
 
 
+def rapporto_scarti(scarti: list[dict]) -> dict:
+    """Domande scartate dai controlli di qualità della pipeline (`scarti` del risultato di generate()).
+
+    L'elenco completo resta in bozza.json; qui numero, regola e domanda per leggerli dal registro.
+    """
+    return dict(numero=len(scarti), voci=[dict(regola=s['rule'], domanda=s['prompt'], tipo=s['kind'],
+                                               modulo=s['moduleId'], blocco=s['chunkId']) for s in scarti])
+
+
 @contextmanager
 def ambiente_fornitore(fornitore: str, modello: str):
     """selection.create_provider() legge GENERATION_PROVIDER e <FORNITORE>_MODEL: si impostano per la corsa."""
@@ -149,6 +158,7 @@ def esegui_selezione(selezione: dict, estrazione: dict, sha: str, prezzi: dict, 
         scrivi_json(cartella / 'bozza.json', risultato)
         scrivi_json(cartella / 'revisione.json', dict(corsaId=corsa_id, selezione=selezione['id'], **SCHEDA_REVISIONE))
         corsa['risposte'] = analizza_risposte(risultato['course'])
+        corsa['scarti'] = rapporto_scarti(risultato['scarti'])
     except GenerationError as error:
         corsa['esito'] = 'arrestata' if error.code == 'budget_guard' else 'fallita'
         corsa['errore'] = dict(code=error.code, message=str(error))

@@ -286,3 +286,27 @@ def test_estrazione_ocr_incompleta_non_stimata_e_rifiutata(tmp_path, senza_forni
     with pytest.raises(GuardiaRifiuto):
         misura.esegui_selezione(SELEZIONE, troncata, 'sha', listino(), 'anthropic', 'modello-prova',
                                 Decimal(1000), Registro(tmp_path / 'r.json'), tmp_path)
+
+
+# --- domande scartate dalla pipeline (test_scarto_domande.py) ---------------------------------------
+
+def test_la_corsa_di_misura_registra_gli_scarti(tmp_path, monkeypatch):
+    from test_scarto_domande import cinque_domande
+
+    class ConScarti(FornitoreFinto):
+        def module(self, chunk):
+            buono = super().module(chunk).model_dump()
+            refs = buono['questions'][0]['sourceRefs']
+            return {**buono, 'questions': [*buono['questions'], cinque_domande(refs)[3]]}
+    monkeypatch.setattr(misura, 'create_provider', lambda: ConScarti())
+    registro = Registro(tmp_path / 'r.json')
+    corsa = misura.esegui_selezione(SELEZIONE, estrazione(), 'sha', listino(), 'anthropic', 'modello-prova',
+                                    Decimal(1000), registro, tmp_path / 'corse')
+    assert corsa['esito'] == 'completata'
+    assert corsa['scarti']['numero'] == corsa['blocchi']
+    voce = corsa['scarti']['voci'][0]
+    assert voce['regola'] == 'spazio_non_unico' and voce['domanda'] == 'Il ___ paragrafo segue il ___ di formazione.'
+    assert voce['blocco'] == 'chunk-1' and voce['modulo'] == 'module-1' and voce['tipo'] == 'fillblank'
+    assert registro.leggi()['corse'][0]['scarti']['numero'] == corsa['blocchi']
+    bozza = json.loads((tmp_path / 'corse' / corsa['id'] / 'bozza.json').read_text(encoding='utf-8'))
+    assert len(bozza['scarti']) == corsa['blocchi']
