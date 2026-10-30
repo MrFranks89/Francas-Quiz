@@ -6,7 +6,7 @@ from io import BytesIO
 from pathlib import Path
 
 from .extractors import SOGLIA_PAGINA_BIANCA, scansioni
-from .pagine_non_lette import avviso_ocr_vuoto, avviso_pagina_bianca
+from .pagine_non_lette import avviso_ocr_vuoto, avviso_pagina_bianca, pagine_bianche
 
 # Limite di tempo dell'OCR, proporzionale alle pagine selezionate. Misura reale sul corpus
 # (docs/MISURE.md): 5 pagine di 02-dpr-547-1955 in 134 s, circa 27 s per pagina su CPU. Con il
@@ -15,7 +15,7 @@ from .pagine_non_lette import avviso_ocr_vuoto, avviso_pagina_bianca
 SECONDS_PER_PAGE = 60
 # Versione dichiarata dell'adattatore, nella chiave della cache delle misure (measurement/corsa.py).
 # Cambiarla quando cambiano configurazione di Docling, testo o avvisi prodotti.
-VERSIONE = '2026-10-30-pagine-bianche'
+VERSIONE = '2026-10-30-bianca-un-avviso'
 MIN_TIMEOUT = 120
 
 # Caratteri utili minimi che l'OCR deve leggere su una pagina «probabile scansione» oltre al suo
@@ -88,7 +88,16 @@ def docling_extract(path, kind, start, end):
         raise RuntimeError('Modelli o dipendenze Docling mancanti: completare il provisioning offline.') from error
     _require_all_pages(result, start, end, ConversionStatus.SUCCESS)
     blocks, warnings, status = _blocks(result.document, start, end)
-    return blocks, _scansioni_non_lette(path, start, end, blocks) + warnings, status
+    avvisi = _scansioni_non_lette(path, start, end, blocks)
+    # La pagina bianca senza testo riceveva anche l'avviso generico di _blocks: lo stesso caso detto
+    # due volte, e «revisione necessaria» contraddiceva «ignorata». Sulle altre pagine resta.
+    ridondanti = {avviso_senza_testo(page) for page in pagine_bianche(avvisi)}
+    return blocks, avvisi + [w for w in warnings if w not in ridondanti], status
+
+
+def avviso_senza_testo(page):
+    """Pagina su cui l'OCR non ha prodotto nessun blocco di testo (_blocks)."""
+    return f'Pagina {page} priva di testo estratto: revisione necessaria.'
 
 
 def caratteri_utili(testo_ocr, testo_nativo):
@@ -159,6 +168,6 @@ def _blocks(document, start, end):
                                'label': f'Pagina {page} — {label}'})
     for page in range(start, end+1):
         if page not in covered:
-            warnings.append(f'Pagina {page} priva di testo estratto: revisione necessaria.')
+            warnings.append(avviso_senza_testo(page))
     warnings.append('OCR e tabelle ricostruiti automaticamente: verificare accuratezza prima della pubblicazione.')
     return blocks, warnings, 'needs_review'

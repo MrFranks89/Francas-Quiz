@@ -78,3 +78,17 @@ def test_file_reale_02_nativo_blocca_tranne_le_pagine_bianche():
     _blocks, warnings, _status = native_extract(path, 'pdf', 1, 48)
     assert pagine_bianche(warnings) == [2, 47]
     assert pagine_non_lette(warnings) == [p for p in range(1, 49) if p not in (2, 47)]
+
+
+def test_ocr_la_pagina_bianca_ha_un_solo_avviso(monkeypatch, tmp_path):
+    """Con l'OCR la pagina bianca riceveva anche «priva di testo estratto: revisione necessaria»:
+    lo stesso caso detto due volte. La scansione con contenuto non letta tiene entrambi gli avvisi."""
+    from formazione_api.docling_adapter import docling_extract
+    from test_pagine_bianche import docling_finto, pdf_scansioni
+    docling_finto(monkeypatch, tmp_path, {})
+    path = tmp_path / 'source'
+    path.write_bytes(pdf_scansioni(None, 'illeggibile'))
+    _blocks, warnings, _status = docling_extract(path, 'pdf', 1, 2)
+    assert [w for w in warnings if w.startswith('Pagina 1')] == [avviso_pagina_bianca(1)]
+    assert 'Pagina 2 priva di testo estratto: revisione necessaria.' in warnings
+    assert pagine_non_lette(warnings) == [2]
