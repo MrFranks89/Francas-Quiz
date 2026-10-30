@@ -4,7 +4,7 @@ import re
 from io import BytesIO
 from pathlib import Path
 
-from .extractors import testo_nativo_scansioni
+from .extractors import scansioni
 from .pagine_non_lette import avviso_ocr_vuoto
 
 # Limite di tempo dell'OCR, proporzionale alle pagine selezionate. Misura reale sul corpus
@@ -95,8 +95,8 @@ def _scansioni_non_lette(path, start, end, blocks):
     letto = {}
     for block in blocks:
         letto[block['page']] = letto.get(block['page'], '') + ' ' + block['text']
-    return [avviso_ocr_vuoto(page) for page, nativo in testo_nativo_scansioni(path, start, end).items()
-            if caratteri_utili(letto.get(page, ''), nativo) < SOGLIA_CARATTERI_UTILI]
+    return [avviso_ocr_vuoto(page) for page, scansione in scansioni(path, start, end).items()
+            if caratteri_utili(letto.get(page, ''), scansione.testo) < SOGLIA_CARATTERI_UTILI]
 
 
 def _require_all_pages(result, start, end, success):

@@ -1,3 +1,5 @@
+from typing import NamedTuple
+
 import pypdfium2 as pdfium
 import pypdfium2.raw as pdfium_c
 from docx import Document
@@ -28,6 +30,46 @@ SCAN_MIN_COVERAGE = 0.05
 # riempimenti (03, p. 9: un'immagine di 1×1 pixel estesa a tutta la pagina).
 SCAN_MIN_DPI = 50
 
+# Inchiostro di una scansione: frazione dei pixel con grigio sotto SOGLIA_GRIGIO, nella zona della
+# pagina che esclude MARGINE_INCHIOSTRO per lato, sulla pagina renderizzata come le anteprime
+# (routes.py) dopo aver tolto gli oggetti di testo nativo di primo livello (intestazione GURITEL).
+# - Il margine esclude i difetti dei bordi della scansione: in 02-dpr-547-1955 la pagina bianca 2,
+#   misurata intera, ha 0,0081 di inchiostro (bordo nero a destra, ombra in basso), più della
+#   p. 48 «PREZZO L. 300» (0,0023) e di 01 p. 98 (0,0043).
+# - La filigrana diagonale di 01 sta in un Form XObject e non si rimuove, ma è grigio chiaro: sopra
+#   la soglia di grigio, non conta (01 p. 98 senza testo nativo: 0,0019 di inchiostro, tutto modulo).
+# Misure con margine del 10% (docs/VERIFICHE.md, 30 ottobre 2026), su 02 pp. 1-48 e 01 pp. 94-325:
+# - bianche, 02 p. 2: 0; 02 p. 47: 0,00034 (una piega verticale a sinistra, nella zona misurata);
+# - 02 p. 48, una sola riga: 0,00125; 01 p. 98, il modulo più vuoto: 0,0019; 01 p. 105: 0,0034;
+# - le altre di 02: da 0,068 (frontespizio) in su; le altre di 01: da 0,005 in su.
+# SOGLIA_PAGINA_BIANCA sta a metà, in scala logaritmica, fra 02 p. 47 e 02 p. 48: 1,8 volte la
+# pagina bianca più sporca, metà della pagina con una riga. L'errore pericoloso è dichiarare bianca
+# una pagina con contenuto (che verrebbe ignorata): sotto la soglia sta meno di mezza riga isolata.
+# L'errore opposto, una bianca più sporca della p. 47, lascia il blocco di prima.
+SOGLIA_GRIGIO = 128
+MARGINE_INCHIOSTRO = 0.10
+SOGLIA_PAGINA_BIANCA = 0.0006
+
+
+class Scansione(NamedTuple):
+    testo: str          # testo nativo della pagina (intestazione, filigrana), anche vuoto
+    inchiostro: float   # vedi SOGLIA_PAGINA_BIANCA
+
+
+def _inchiostro(page):
+    """Frazione di pixel scuri nella zona centrale della pagina, senza il testo nativo di primo
+    livello. Modifica la pagina in memoria: chiamarla per ultima, il documento non si salva."""
+    for oggetto in list(page.get_objects(max_depth=1)):
+        if oggetto.type == pdfium_c.FPDF_PAGEOBJ_TEXT:
+            page.remove_obj(oggetto)
+    page.gen_content()
+    width, height = page.get_size()
+    # Stessa scala delle anteprime (routes.py, page_preview).
+    image = page.render(scale=min(1.5, 1400 / max(width, height)), grayscale=True).to_pil().convert('L')
+    dx, dy = int(image.width * MARGINE_INCHIOSTRO), int(image.height * MARGINE_INCHIOSTRO)
+    centro = image.crop((dx, dy, image.width - dx, image.height - dy))
+    return sum(centro.histogram()[:SOGLIA_GRIGIO]) / (centro.width * centro.height)
+
 
 def _image_coverage(page):
     """Frazione della pagina coperta da immagini con risoluzione da testo (somma delle aree, max 1)."""
@@ -50,8 +92,8 @@ def _image_coverage(page):
     return min(1.0, covered / ((right - left) * (top - bottom)))
 
 
-def testo_nativo_scansioni(path, start, end):
-    """{pagina: testo nativo} delle pagine PDF che sono immagini: meno di SCAN_MAX_CHARS caratteri
+def scansioni(path, start, end):
+    """{pagina: Scansione} delle pagine PDF che sono immagini: meno di SCAN_MAX_CHARS caratteri
     nativi, anche zero, e copertura di immagini almeno SCAN_MIN_COVERAGE. Serve all'OCR per sapere
     dove deve aver letto qualcosa oltre al testo già presente (docling_adapter.py)."""
     reader = PdfReader(path)
@@ -65,7 +107,7 @@ def testo_nativo_scansioni(path, start, end):
             selected = rendered[page - 1]
             try:
                 if _image_coverage(selected) >= SCAN_MIN_COVERAGE:
-                    risultato[page] = text
+                    risultato[page] = Scansione(text, _inchiostro(selected))
             finally:
                 selected.close()
     finally:
