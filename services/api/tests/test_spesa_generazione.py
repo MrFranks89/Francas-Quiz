@@ -110,7 +110,10 @@ def test_generazione_registrata_con_limite_prenotato_e_costo_effettivo(client):
     assert Decimal(str(corsa['addebitatoUSD'])) == limite
     # 100 token in ingresso a 0,10 e 50 in uscita a 0,50 USD per milione (prezzi.json, Haiku).
     assert Decimal(str(corsa['effettivoUSD'])) == Decimal('0.000035')
-    assert client.get('/generation/config').json()['spending']['spentUsd'] == str(limite)
+    # Chiamata completata con i contatori: pesa sul tetto per l'importo regolato, non per il prenotato.
+    regolato = Decimal(str(corsa['regolatoUSD']))
+    assert regolato < limite
+    assert client.get('/generation/config').json()['spending']['spentUsd'] == str(regolato)
 
 
 def test_registro_separato_da_quello_delle_misure(client):
@@ -234,3 +237,125 @@ def test_registro_leggibile_come_json(client):
     genera(client, estratta)
     dati = json.loads((client.app.state.store.root / spesa.NOME_REGISTRO).read_text(encoding='utf-8'))
     assert dati['valuta'] == 'USD'
+
+
+# --- Importi regolati: la prenotazione di un blocco completato è sostituita da un maggiorante del costo reale.
+
+def tre_blocchi():
+    return '\n\n'.join(f'Paragrafo {i}: ' + 'leggere il manuale prima di iniziare. ' * 40 for i in range(18)).encode()
+
+
+def listino_haiku():
+    return prezzo(carica(spesa.PREZZI), 'anthropic', 'claude-haiku-5-5')
+
+
+# 100 token in ingresso alla tariffa d'ingresso più alta di Haiku (0,20, scrittura cache 1h) e 50 in uscita
+# a 0,50 USD per milione, per il moltiplicatore massimo 1,1 (prezzi.json): la stessa tariffa del preventivo.
+ULTIMO_TENTATIVO = (Decimal(100) * Decimal('0.20') + Decimal(50) * Decimal('0.50')) / Decimal(10**6) * Decimal('1.1')
+
+
+def test_tre_blocchi_con_usage_noto_lasciano_gli_importi_regolati(client):
+    estratta, fornitore = prepara(client, testo=tre_blocchi())
+    assert preventivo(client, estratta)['chunks'] == 3
+    risposta = genera(client, estratta)
+    assert risposta.status_code == 201, risposta.text
+    assert fornitore.chiamate == 3
+    (corsa,) = registro(client).leggi()['corse']
+    regolati = []
+    for chiamata in corsa['chiamate']:
+        prenotato = Decimal(str(chiamata['addebitatoUSD']))
+        regolato = Decimal(str(chiamata['regolatoUSD']))
+        # Un tentativo precedente (MAX_RETRIES = 1) al suo limite: metà del prenotato, che copre due tentativi.
+        assert regolato == ULTIMO_TENTATIVO + prenotato / 2
+        assert Decimal(str(chiamata['effettivoUSD'])) == Decimal('0.000035')
+        regolati.append(regolato)
+    assert Decimal(str(corsa['regolatoUSD'])) == sum(regolati)
+    assert Decimal(str(corsa['addebitatoUSD'])) == Decimal(preventivo(client, estratta)['upperBoundUsd'])
+    assert spesa.registro(client.app.state.store).speso() == sum(regolati)
+    assert client.get('/generation/config').json()['spending']['spentUsd'] == str(sum(regolati))
+
+
+class Incompleta(Contato):
+    """Risposta ricevuta con i contatori, ma la chiamata fallisce: il blocco resta prenotato per intero."""
+
+    def module(self, chunk):
+        from formazione_api.generation import GenerationError
+        super().module(chunk)
+        raise GenerationError('provider_incomplete', 'risposta troncata')
+
+
+class SenzaUsage(Contato):
+    def module(self, chunk):
+        esito = super().module(chunk)
+        self.last_usage = None
+        return esito
+
+
+@pytest.mark.parametrize('classe', [Incompleta, SenzaUsage])
+def test_chiamata_fallita_o_senza_usage_mantiene_il_prenotato(client, classe):
+    estratta, _ = prepara(client, fornitore=classe())
+    genera(client, estratta)
+    (corsa,) = registro(client).leggi()['corse']
+    (chiamata,) = corsa['chiamate']
+    assert chiamata.get('regolatoUSD') is None
+    prenotato = Decimal(str(chiamata['addebitatoUSD']))
+    assert Decimal(str(corsa['regolatoUSD'])) == prenotato
+    assert spesa.registro(client.app.state.store).speso() == prenotato
+
+
+def test_token_oltre_il_limite_per_tentativo_mantengono_il_prenotato(client):
+    class Oltre(Contato):
+        def module(self, chunk):
+            esito = super().module(chunk)
+            self.last_usage = dict(self.last_usage, outputTokens=10**9)
+            return esito
+
+    estratta, _ = prepara(client, fornitore=Oltre())
+    genera(client, estratta)
+    (corsa,) = registro(client).leggi()['corse']
+    assert corsa['chiamate'][0].get('regolatoUSD') is None
+    assert spesa.registro(client.app.state.store).speso() == Decimal(str(corsa['addebitatoUSD']))
+
+
+def test_seconda_generazione_passa_grazie_agli_importi_regolati(client, monkeypatch):
+    estratta, fornitore = prepara(client, testo=tre_blocchi())
+    prenotato = Decimal(preventivo(client, estratta)['upperBoundUsd'])
+    # Basterebbe per una sola generazione se si sommassero i prenotati (2 × prenotato > budget).
+    monkeypatch.setenv('GENERATION_BUDGET_USD', str(prenotato * Decimal('1.9')))
+    assert genera(client, estratta).status_code == 201
+    assert spesa.registro(client.app.state.store).prenotato() == prenotato
+    voce = preventivo(client, estratta)
+    assert voce['allowed'] is True, voce
+    assert genera(client, estratta).status_code == 201
+    assert fornitore.chiamate == 6
+    # Senza regolazione la stessa seconda generazione sarebbe stata rifiutata.
+    with pytest.raises(spesa.GuardiaRifiuto):
+        spesa.verifica_avvio(prenotato * Decimal('1.9'), prenotato, prenotato)
+
+
+def test_nessun_regolato_supera_il_suo_prenotato():
+    listino = listino_haiku()
+    (limite,) = pv.preventivo_corsa(pv.pianifica([dict(id='b1', page=1, text='Leggere il manuale.')]), listino)['limiti']
+    prenotato = pv.costo_limite_blocco(limite, listino)
+    casi = [(0, 0), (100, 50), (limite.ingresso_massimo_per_tentativo, 0), (0, limite.uscita_massima),
+            (limite.ingresso_massimo_per_tentativo, limite.uscita_massima)]
+    for entrata, uscita in casi:
+        regolato = spesa.importo_regolato(dict(inputTokens=entrata, outputTokens=uscita, cachedInputTokens=0),
+                                          limite, listino)
+        assert regolato is not None and regolato <= prenotato
+    # Al limite di ogni contatore il regolato coincide con il prenotato: nessun margine perso.
+    assert spesa.importo_regolato(dict(inputTokens=limite.ingresso_massimo_per_tentativo,
+                                       outputTokens=limite.uscita_massima), limite, listino) == prenotato
+    assert spesa.importo_regolato(None, limite, listino) is None
+    assert spesa.importo_regolato(dict(inputTokens=None, outputTokens=5), limite, listino) is None
+    assert spesa.importo_regolato(dict(inputTokens=1, outputTokens=limite.uscita_massima + 1), limite, listino) is None
+
+
+def test_voci_senza_regolato_restano_conteggiate_per_il_prenotato(client):
+    reg = spesa.registro(client.app.state.store)
+    # Corse scritte prima della regolazione: nessun campo regolatoUSD, nessuna migrazione.
+    reg.aggiorna_corsa(dict(id='vecchia', addebitatoUSD=Decimal('0.30'),
+                            chiamate=[dict(chunkId='chunk-1', addebitatoUSD=Decimal('0.30'), effettivoUSD='0.01')]))
+    reg.aggiorna_corsa(dict(id='senza-chiamate', addebitatoUSD=Decimal('0.20'), chiamate=[]))
+    assert reg.speso() == Decimal('0.50')
+    assert reg.prenotato() == Decimal('0.50')

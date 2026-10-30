@@ -5,7 +5,10 @@ Il preventivo è quello dello strumento di misura, non una copia: stessa pianifi
 misurata (preventivo_corsa), stessi prezzi (measurement.prezzi, formazione_api/config/prezzi.json).
 Anche il registro e l'arresto a metà generazione sono quelli della misura (measurement.guardia):
 limite del blocco prenotato prima della chiamata, costo effettivo registrato dopo, generazioni
-fallite comprese. Cambia solo il file del registro, separato da quello delle misure.
+fallite comprese. Cambiano il file del registro, separato da quello delle misure, e la regolazione:
+dopo ogni chiamata completata con i contatori del fornitore la prenotazione del blocco è sostituita
+da un importo regolato (importo_regolato), che resta un maggiorante della spesa reale. Il registro
+dello strumento di misura resta prudente: somma sempre i prenotati.
 
 Una sola funzione, `valuta`, decide sia ciò che il pannello mostra sia ciò che la rotta applica:
 il costo mostrato non può essere diverso da quello controllato.
@@ -19,7 +22,7 @@ from .generation import GenerationError, generate
 from .generation.selection import config_status, create_provider, selected_name
 from .measurement import preventivo as pv
 from .measurement.guardia import FornitoreSorvegliato, GuardiaRifiuto, Registro, adesso, verifica_avvio
-from .measurement.prezzi import PREZZI, PrezzoMancante, carica, prezzo
+from .measurement.prezzi import PREZZI, Prezzo, PrezzoMancante, carica, prezzo
 
 # Unico punto dei valori predefiniti, in USD; documentati in docs/GENERAZIONE.md e restituiti da
 # GET /generation/config (campo `spending`).
@@ -63,8 +66,93 @@ def limiti_configurati() -> dict[str, Decimal]:
     return limiti
 
 
-def registro(store) -> Registro:
-    return Registro(Path(store.root) / NOME_REGISTRO)
+def importo_regolato(usage: dict | None, limite: pv.LimiteBlocco, listino: Prezzo) -> Decimal | None:
+    """Maggiorante della spesa reale di un blocco completato, al posto del suo limite prenotato.
+
+    Chiamata con i contatori dichiarati dal fornitore = l'ultimo tentativo, quello andato a buon fine.
+    Non si vedono i tentativi precedenti dello SDK (max_retries=MAX_RETRIES, generation/instructions.py):
+    - anthropic 1.15.0, anthropic/_base_client.py, SyncAPIClient.request: `for retries_taken in
+      range(max_retries + 1)` con `model_copy(input_options)`, cioè al più 1 + MAX_RETRIES invii della
+      stessa richiesta; openai 3.31.0, openai/_base_client.py, stesso ciclo;
+    - si ritenta anche su timeout e connessione interrotta (anthropic: `_should_retry_exception`,
+      APIConnectionError/APITimeoutError; openai: `timeout_exceptions()` e `request_exceptions()`),
+      quindi un tentativo precedente può essere stato completato e fatturato dal server con un'uscita
+      fino a max_tokens, anche maggiore di quella dell'ultimo tentativo.
+    Per questo NON basta costo effettivo × (1 + MAX_RETRIES): un primo tentativo scaduto dopo 6.000
+    token d'uscita e un secondo da 500 costerebbero più del doppio del secondo. Il maggiorante è:
+    - ultimo tentativo: token reali alle tariffe del preventivo (tariffa d'ingresso più alta e
+      moltiplicatore massimo, preventivo.costo_tentativo), così non dipende da come il fornitore
+      ripartisce l'ingresso fra cache, scrittura in cache e non cache;
+    - ogni tentativo precedente possibile (limite.tentativi - 1 = MAX_RETRIES): il limite per
+      tentativo del preventivo, che non dipende da ciò che il fornitore ha dichiarato.
+    Poiché ogni contatore reale è entro il limite per tentativo, il regolato non supera mai il
+    prenotato (tentativi × limite per tentativo). Contatori assenti o oltre il limite per tentativo
+    (maggiorante smentito, FornitoreSorvegliato.violazione) → None: resta il prenotato.
+    """
+    if not usage:
+        return None
+    entrata, uscita = usage.get('inputTokens'), usage.get('outputTokens')
+    if entrata is None or uscita is None:
+        return None
+    if entrata > limite.ingresso_massimo_per_tentativo or uscita > limite.uscita_massima:
+        return None
+    ultimo = pv.costo_tentativo(entrata, uscita, listino)
+    precedenti = pv.costo_tentativo(limite.ingresso_massimo_per_tentativo, limite.uscita_massima, listino)         * (limite.tentativi - 1)
+    return ultimo + precedenti
+
+
+def _decimale(valore) -> Decimal:
+    return Decimal(str(valore))
+
+
+def importo_corsa(corsa: dict) -> Decimal:
+    """Ciò che una generazione pesa sul tetto: il prenotato meno, per ogni chiamata regolata, la
+    differenza fra prenotato e regolato. Voci senza regolatoUSD (in corso, fallite, senza contatori o
+    scritte prima della regolazione) restano conteggiate per il prenotato: nessuna migrazione."""
+    totale = _decimale(corsa.get('addebitatoUSD', 0))
+    for chiamata in corsa.get('chiamate') or []:
+        if chiamata.get('regolatoUSD') is not None:
+            totale -= _decimale(chiamata['addebitatoUSD']) - _decimale(chiamata['regolatoUSD'])
+    return totale
+
+
+class RegistroApp(Registro):
+    """Registro dell'app: stesso file e stesse voci della guardia, ma `speso` somma gli importi
+    regolati. È ciò che leggono verifica_avvio (decidi), il controllo prima di ogni blocco
+    (FornitoreSorvegliato.module, che chiama self.registro.speso()) e GET /generation/config."""
+
+    def speso(self) -> Decimal:
+        return sum((importo_corsa(c) for c in self.leggi()['corse']), Decimal(0))
+
+    def prenotato(self) -> Decimal:
+        return super().speso()
+
+    def aggiorna_corsa(self, corsa: dict) -> None:
+        # Ricalcolato a ogni scrittura: il totale della corsa non può restare indietro rispetto alle chiamate.
+        corsa['regolatoUSD'] = importo_corsa(corsa)
+        super().aggiorna_corsa(corsa)
+
+
+class FornitoreRegolato(FornitoreSorvegliato):
+    """FornitoreSorvegliato della misura, invariato; dopo ogni chiamata completata con i contatori
+    del fornitore scrive regolatoUSD accanto al prenotato (addebitatoUSD) e all'effettivo."""
+
+    def module(self, chunk):
+        prima = len(self.corsa['chiamate'])
+        try:
+            return super().module(chunk)
+        finally:
+            # Nessuna chiamata aggiunta = arresto prima del blocco: niente da regolare.
+            if len(self.corsa['chiamate']) > prima:
+                chiamata = self.corsa['chiamate'][-1]
+                regolato = importo_regolato(chiamata.get('usage'), self.limiti[chunk.id], self.prezzo)                     if chiamata.get('esito') == 'completata' and not chiamata.get('violazioneLimite') else None
+                if regolato is not None:
+                    chiamata['regolatoUSD'] = regolato
+                    self.registro.aggiorna_corsa(self.corsa)
+
+
+def registro(store) -> RegistroApp:
+    return RegistroApp(Path(store.root) / NOME_REGISTRO)
 
 
 def configurazione_spesa(store) -> dict:
@@ -176,7 +264,7 @@ def genera_con_tetto(extraction: dict, provider, store, corsa_id: str, **opzioni
                      addebitatoUSD=Decimal(0), chiamate=[], esito='in_corso')
         reg.aggiorna_corsa(corsa)
         try:
-            sorvegliato = FornitoreSorvegliato(provider if provider is not None else create_provider(),
+            sorvegliato = FornitoreRegolato(provider if provider is not None else create_provider(),
                                                {l.chunk_id: l for l in stima['limiti']}, stima['listino'],
                                                limiti['budgetUsd'], reg, corsa)
             risultato = generate(extraction, sorvegliato, **opzioni)
