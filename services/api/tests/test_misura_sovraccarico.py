@@ -225,7 +225,7 @@ def test_errori_dello_sdk_messaggio_leggibile_senza_traceback(stato, tipo, attes
 
 
 def test_corsa_completa_scrive_rapporto_e_non_tocca_prezzi(monkeypatch, tmp_path, capsys):
-    prezzi = Path(__file__).resolve().parents[3] / 'tests' / 'corpus' / 'prezzi.json'
+    from formazione_api.measurement.prezzi import PREZZI as prezzi
     prima = prezzi.read_bytes()
     client = ClientFinto(contati=10)
     monkeypatch.setenv('ANTHROPIC_API_KEY', 'test-key-not-real')

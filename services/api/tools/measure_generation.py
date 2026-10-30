@@ -22,7 +22,7 @@ os.environ['TRANSFORMERS_OFFLINE'] = '1'
 from formazione_api.measurement import corsa as misura  # noqa: E402
 from formazione_api.measurement.guardia import GuardiaRifiuto, Registro, adesso  # noqa: E402
 from formazione_api.measurement.integrita import FileNonConforme  # noqa: E402
-from formazione_api.measurement.prezzi import PrezzoMancante, carica  # noqa: E402
+from formazione_api.measurement.prezzi import PREZZI, PrezzoMancante, carica  # noqa: E402
 
 CORPUS = ROOT / 'tests' / 'corpus'
 USCITA = ROOT / 'var' / 'misure'
@@ -134,7 +134,7 @@ def main(argv=None):
         args.selezione = None
     manifest = json.loads((CORPUS / 'manifest.json').read_text(encoding='utf-8'))
     campagna = json.loads((CORPUS / 'campagna.json').read_text(encoding='utf-8'))
-    prezzi = carica(CORPUS / 'prezzi.json')
+    prezzi = carica(PREZZI)
     return {'preventivo': comando_preventivo, 'esegui': comando_esegui, 'riepilogo': comando_riepilogo}[comando](
         args, manifest, campagna, prezzi) or 0
 

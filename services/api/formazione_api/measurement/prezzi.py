@@ -1,4 +1,8 @@
-"""Prezzi per milione di token, letti alla fonte e registrati in tests/corpus/prezzi.json.
+"""Prezzi per milione di token, letti alla fonte e registrati in formazione_api/config/prezzi.json.
+
+Il listino è configurazione dell'applicazione (lo leggono l'app, il preventivo, le impostazioni e
+lo strumento di misura), non un dato di prova: sta nel pacchetto e si raggiunge da PREZZI, unico
+punto del percorso.
 
 Si usa Decimal (json parse_float) per non introdurre arrotondamenti nei confronti col budget.
 """
@@ -8,6 +12,7 @@ from decimal import Decimal
 from pathlib import Path
 
 MILIONE = Decimal(1_000_000)
+PREZZI = Path(__file__).resolve().parents[1] / 'config' / 'prezzi.json'
 
 
 class PrezzoMancante(ValueError):

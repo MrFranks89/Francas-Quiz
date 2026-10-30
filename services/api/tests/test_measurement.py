@@ -292,7 +292,8 @@ def test_costo_per_corso_approvato_somma_anche_le_corse_fallite(tmp_path, monkey
 def test_prezzi_registrati_hanno_fonte_data_e_sono_leggibili():
     from pathlib import Path
     from formazione_api.measurement.prezzi import carica, modelli
-    prezzi = carica(Path(__file__).resolve().parents[3] / 'tests' / 'corpus' / 'prezzi.json')
+    from formazione_api.measurement.prezzi import PREZZI
+    prezzi = carica(PREZZI)
     coppie = list(modelli(prezzi))
     assert {f for f, _ in coppie} == {'openai', 'anthropic'}
     for fornitore, modello in coppie:

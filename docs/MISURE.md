@@ -1,7 +1,7 @@
 # Misura della generazione sul corpus
 
 Strumento: `services/api/tools/measure_generation.py`, logica in `services/api/formazione_api/measurement/`.
-Selezioni in `tests/corpus/campagna.json`, prezzi in `tests/corpus/prezzi.json`, uscite in `var/misure/` (fuori da Git).
+Selezioni in `tests/corpus/campagna.json`, prezzi in `services/api/formazione_api/config/prezzi.json` (configurazione dell'applicazione, letta anche dall'app), uscite in `var/misure/` (fuori da Git).
 
 ## Comandi
 

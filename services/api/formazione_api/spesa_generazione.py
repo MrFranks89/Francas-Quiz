@@ -2,7 +2,7 @@
 
 Il preventivo è quello dello strumento di misura, non una copia: stessa pianificazione dei blocchi
 (measurement.preventivo.pianifica), stesso limite superiore per blocco con la quota per chiamata
-misurata (preventivo_corsa), stessi prezzi (measurement.prezzi, tests/corpus/prezzi.json).
+misurata (preventivo_corsa), stessi prezzi (measurement.prezzi, formazione_api/config/prezzi.json).
 Anche il registro e l'arresto a metà generazione sono quelli della misura (measurement.guardia):
 limite del blocco prenotato prima della chiamata, costo effettivo registrato dopo, generazioni
 fallite comprese. Cambia solo il file del registro, separato da quello delle misure.
@@ -19,13 +19,12 @@ from .generation import GenerationError, generate
 from .generation.selection import config_status, create_provider, selected_name
 from .measurement import preventivo as pv
 from .measurement.guardia import FornitoreSorvegliato, GuardiaRifiuto, Registro, adesso, verifica_avvio
-from .measurement.prezzi import PrezzoMancante, carica, prezzo
+from .measurement.prezzi import PREZZI, PrezzoMancante, carica, prezzo
 
 # Unico punto dei valori predefiniti, in USD; documentati in docs/GENERAZIONE.md e restituiti da
 # GET /generation/config (campo `spending`).
 PREDEFINITI = {'GENERATION_MAX_USD_PER_COURSE': Decimal('0.50'), 'GENERATION_BUDGET_USD': Decimal('5.00')}
 
-PREZZI = Path(__file__).resolve().parents[3] / 'tests' / 'corpus' / 'prezzi.json'
 NOME_REGISTRO = 'registro-spesa-app.json'
 
 # Una generazione alla volta per processo: il registro è riletto prima di ogni blocco, ma due

@@ -10,7 +10,7 @@ https://platform.claude.com/docs/en/build-with-claude/token-counting (letta il 2
 «Token counting is free to use but subject to requests per minute rate limits».
 Il client è avvolto da SoloConteggio, che non espone nient'altro (create, parse, stream, batches).
 
-Non scrive in tests/corpus/prezzi.json: stampa la quota proposta e scrive il rapporto in var/misure/.
+Non scrive in formazione_api/config/prezzi.json: stampa la quota proposta e scrive il rapporto in var/misure/.
 
   python services/api/tools/misura_sovraccarico_anthropic.py [--selezione ID ...]
 """
@@ -155,10 +155,10 @@ def prepara_gruppi(scelta) -> tuple[list[tuple[str, list[Chunk]]], list[dict], l
     import measure_generation as mg
     from formazione_api.measurement import corsa as misura
     from formazione_api.measurement.integrita import FileNonConforme
-    from formazione_api.measurement.prezzi import carica, modelli
+    from formazione_api.measurement.prezzi import PREZZI, carica, modelli
     manifest = json.loads((mg.CORPUS / 'manifest.json').read_text(encoding='utf-8'))
     campagna = json.loads((mg.CORPUS / 'campagna.json').read_text(encoding='utf-8'))
-    prezzi = carica(mg.CORPUS / 'prezzi.json')
+    prezzi = carica(PREZZI)
     nomi = [m for f, m in modelli(prezzi) if f == FORNITORE]
     gruppi, escluse = [], []
     for selezione in mg.selezioni(campagna, scelta):

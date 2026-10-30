@@ -30,7 +30,7 @@ Fornitore, chiavi, modello e limiti di spesa sono variabili del processo server.
 
 `Avvia Studio Formazione.bat` non contiene chiavi né variabili: avvia API e app, e la configurazione arriva da `services/api/.env`.
 
-Modelli ammessi dalla schermata: solo quelli con un prezzo valido in `tests/corpus/prezzi.json`, perché un modello senza prezzo non può avere un costo massimo e la generazione verrebbe rifiutata. Per OpenAI la quota per chiamata non è misurata (`sovraccaricoIngressoPerChiamata.token: null`): la configurazione si salva, ma ogni generazione è rifiutata dal tetto di spesa, e la schermata lo dice.
+Modelli ammessi dalla schermata: solo quelli con un prezzo valido in `services/api/formazione_api/config/prezzi.json`, perché un modello senza prezzo non può avere un costo massimo e la generazione verrebbe rifiutata. Per OpenAI la quota per chiamata non è misurata (`sovraccaricoIngressoPerChiamata.token: null`): la configurazione si salva, ma ogni generazione è rifiutata dal tetto di spesa, e la schermata lo dice.
 
 ## Secondo fornitore: Anthropic
 
@@ -89,7 +89,7 @@ Nessuna esclusione silenziosa: la decide l'utente, l'estrazione salvata resta in
 
 Prima di generare, il pannello mostra il **costo massimo garantito** in USD per il fornitore e il modello configurati, per esempio «Costo massimo: 0,13 USD (claude-haiku-5-5, 1 blocco)». Lo calcola `GET /extractions/{id}/generation-estimate`; la stessa funzione (`valuta` e `decidi` in `services/api/formazione_api/spesa_generazione.py`) decide anche la rotta `POST /extractions/{id}/generate`, quindi il costo mostrato è quello applicato.
 
-Il preventivo è quello dello strumento di misura, non una copia (vedi [MISURE.md](MISURE.md), «Limite superiore»): `measurement.preventivo.pianifica` e `preventivo_corsa`, comprese la quota per chiamata misurata (`sovraccaricoIngressoPerChiamata`), tutti i tentativi dello SDK e il moltiplicatore massimo, con i prezzi di `tests/corpus/prezzi.json`. L'importo mostrato è arrotondato per eccesso al centesimo. Il fornitore è quello iniettato in `app.state.generation_provider` (attributi `provider_name` e `model`) oppure quello scelto con `GENERATION_PROVIDER` e `<FORNITORE>_MODEL`.
+Il preventivo è quello dello strumento di misura, non una copia (vedi [MISURE.md](MISURE.md), «Limite superiore»): `measurement.preventivo.pianifica` e `preventivo_corsa`, comprese la quota per chiamata misurata (`sovraccaricoIngressoPerChiamata`), tutti i tentativi dello SDK e il moltiplicatore massimo, con i prezzi di `services/api/formazione_api/config/prezzi.json`. L'importo mostrato è arrotondato per eccesso al centesimo. Il fornitore è quello iniettato in `app.state.generation_provider` (attributi `provider_name` e `model`) oppure quello scelto con `GENERATION_PROVIDER` e `<FORNITORE>_MODEL`.
 
 Il preventivo è **non disponibile**, e la generazione rifiutata con `422 estimate_unavailable` senza chiamare il fornitore, se il modello non ha prezzo in `prezzi.json`, se la quota per chiamata del fornitore non è misurata (oggi OpenAI), se un blocco supera la soglia del contesto lungo o se il fornitore iniettato non dichiara fornitore e modello.
 

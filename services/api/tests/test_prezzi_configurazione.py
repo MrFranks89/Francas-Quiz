@@ -100,3 +100,16 @@ def test_misura_della_quota_legge_lo_stesso_file(strumenti, monkeypatch):
     with pytest.raises(_Letto):
         ms.prepara_gruppi(None)
     assert letti == [Path(PREZZI).resolve()]
+
+
+def test_nessun_riferimento_al_vecchio_percorso_del_listino():
+    """Il listino stava in tests/corpus ed era letto anche dall'app in produzione: nessun file del
+    server o della documentazione deve tornare a indicarlo lì."""
+    radice = Path(__file__).resolve().parents[3]
+    vecchio = 'corpus' + '/prezzi.json'
+    candidati = [*(radice / 'services' / 'api').rglob('*.py'), *(radice / 'docs').rglob('*.md')]
+    trovati = [str(p.relative_to(radice)) for p in candidati
+               if '.venv' not in p.parts and vecchio in p.read_text(encoding='utf-8').replace('\\', '/')
+               and p.resolve() != Path(__file__).resolve()]
+    assert trovati == []
+    assert Path(PREZZI).resolve() == (radice / 'services' / 'api' / 'formazione_api' / 'config' / 'prezzi.json')

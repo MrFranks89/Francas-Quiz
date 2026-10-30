@@ -14,8 +14,8 @@ Le fonti dei valori sono il codice e i dati del progetto, non copie scritte a ma
 - nomi delle variabili: la convenzione <FORNITORE>_API_KEY / <FORNITORE>_MODEL, verificata dal test
   test_convenzione_dei_nomi_delle_variabili_vale_per_ogni_fornitore contro config_status() di
   ogni fornitore;
-- modelli ammessi e prezzi: tests/corpus/prezzi.json letto con measurement.prezzi, lo stesso file
-  del tetto di spesa (spesa_generazione.PREZZI): un modello senza prezzo non può generare, quindi
+- modelli ammessi e prezzi: formazione_api/config/prezzi.json letto con measurement.prezzi, lo stesso
+  file del tetto di spesa (measurement.prezzi.PREZZI): un modello senza prezzo non può generare, quindi
   non si può nemmeno scegliere.
 """
 import os
@@ -25,8 +25,7 @@ from pathlib import Path
 
 from . import ambiente
 from .generation import selection
-from .measurement.prezzi import PrezzoMancante, carica, modelli, prezzo
-from .spesa_generazione import PREZZI
+from .measurement.prezzi import PREZZI, PrezzoMancante, carica, modelli, prezzo
 
 VARIABILE_FORNITORE = 'GENERATION_PROVIDER'  # letta da selection.selected_name()
 ETICHETTE = {'openai': 'OpenAI', 'anthropic': 'Anthropic'}
