@@ -100,15 +100,24 @@ Limiti del processo server, in USD:
 | `GENERATION_MAX_USD_PER_COURSE` | limite superiore massimo di una singola generazione | `0.50` |
 | `GENERATION_BUDGET_USD` | tetto cumulativo di tutte le generazioni registrate | `5.00` |
 
-I predefiniti stanno solo in `PREDEFINITI` di `spesa_generazione.py` e compaiono in `GET /generation/config` sotto `spending` (`defaults`, `maxUsdPerCourse`, `budgetUsd`, `spentUsd`). Un valore non numerico, infinito o negativo non è sostituito dal predefinito: rifiuto `422 invalid_spending_limit`. `0` blocca ogni generazione.
+I predefiniti stanno solo in `PREDEFINITI` di `spesa_generazione.py` e compaiono in `GET /generation/config` sotto `spending` (`defaults`, `maxUsdPerCourse`, `budgetUsd`, `spentUsd`, `reservedUsd`, `remainingUsd`). `spentUsd` è la spesa **regolata**, la stessa che sommano i controlli del tetto; `reservedUsd` la somma dei prenotati, per confronto; `remainingUsd` è `budgetUsd − spentUsd`, mai negativo. Il pannello non mostra la spesa cumulativa. Un valore non numerico, infinito o negativo non è sostituito dal predefinito: rifiuto `422 invalid_spending_limit`. `0` blocca ogni generazione.
 
 Rifiuti, tutti prima di chiamare il fornitore, con codice e messaggio leggibile mostrati dal pannello:
 
 - `over_course_limit` (422): costo massimo oltre `GENERATION_MAX_USD_PER_COURSE`;
-- `over_budget` (422): spesa registrata + costo massimo oltre `GENERATION_BUDGET_USD` (stessa `verifica_avvio` della guardia di misura);
-- `budget_guard` (422): arresto a metà generazione, se prima di un blocco il registro riletto non lascia spazio al suo limite;
+- `over_budget` (422): spesa regolata registrata + costo massimo oltre `GENERATION_BUDGET_USD` (stessa `verifica_avvio` della guardia di misura);
+- `budget_guard` (422): arresto a metà generazione, se prima di un blocco la spesa regolata del registro riletto non lascia spazio al suo limite;
 - `generation_in_progress` (409): una generazione alla volta per processo, perché due generazioni simultanee leggerebbero la stessa spesa.
 
-Registro cumulativo: `registro-spesa-app.json` nella cartella dei dati (`var/api/` oppure `FORMAZIONE_DATA_DIR`), separato da quello delle misure, con la stessa logica e lo stesso codice (`Registro` e `FornitoreSorvegliato` di `measurement/guardia.py`): il limite di ogni blocco è prenotato prima della chiamata (`addebitatoUSD`), il costo effettivo dai token dichiarati è registrato dopo (`effettivoUSD`, `null` se un contatore manca). Anche le generazioni fallite o arrestate restano nel registro con quanto prenotato. Il tetto cumulativo somma `addebitatoUSD`, cioè i limiti, non i costi effettivi: è prudente per costruzione. Per ripartire da zero si archivia il file.
+Registro cumulativo: `registro-spesa-app.json` nella cartella dei dati (`var/api/` oppure `FORMAZIONE_DATA_DIR`), separato da quello delle misure, con la stessa logica e lo stesso codice (`Registro` e `FornitoreSorvegliato` di `measurement/guardia.py`): il limite di ogni blocco è prenotato prima della chiamata (`addebitatoUSD`), il costo effettivo dai token dichiarati è registrato dopo (`effettivoUSD`, `null` se un contatore manca). Anche le generazioni fallite o arrestate restano nel registro con quanto prenotato. Per ripartire da zero si archivia il file.
+
+**Importo regolato** (dal 30 ottobre 2026, solo per il registro dell'app). Dopo ogni chiamata completata con i contatori dichiarati dal fornitore, la prenotazione del blocco è sostituita, nel conteggio del tetto, da `regolatoUSD`, scritto accanto a `addebitatoUSD` (prenotato) ed `effettivoUSD`; ogni corsa ha anche il suo `regolatoUSD` totale. Formula (`importo_regolato` in `spesa_generazione.py`, con le fonti nel commento):
+
+- ultimo tentativo: token reali alle tariffe del preventivo, cioè tariffa d'ingresso più alta del modello e moltiplicatore massimo (`preventivo.costo_tentativo`);
+- più `MAX_RETRIES` tentativi al limite per tentativo del preventivo.
+
+Non basta `effettivo × (1 + MAX_RETRIES)`: lo SDK ritenta la stessa richiesta anche su timeout e connessione interrotta (anthropic 1.15.0 e openai 3.31.0, `_base_client.py`, ciclo `for retries_taken in range(max_retries + 1)`), quindi un tentativo precedente può essere stato fatturato con un'uscita fino a `max_tokens`, maggiore di quella dell'ultimo. Poiché ogni contatore reale è entro il limite per tentativo, il regolato non supera mai il prenotato. Restano conteggiate per il prenotato: chiamate fallite (anche se il fornitore ha risposto con i contatori), chiamate senza contatori, chiamate con token oltre il limite per tentativo, la chiamata in corso e le voci scritte prima di questa regola (nessuna migrazione). Il controllo all'avvio, quello prima di ogni blocco e `spentUsd` usano la stessa somma (`RegistroApp.speso`).
+
+Effetto misurato sulla prima corsa reale (Haiku, 9 blocchi, `var/misure/registro-spesa.json`): prenotato 0,116 USD, regolato 0,087, effettivo 0,020. Il guadagno è limitato perché la copertura di un tentativo precedente vale metà del prenotato: finché il numero di tentativi davvero inviati non è noto, quella metà resta.
 
 Limiti noti: il lucchetto vale per un solo processo (uvicorn con più worker o due server sulla stessa cartella dati non sono coordinati); il predefinito cumulativo non si azzera nel tempo.
