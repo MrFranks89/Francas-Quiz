@@ -45,5 +45,5 @@ def pagine_bianche(warnings: list[str]) -> list[int]:
 def messaggio_blocco(pagine: list[int]) -> str:
     elenco = ', '.join(map(str, pagine))
     return (f'Pagine scansionate senza testo letto: {elenco}. Il corso verrebbe generato dalle sole '
-            "intestazioni. Estrarre di nuovo con l'OCR, oppure selezionare un intervallo che escluda "
-            'queste pagine.')
+            "intestazioni. Estrarre di nuovo con l'OCR, selezionare un intervallo che escluda queste "
+            'pagine, oppure escluderle dal corso.')
