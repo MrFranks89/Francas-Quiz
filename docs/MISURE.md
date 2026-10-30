@@ -19,7 +19,9 @@ Selezioni in `tests/corpus/campagna.json`, prezzi in `tests/corpus/prezzi.json`,
 
 Ogni selezione: verifica sha256 rispetto a `manifest.json` (per lo ZIP 07: archivio, poi file estratto confrontato con il membro dell'archivio), estrazione con l'estrattore del prodotto (`native_extract` o `docling_extract`, risultato in cache in `var/misure/estrazioni/`), piano dei blocchi con `plan_chunks` e gli stessi limiti predefiniti di `generate()`.
 
-Il preventivo scrive `var/misure/preventivo-<data>.json` e, per i PDF nativi, elenca le pagine con meno di 400 caratteri di testo come «probabile scansione»: `extractors.py` segnala solo le pagine vuote (difetto noto, da correggere a parte).
+Il preventivo scrive `var/misure/preventivo-<data>.json`. Le pagine scansionate non lette sono quelle che l'estrattore segnala negli avvisi («probabile scansione» del parser nativo, «OCR senza testo utile» di Docling; `pagine_non_lette.py`), non più una soglia di 400 caratteri ricalcolata dallo strumento: una selezione che le contiene è `RIFIUTATA dalla pipeline: unread_pages` con l'elenco delle pagine (campo `pagineNonLette`), come la rotta di generazione, e `esegui` la rifiuta prima di creare il fornitore.
+
+La cache delle estrazioni (`var/misure/estrazioni/<selezione>-<motore>-<sha>-<versione>.json`) include la `VERSIONE` dichiarata da `extractors.py` o `docling_adapter.py`: cambiando la versione l'estrazione si ripete. I file senza versione nel nome sono di prima del 29 ottobre 2026 e non vengono più letti.
 
 `esegui` scrive in `var/misure/corse/<id>/` la bozza (`bozza.json`, con `usage` e copertura) e la scheda `revisione.json` da compilare (`minutiRevisione`, `erroriFattuali`, `erroriDidattici`, `domandeDaRiscrivere`, `approvato`). Il registro cumulativo `var/misure/registro-spesa.json` contiene tutte le corse, **anche fallite o arrestate**, con chiamate, usage, durate, errori, costo effettivo e importo addebitato.
 
@@ -75,7 +77,16 @@ USD per milione di token, tariffa standard, letti il 2026-10-19:
 
 Prima di una corsa reale, rileggere la fonte e aggiornare valori e data.
 
+## OCR delle scansioni (30 ottobre 2026)
+
+Preventivo dopo la correzione dell'OCR (`docling_adapter.py`, `OcrMode.FULL_PAGE`), rapporto `var/misure/preventivo-2026-10-30T091056+0000.json`:
+
+- `01-ocr-p94-143`: 134.618 caratteri (prima circa 2.800, la sola filigrana GURITEL), 12 blocchi; limite superiore da 0,15 USD (gpt-6-luna) a 14,53 USD (gpt-6-astra), Anthropic completo.
+- `02-ocr-tutto`: 203.525 caratteri, **rifiutata** (`unread_pages`): le pagine 2, 47 e 48 sono scansioni bianche (la 48 ha solo «PREZZO L. 300») e l'OCR non vi legge testo utile. Il controllo non distingue una pagina bianca da un OCR fallito: per misurare 02 serve una selezione 3-46.
+
+Dettagli, tempi e confronti a vista in [VERIFICHE.md](VERIFICHE.md).
+
 ## Selezioni non stimate (2026-10-19)
 
-- `01-ocr-p94-143`, `02-ocr-tutto`: Docling gira in locale (campione di 5 pagine di 02: 134 s), ma `docling_adapter.py` imposta `document_timeout=120`; oltre quel tempo Docling restituisce un'estrazione parziale **senza errore** (13 pagine su 50, 0 su 48). Il preventivo segna «estrazione OCR incompleta» e la guardia rifiuta la corsa reale.
+- `01-ocr-p94-143`, `02-ocr-tutto` (risolto: vedi «OCR delle scansioni»): Docling gira in locale (campione di 5 pagine di 02: 134 s), ma `docling_adapter.py` imposta `document_timeout=120`; oltre quel tempo Docling restituisce un'estrazione parziale **senza errore** (13 pagine su 50, 0 su 48). Il preventivo segna «estrazione OCR incompleta» e la guardia rifiuta la corsa reale.
 - `07-tavole`: `native_extract` fallisce su `C08_Tavole.xlsx` (`AttributeError: 'EmptyCell' object has no attribute 'coordinate'`, modalità `read_only` di openpyxl); la rotta di estrazione risponderebbe 422. Il 29 ottobre 2026 la selezione è stata tolta: i fogli di calcolo non sono più una fonte (decisione 004).

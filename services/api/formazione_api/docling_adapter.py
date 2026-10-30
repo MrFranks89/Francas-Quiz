@@ -18,7 +18,10 @@ VERSIONE = '2026-10-29-ocr-pagina-intera'
 MIN_TIMEOUT = 120
 
 # Caratteri utili minimi che l'OCR deve leggere su una pagina «probabile scansione» oltre al suo
-# testo nativo. Misura su 01 pp. 94-143 e 02 per intero in docs/VERIFICHE.md (OCR del 29-10-2026).
+# testo nativo. Misura (docs/VERIFICHE.md, OCR a pagina intera del 29-30 ottobre 2026): prima della
+# correzione 0 su tutte le 50 pagine di 01 pp. 94-143 (sola filigrana); dopo, minimo 72 (01 p. 98,
+# pagina corta reale) e 262 (02 p. 46); sotto soglia solo le scansioni bianche di 02 (pp. 2, 47: 0;
+# p. 48 «PREZZO L. 300»: 10).
 SOGLIA_CARATTERI_UTILI = 50
 
 
