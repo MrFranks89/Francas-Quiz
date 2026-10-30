@@ -16,6 +16,7 @@ from ..documents import KINDS
 from ..extractors import native_extract
 from ..generation import GenerationError, generate
 from ..generation.selection import create_provider
+from ..pagine_non_lette import messaggio_blocco, pagine_non_lette
 from . import preventivo as pv
 from .guardia import FornitoreSorvegliato, GuardiaRifiuto, Registro, adesso, verifica_avvio
 from .integrita import verifica_file, verifica_membro_zip
@@ -86,6 +87,11 @@ def preventivo_selezione(selezione: dict, estrazione: dict, prezzi: dict) -> dic
                      caratteri=sum(len(b['text']) for b in estrazione['blocks']), stato=estrazione['status'])
     if estrazione['kind'] == 'pdf' and estrazione['engine'] == 'native':
         risultato['probabileScansione'] = pv.pagine_poco_testo(estrazione['blocks'], estrazione['inizio'], estrazione['fine'])
+    if non_lette := pagine_non_lette(estrazione['warnings']):
+        # Come generation_routes.py: la rotta rifiuterebbe la generazione prima del fornitore.
+        risultato.update(pagineNonLette=non_lette, modelli=[],
+                         rifiutataDallaPipeline=dict(code='unread_pages', message=messaggio_blocco(non_lette)))
+        return risultato
     if estrazione['engine'] == 'docling' and (scoperte := pv.pagine_senza_testo(estrazione)):
         # Un preventivo su un'estrazione OCR troncata sarebbe un numero senza significato.
         risultato.update(nonStimata=f"estrazione OCR incompleta: {len(scoperte)} pagine su "
@@ -134,6 +140,8 @@ def ambiente_fornitore(fornitore: str, modello: str):
 def esegui_selezione(selezione: dict, estrazione: dict, sha: str, prezzi: dict, fornitore: str, modello: str,
                      budget: Decimal, registro: Registro, cartella_corse: Path) -> dict:
     """Corsa reale su una selezione. Solleva GuardiaRifiuto/PrezzoMancante prima di creare il fornitore."""
+    if non_lette := pagine_non_lette(estrazione['warnings']):
+        raise GuardiaRifiuto(messaggio_blocco(non_lette))   # come generation_routes.py
     listino = prezzo(prezzi, fornitore, modello)            # modello senza prezzo: rifiutato qui
     if estrazione['engine'] == 'docling' and pv.pagine_senza_testo(estrazione):
         raise GuardiaRifiuto('Estrazione OCR incompleta: nessuna spesa su materiale troncato')

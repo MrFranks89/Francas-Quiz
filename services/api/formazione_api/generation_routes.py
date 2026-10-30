@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field, StrictBool
 
 from .generation import GenerationError, config_status, generate
+from .pagine_non_lette import messaggio_blocco, pagine_non_lette
 from .routes import read_record
 
 router = APIRouter()
@@ -25,6 +26,11 @@ def generate_course(identifier: str, body: GenerationRequest, request: Request):
     extraction = read_record(store, identifier, 'extraction.json')
     if not body.title.strip():
         raise HTTPException(422, {'code': 'invalid_title', 'message': 'Inserire un titolo.'})
+    # Vale anche con «Ho verificato»: da una scansione non letta il corso nascerebbe dalle sole
+    # intestazioni e la pagina resterebbe esclusa in silenzio. Si esclude solo dichiarandolo, con
+    # una nuova selezione che non la contiene, oppure la si legge con l'OCR (pagine_non_lette.py).
+    if pagine := pagine_non_lette(extraction.get('warnings', [])):
+        raise HTTPException(422, {'code': 'unread_pages', 'message': messaggio_blocco(pagine), 'pages': pagine})
     try:
         result = generate(extraction, provider=getattr(request.app.state, 'generation_provider', None),
                           title=body.title.strip(), acknowledge_warnings=body.acknowledgeWarnings)
