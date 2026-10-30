@@ -3,6 +3,8 @@ import pypdfium2.raw as pdfium_c
 from docx import Document
 from pypdf import PdfReader
 
+from .pagine_non_lette import avviso_scansione
+
 # Criterio «probabile scansione», misurato sul corpus pubblico (tests/corpus/manifest.json, sha256
 # verificati il 2026-10-29): una pagina con meno di SCAN_MAX_CHARS caratteri nativi e immagini
 # leggibili che coprono almeno SCAN_MIN_COVERAGE della pagina.
@@ -18,6 +20,9 @@ from pypdf import PdfReader
 #   le pagine con poco testo 0,008). 02-dpr-547-1955 non ha testo: ha già l'avviso «priva di testo».
 # Il controllo grezzo a 400 caratteri, senza immagini, segnalava anche frontespizi e pagine finali.
 SCAN_MAX_CHARS = 400
+# Versione dichiarata dell'estrazione nativa: entra nella chiave della cache delle misure
+# (measurement/corsa.py, estrai_con_cache). Cambiarla quando cambiano testo o avvisi prodotti.
+VERSIONE = '2026-10-29-scansioni-bloccanti'
 SCAN_MIN_COVERAGE = 0.05
 # Un'immagine sotto i 50 punti per pollice non può contenere testo leggibile: sono sfondi o
 # riempimenti (03, p. 9: un'immagine di 1×1 pixel estesa a tutta la pagina).
@@ -45,6 +50,29 @@ def _image_coverage(page):
     return min(1.0, covered / ((right - left) * (top - bottom)))
 
 
+def testo_nativo_scansioni(path, start, end):
+    """{pagina: testo nativo} delle pagine PDF che sono immagini: meno di SCAN_MAX_CHARS caratteri
+    nativi, anche zero, e copertura di immagini almeno SCAN_MIN_COVERAGE. Serve all'OCR per sapere
+    dove deve aver letto qualcosa oltre al testo già presente (docling_adapter.py)."""
+    reader = PdfReader(path)
+    rendered = pdfium.PdfDocument(str(path))
+    risultato = {}
+    try:
+        for page in range(start, end + 1):
+            text = reader.pages[page - 1].extract_text() or ''
+            if len(text.strip()) >= SCAN_MAX_CHARS:
+                continue
+            selected = rendered[page - 1]
+            try:
+                if _image_coverage(selected) >= SCAN_MIN_COVERAGE:
+                    risultato[page] = text
+            finally:
+                selected.close()
+    finally:
+        rendered.close()
+    return risultato
+
+
 def native_extract(path, kind, start, end):
     blocks, warnings = [], []
 
@@ -65,7 +93,7 @@ def native_extract(path, kind, start, end):
                     selected = rendered[page - 1]
                     try:
                         if _image_coverage(selected) >= SCAN_MIN_COVERAGE:
-                            warnings.append(f'Pagina {page}: probabile scansione: richiede OCR.')
+                            warnings.append(avviso_scansione(page))
                     finally:
                         selected.close()
         finally:

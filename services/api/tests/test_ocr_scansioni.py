@@ -74,3 +74,38 @@ def test_ocr_legge_il_testo_della_scansione_sotto_la_filigrana(pesi_locali, tmp_
     assert all(b['page'] == 1 for b in blocks)
     assert not any('senza testo utile' in w for w in warnings), warnings
     assert status == 'needs_review'
+
+
+# --- Controllo automatico: OCR «completo ma vuoto» ----------------------------------------
+
+def test_ocr_che_restituisce_solo_la_filigrana_e_segnalato_pagina_per_pagina(monkeypatch, tmp_path):
+    """Il difetto di prima della correzione: 50 pagine su 50 completate, solo la filigrana."""
+    from types import SimpleNamespace
+    status = pytest.importorskip('docling.datamodel.base_models').ConversionStatus
+    from formazione_api.docling_adapter import docling_extract
+    from formazione_api.pagine_non_lette import pagine_non_lette
+    from test_difetti_estrazione import INTESTAZIONE, pdf_misto
+    monkeypatch.setenv('DOCLING_ARTIFACTS_PATH', str(tmp_path))
+    letto = 'Mancata elaborazione del documento di valutazione dei rischi e del piano di emergenza. ' * 3
+    voce = lambda testo, pagina: (SimpleNamespace(text=testo, label='text', prov=[SimpleNamespace(page_no=pagina)]), 0)  # noqa: E731
+    # pdf_misto: 1 e 4 scansioni con intestazione nativa, 2 nativa, 3 quasi vuota, 5-6 non scansioni.
+    voci = [voce(INTESTAZIONE, 1), voce('Articolo 1: testo nativo della norma. ' * 20, 2), voce('pagina bianca', 3),
+            voce(INTESTAZIONE, 4), voce(letto, 4), voce('Testo', 5), voce('Testo', 6)]
+    documento = SimpleNamespace(iterate_items=lambda: voci)
+    risultato = SimpleNamespace(status=status.SUCCESS, pages=[SimpleNamespace(page_no=p) for p in range(1, 7)],
+                                errors=[], document=documento)
+    monkeypatch.setattr('formazione_api.docling_adapter._converter',
+                        lambda *_: SimpleNamespace(convert=lambda *a, **k: risultato))
+    path = tmp_path / 'source'
+    path.write_bytes(pdf_misto())
+    blocks, warnings, status_estrazione = docling_extract(path, 'pdf', 1, 6)
+    assert pagine_non_lette(warnings) == [1]
+    assert any(w.startswith('Pagina 1: OCR senza testo utile') for w in warnings)
+    assert status_estrazione == 'needs_review'
+
+
+def test_caratteri_utili_non_contano_il_testo_nativo_ne_i_suoi_frammenti():
+    from formazione_api.docling_adapter import caratteri_utili
+    nativo = 'COPIA TRATTA DA GURITEL - GAZZETTA UFFICIALE ON-LINE\n30-4-2008 Supplemento ordinario'
+    assert caratteri_utili('copia tratta da guritel gazzetta ufficiale ON-LINE 30-4-2008', nativo) == 0
+    assert caratteri_utili('Mancata formazione', nativo) == len('Mancataformazione')

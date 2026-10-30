@@ -1,14 +1,25 @@
 """Optional, offline PDF extraction. Models must be provisioned explicitly."""
 import os
+import re
 from io import BytesIO
 from pathlib import Path
+
+from .extractors import testo_nativo_scansioni
+from .pagine_non_lette import avviso_ocr_vuoto
 
 # Limite di tempo dell'OCR, proporzionale alle pagine selezionate. Misura reale sul corpus
 # (docs/MISURE.md): 5 pagine di 02-dpr-547-1955 in 134 s, circa 27 s per pagina su CPU. Con il
 # limite fisso di 120 s Docling consegnava 13 pagine su 50 (01, pp. 94-143) e 0 su 48 (02).
 # 60 s per pagina è poco più del doppio della misura; il minimo copre il carico iniziale.
 SECONDS_PER_PAGE = 60
+# Versione dichiarata dell'adattatore, nella chiave della cache delle misure (measurement/corsa.py).
+# Cambiarla quando cambiano configurazione di Docling, testo o avvisi prodotti.
+VERSIONE = '2026-10-29-ocr-pagina-intera'
 MIN_TIMEOUT = 120
+
+# Caratteri utili minimi che l'OCR deve leggere su una pagina «probabile scansione» oltre al suo
+# testo nativo. Misura su 01 pp. 94-143 e 02 per intero in docs/VERIFICHE.md (OCR del 29-10-2026).
+SOGLIA_CARATTERI_UTILI = 50
 
 
 class OcrIncompleto(RuntimeError):
@@ -61,7 +72,28 @@ def docling_extract(path, kind, start, end):
     except (FileNotFoundError, ImportError) as error:
         raise RuntimeError('Modelli o dipendenze Docling mancanti: completare il provisioning offline.') from error
     _require_all_pages(result, start, end, ConversionStatus.SUCCESS)
-    return _blocks(result.document, start, end)
+    blocks, warnings, status = _blocks(result.document, start, end)
+    return blocks, _scansioni_non_lette(path, start, end, blocks) + warnings, status
+
+
+def caratteri_utili(testo_ocr, testo_nativo):
+    """Caratteri alfanumerici delle parole OCR che non compaiono nel testo nativo della pagina.
+    Il confronto è per sottostringa sul testo nativo senza spazi né punteggiatura: l'OCR a pagina
+    intera rilegge anche la filigrana nativa, spezzata in frammenti («IALE», «E ON-LIN»)."""
+    nativo = re.sub(r'\W', '', testo_nativo).lower()
+    parole = (re.sub(r'\W', '', parola) for parola in testo_ocr.split())
+    return sum(len(parola) for parola in parole if parola and parola.lower() not in nativo)
+
+
+def _scansioni_non_lette(path, start, end, blocks):
+    """Un OCR completato non basta: sulle pagine che sono immagini (stesso criterio dell'avviso
+    «probabile scansione» di extractors.py) deve aver letto più del testo nativo. Prima della
+    correzione dell'OcrMode, 50 pagine su 50 di 01 erano «complete» con la sola filigrana."""
+    letto = {}
+    for block in blocks:
+        letto[block['page']] = letto.get(block['page'], '') + ' ' + block['text']
+    return [avviso_ocr_vuoto(page) for page, nativo in testo_nativo_scansioni(path, start, end).items()
+            if caratteri_utili(letto.get(page, ''), nativo) < SOGLIA_CARATTERI_UTILI]
 
 
 def _require_all_pages(result, start, end, success):
