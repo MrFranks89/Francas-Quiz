@@ -15,7 +15,7 @@ from .pagine_non_lette import avviso_ocr_vuoto, avviso_pagina_bianca
 SECONDS_PER_PAGE = 60
 # Versione dichiarata dell'adattatore, nella chiave della cache delle misure (measurement/corsa.py).
 # Cambiarla quando cambiano configurazione di Docling, testo o avvisi prodotti.
-VERSIONE = '2026-10-29-ocr-pagina-intera'
+VERSIONE = '2026-10-30-pagine-bianche'
 MIN_TIMEOUT = 120
 
 # Caratteri utili minimi che l'OCR deve leggere su una pagina «probabile scansione» oltre al suo

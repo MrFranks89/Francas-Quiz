@@ -24,7 +24,7 @@ from .pagine_non_lette import avviso_pagina_bianca, avviso_scansione
 SCAN_MAX_CHARS = 400
 # Versione dichiarata dell'estrazione nativa: entra nella chiave della cache delle misure
 # (measurement/corsa.py, estrai_con_cache). Cambiarla quando cambiano testo o avvisi prodotti.
-VERSIONE = '2026-10-29-scansioni-bloccanti'
+VERSIONE = '2026-10-30-pagine-bianche'
 SCAN_MIN_COVERAGE = 0.05
 # Un'immagine sotto i 50 punti per pollice non può contenere testo leggibile: sono sfondi o
 # riempimenti (03, p. 9: un'immagine di 1×1 pixel estesa a tutta la pagina).
