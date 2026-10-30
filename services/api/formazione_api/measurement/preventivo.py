@@ -109,17 +109,6 @@ def preventivo_corsa(chunks: list[Chunk], prezzo: Prezzo) -> dict:
         limiti=limiti)
 
 
-def pagine_poco_testo(blocks: list[dict], inizio: int, fine: int, soglia: int = 400) -> list[int]:
-    """Pagine con meno di `soglia` caratteri di testo nativo: probabile scansione.
-    extractors.py segnala solo le pagine vuote; una scansione con intestazione testuale passa
-    inosservata (difetto noto, da correggere a parte): qui la si rende solo visibile."""
-    per_pagina = {}
-    for block in blocks:
-        if block.get('page') is not None:
-            per_pagina[block['page']] = per_pagina.get(block['page'], 0) + len(block['text'].strip())
-    return [p for p in range(inizio, fine + 1) if per_pagina.get(p, 0) < soglia]
-
-
 def pagine_senza_testo(estrazione: dict) -> list[int]:
     """Pagine dell'intervallo senza alcun blocco. Per l'OCR indica un'estrazione incompleta:
     docling_adapter imposta document_timeout=120 s e, scaduto il tempo, Docling restituisce un

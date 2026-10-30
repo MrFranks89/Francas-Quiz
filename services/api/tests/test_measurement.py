@@ -11,6 +11,7 @@ from formazione_api.generation.chunks import plan_chunks
 from formazione_api.generation.instructions import ISTRUZIONI_DIDATTICHE, MAX_OUTPUT_TOKENS, MAX_RETRIES, materiale
 from formazione_api.generation.models import ModuleDraft
 from formazione_api.measurement import corsa as misura
+from formazione_api.pagine_non_lette import avviso_scansione
 from formazione_api.measurement import preventivo as pv
 from formazione_api.measurement.guardia import GuardiaRifiuto, Registro, costo_effettivo, verifica_avvio
 from formazione_api.measurement.integrita import FileNonConforme, sha256_file, verifica_file, verifica_membro_zip
@@ -126,9 +127,31 @@ def test_limite_superiore_maggiora_il_costo_reale_con_tutti_i_tentativi_al_massi
         assert pv.costo_limite_blocco(limite, tariffa) >= fatturato
 
 
-def test_pagine_con_poco_testo_segnalate_come_probabile_scansione():
-    blocks = [dict(id='b1', page=1, text='x' * 500), dict(id='b2', page=2, text='GURITEL ' * 18)]
-    assert pv.pagine_poco_testo(blocks, 1, 3) == [2, 3]
+def test_le_scansioni_del_preventivo_sono_quelle_segnalate_dall_estrattore():
+    # Una pagina con poco testo ma senza l'avviso dell'estrattore (frontespizio, pagina finale) non
+    # è una scansione: prima la soglia grezza di 400 caratteri la contava.
+    poco_testo = estrazione(2)
+    poco_testo['blocks'][1]['text'] = 'Fine del documento'
+    voce = misura.preventivo_selezione(SELEZIONE, poco_testo, listino())
+    assert 'pagineNonLette' not in voce and voce['modelli']
+    scansione = estrazione(2)
+    scansione['warnings'].append(avviso_scansione(2))
+    voce = misura.preventivo_selezione(SELEZIONE, scansione, listino())
+    assert voce['pagineNonLette'] == [2] and voce['modelli'] == []
+
+
+def test_la_cache_delle_estrazioni_cambia_con_la_versione_dell_estrattore(tmp_path, monkeypatch):
+    chiamate = []
+    monkeypatch.setattr(misura, 'estrai', lambda selezione, path: chiamate.append(1) or {'prova': len(chiamate)})
+    for motore in ('native', 'docling'):
+        selezione = dict(SELEZIONE, motore=motore)
+        assert misura.estrai_con_cache(selezione, tmp_path / 'f.pdf', 'a' * 64, tmp_path) == misura.estrai_con_cache(
+            selezione, tmp_path / 'f.pdf', 'a' * 64, tmp_path)
+        prima = len(chiamate)
+        modulo = 'formazione_api.extractors' if motore == 'native' else 'formazione_api.docling_adapter'
+        monkeypatch.setattr(f'{modulo}.VERSIONE', 'versione-successiva')
+        misura.estrai_con_cache(selezione, tmp_path / 'f.pdf', 'a' * 64, tmp_path)
+        assert len(chiamate) == prima + 1
 
 
 # --- guardia -------------------------------------------------------------------------------------

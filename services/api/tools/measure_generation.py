@@ -78,9 +78,9 @@ def comando_preventivo(args, manifest, campagna, prezzi):
     for riga in [intestazione, *righe]:
         print('  '.join(str(v).ljust(larghezze[i]) for i, v in enumerate(riga)))
     for voce in rapporto['selezioni']:
-        if voce.get('probabileScansione'):
-            pagine = voce['probabileScansione']
-            print(f"{voce['selezione']}: {len(pagine)} pagine con meno di 400 caratteri nativi (probabile scansione): {pagine}")
+        if voce.get('pagineNonLette'):
+            pagine = voce['pagineNonLette']
+            print(f"{voce['selezione']}: {len(pagine)} pagine scansionate senza testo letto, generazione rifiutata: {pagine}")
     print('Limite «completo = NO»: esclude i token che il fornitore aggiunge da sé (non pubblicati); '
           'nessuna corsa reale è ammessa finché non sono registrati in prezzi.json.')
     print(f'Rapporto: {destinazione}')

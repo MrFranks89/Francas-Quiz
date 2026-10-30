@@ -72,7 +72,14 @@ def estrai(selezione: dict, path: Path) -> dict:
 
 
 def estrai_con_cache(selezione: dict, path: Path, sha: str, cartella_cache: Path) -> dict:
-    chiave = f"{selezione['id']}-{selezione.get('motore', 'native')}-{sha[:16]}.json"
+    motore = selezione.get('motore', 'native')
+    # La versione dichiarata dall'estrattore invalida le estrazioni salvate con una versione
+    # precedente: senza, un OCR corretto rileggerebbe dalla cache l'estrazione vuota di prima.
+    if motore == 'docling':
+        from ..docling_adapter import VERSIONE
+    else:
+        from ..extractors import VERSIONE
+    chiave = f"{selezione['id']}-{motore}-{sha[:16]}-{VERSIONE}.json"
     cache = Path(cartella_cache) / chiave
     if cache.exists():
         return json.loads(cache.read_text(encoding='utf-8'))
@@ -85,8 +92,8 @@ def preventivo_selezione(selezione: dict, estrazione: dict, prezzi: dict) -> dic
     """Nessuna chiamata a fornitori: estrazione, piano dei blocchi e limite per ogni modello con prezzo."""
     risultato = dict(selezione=selezione['id'], documento=selezione['documento'], motore=estrazione['engine'],
                      caratteri=sum(len(b['text']) for b in estrazione['blocks']), stato=estrazione['status'])
-    if estrazione['kind'] == 'pdf' and estrazione['engine'] == 'native':
-        risultato['probabileScansione'] = pv.pagine_poco_testo(estrazione['blocks'], estrazione['inizio'], estrazione['fine'])
+    # Le scansioni sono quelle segnalate dall'estrattore (extractors.py, docling_adapter.py), non
+    # una soglia di caratteri ricalcolata qui.
     if non_lette := pagine_non_lette(estrazione['warnings']):
         # Come generation_routes.py: la rotta rifiuterebbe la generazione prima del fornitore.
         risultato.update(pagineNonLette=non_lette, modelli=[],
