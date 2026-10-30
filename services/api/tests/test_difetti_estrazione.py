@@ -130,7 +130,8 @@ def test_corpus_dlgs_81_scansioni_segnalate():
 @pytest.mark.parametrize('documento,pagine,attese', [
     ('03-gu-2025-119', 96, [6, 9, 12, 16, 17, 18, 19, 20, 22, 24]),   # relazione prefettizia allegata come immagine
     ('04-istat-asi-2024-c08', 64, []),
-    ('05-istat-ra-2025', 242, []),
+    # Copertine senza testo nativo: titolo in tracciati vettoriali e una foto (test_scansioni_senza_testo.py).
+    ('05-istat-ra-2025', 242, [1, 3]),
 ])
 def test_corpus_pagine_native_non_segnalate(documento, pagine, attese):
     path = file_corpus(documento)

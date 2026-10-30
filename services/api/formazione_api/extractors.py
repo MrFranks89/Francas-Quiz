@@ -18,13 +18,19 @@ from .pagine_non_lette import avviso_pagina_bianca, avviso_scansione
 #   immagine (verificato a vista), dentro Form XObject, copertura da 0,43. Le pagine quasi
 #   vuote 94 («pagina bianca», 55 caratteri) e 96 (25) hanno solo i quattro codici a piè di
 #   pagina: copertura 0,024.
-# - 04-istat-asi-2024-c08 e 05-istat-ra-2025: nessuna pagina segnalata (copertura massima fra
-#   le pagine con poco testo 0,008). 02-dpr-547-1955 non ha testo: ha già l'avviso «priva di testo».
+# - 04-istat-asi-2024-c08: nessuna pagina segnalata (copertura massima fra le pagine con poco
+#   testo 0,008; p. 64 non ha né testo né oggetti).
+# - 05-istat-ra-2025: segnalate solo le copertine 1 e 3, senza testo nativo: titolo in tracciati
+#   vettoriali e una foto (copertura 0,109, inchiostro 0,10 e 0,028). È contenuto visibile che
+#   l'estrazione nativa non legge. Le pagine 162, 206 e 241 non hanno né testo né oggetti.
+# - 02-dpr-547-1955 non ha testo nativo: segnalate tutte le 48 pagine, tranne le bianche 2 e 47.
+# Le pagine senza nessun testo nativo passano dallo stesso criterio (prima ricevevano solo
+# l'avviso generico, che non blocca: test_scansioni_senza_testo.py).
 # Il controllo grezzo a 400 caratteri, senza immagini, segnalava anche frontespizi e pagine finali.
 SCAN_MAX_CHARS = 400
 # Versione dichiarata dell'estrazione nativa: entra nella chiave della cache delle misure
 # (measurement/corsa.py, estrai_con_cache). Cambiarla quando cambiano testo o avvisi prodotti.
-VERSIONE = '2026-10-30-pagine-bianche'
+VERSIONE = '2026-10-30-scansioni-senza-testo'
 SCAN_MIN_COVERAGE = 0.05
 # Un'immagine sotto i 50 punti per pollice non può contenere testo leggibile: sono sfondi o
 # riempimenti (03, p. 9: un'immagine di 1×1 pixel estesa a tutta la pagina).
@@ -129,16 +135,25 @@ def native_extract(path, kind, start, end):
             for page in range(start, end + 1):
                 text = reader.pages[page - 1].extract_text() or ''
                 add(text, page, f'Pagina {page}')
-                if not text.strip():
-                    warnings.append(f'Pagina {page} priva di testo estraibile: richiede OCR o revisione.')
-                elif len(text.strip()) < SCAN_MAX_CHARS:
-                    selected = rendered[page - 1]
-                    try:
-                        if _image_coverage(selected) >= SCAN_MIN_COVERAGE:
-                            bianca = _inchiostro(selected) < SOGLIA_PAGINA_BIANCA
-                            warnings.append(avviso_pagina_bianca(page) if bianca else avviso_scansione(page))
-                    finally:
-                        selected.close()
+                if len(text.strip()) >= SCAN_MAX_CHARS:
+                    continue
+                # Anche la pagina senza nessun testo nativo passa da qui, come in scansioni(): con
+                # il solo avviso generico, che non blocca, una scansione senza intestazione in un PDF
+                # misto usciva dal corso in silenzio (test_scansioni_senza_testo.py).
+                selected = rendered[page - 1]
+                try:
+                    if _image_coverage(selected) >= SCAN_MIN_COVERAGE:
+                        bianca = _inchiostro(selected) < SOGLIA_PAGINA_BIANCA
+                        warnings.append(avviso_pagina_bianca(page) if bianca else avviso_scansione(page))
+                    elif not text.strip():
+                        # Senza testo e senza immagini da testo: non c'è una scansione da leggere con
+                        # l'OCR. Resta l'avviso generico, che non blocca: è la pagina vuota per
+                        # costruzione (04 p. 64, 05 pp. 162, 206, 241: nessun oggetto). Non si dichiara
+                        # «pagina bianca» perché l'inchiostro non è stato misurato: la pagina può avere
+                        # grafica vettoriale, anche testo convertito in tracciati, che resta da rivedere.
+                        warnings.append(f'Pagina {page} priva di testo estraibile: richiede OCR o revisione.')
+                finally:
+                    selected.close()
         finally:
             rendered.close()
         warnings.append('Estrazione nativa: immagini e contenuto visivo non interpretati; verificare tabelle e figure.')
