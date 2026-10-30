@@ -2,9 +2,10 @@
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field, StrictBool
 
-from .generation import GenerationError, config_status, generate
+from .generation import GenerationError, config_status
 from .pagine_non_lette import messaggio_blocco, pagine_non_lette
 from .routes import read_record
+from .spesa_generazione import SpesaRifiuto, configurazione_spesa, genera_con_tetto, preventivo_pubblico
 
 router = APIRouter()
 
@@ -16,8 +17,16 @@ class GenerationRequest(BaseModel):
 
 
 @router.get('/generation/config')
-def configuration():
-    return config_status()
+def configuration(request: Request):
+    return {**config_status(), 'spending': configurazione_spesa(request.app.state.store)}
+
+
+@router.get('/extractions/{identifier}/generation-estimate')
+def generation_estimate(identifier: str, request: Request):
+    """Costo massimo garantito prima di generare: stessa decisione applicata da generate_course."""
+    store = request.app.state.store
+    extraction = read_record(store, identifier, 'extraction.json')
+    return preventivo_pubblico(extraction, getattr(request.app.state, 'generation_provider', None), store)
 
 
 @router.post('/extractions/{identifier}/generate', status_code=201)
@@ -31,9 +40,13 @@ def generate_course(identifier: str, body: GenerationRequest, request: Request):
     # una nuova selezione che non la contiene, oppure la si legge con l'OCR (pagine_non_lette.py).
     if pagine := pagine_non_lette(extraction.get('warnings', [])):
         raise HTTPException(422, {'code': 'unread_pages', 'message': messaggio_blocco(pagine), 'pages': pagine})
+    draft_id = store.new_id()
     try:
-        result = generate(extraction, provider=getattr(request.app.state, 'generation_provider', None),
-                          title=body.title.strip(), acknowledge_warnings=body.acknowledgeWarnings)
+        # Preventivo, limiti del server e registro prima di qualunque chiamata (spesa_generazione.py).
+        result = genera_con_tetto(extraction, getattr(request.app.state, 'generation_provider', None), store, draft_id,
+                                  title=body.title.strip(), acknowledge_warnings=body.acknowledgeWarnings)
+    except SpesaRifiuto as rifiuto:
+        raise HTTPException(rifiuto.status, {'code': rifiuto.code, 'message': str(rifiuto)}) from rifiuto
     except GenerationError as error:
         if error.code == 'not_configured':
             status = 503
@@ -42,7 +55,6 @@ def generate_course(identifier: str, body: GenerationRequest, request: Request):
         else:
             status = 422
         raise HTTPException(status, {'code': error.code, 'message': str(error)}) from error
-    draft_id = store.new_id()
     result = {'id': draft_id, 'revision': 1, **result}
     store.save(draft_id, 'draft.json', result)
     return result

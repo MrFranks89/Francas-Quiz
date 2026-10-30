@@ -6,6 +6,9 @@ from test_api import client, extraction, upload, pdf_bytes
 
 
 class Provider:
+    # Fornitore e modello dichiarati: senza, il preventivo non è disponibile e la rotta rifiuta.
+    provider_name, model = 'anthropic', 'claude-haiku-5-5'
+
     def module(self, chunk):
         source = chunk.pieces[0].source_id
         return dict(title='Lezione', objectives=['Comprendere la procedura'],
@@ -48,7 +51,7 @@ def test_generation_body_cannot_supply_provider_or_budget(client):
 
 
 def test_review_acknowledgement_and_provider_error(client):
-    class FailedProvider:
+    class FailedProvider(Provider):
         def module(self, chunk):
             raise GenerationError('provider_error', 'Errore AI controllato')
 
@@ -93,19 +96,19 @@ def test_route_uses_provider_selected_by_environment(client, monkeypatch):
     monkeypatch.setattr(anthropic, 'Anthropic', offline)
     monkeypatch.setenv('GENERATION_PROVIDER', 'anthropic')
     monkeypatch.setenv('ANTHROPIC_API_KEY', 'anthropic-key-not-real')
-    monkeypatch.setenv('ANTHROPIC_MODEL', 'modello-anthropic-di-prova')
+    monkeypatch.setenv('ANTHROPIC_MODEL', 'claude-haiku-5-5')
     monkeypatch.delenv('OPENAI_API_KEY', raising=False)
     monkeypatch.delenv('OPENAI_MODEL', raising=False)
     assert getattr(client.app.state, 'generation_provider', None) is None
     config = client.get('/generation/config').json()
-    assert config == {'configured': True, 'provider': 'anthropic', 'missing': []}
+    assert {k: config[k] for k in ('configured', 'provider', 'missing')} == {'configured': True, 'provider': 'anthropic', 'missing': []}
     doc = upload(client, 'appunti.txt', b'Leggere il manuale prima di iniziare.')
     extracted = extraction(client, doc, {'mode': 'all'}).json()
     response = client.post(f"/extractions/{extracted['id']}/generate", json={'title': 'Corso Anthropic'})
     assert response.status_code == 201, response.text
     assert len(sent) == 1
     assert sent[0][0] == 'http://anthropic.invalid/v1/messages'
-    assert sent[0][1]['model'] == 'modello-anthropic-di-prova'
+    assert sent[0][1]['model'] == 'claude-haiku-5-5'
     usage = response.json()['usage']
     assert usage['provider'] == 'anthropic'
     assert usage['model'] == 'resolved-anthropic-model'
@@ -119,6 +122,7 @@ def test_route_reports_selected_provider_not_configured(client, monkeypatch):
     monkeypatch.setenv('OPENAI_API_KEY', 'openai-key-not-real')
     monkeypatch.setenv('OPENAI_MODEL', 'modello-openai')
     config = client.get('/generation/config').json()
+    assert config.pop('spending')['maxUsdPerCourse'] == '0.50'
     assert config == {'configured': False, 'provider': 'anthropic', 'missing': ['ANTHROPIC_API_KEY', 'ANTHROPIC_MODEL']}
     doc = upload(client, 'appunti.txt', b'Leggere il manuale prima di iniziare.')
     extracted = extraction(client, doc, {'mode': 'all'}).json()
