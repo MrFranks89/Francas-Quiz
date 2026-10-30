@@ -77,7 +77,8 @@ def test_arrotondamento_per_eccesso():
 def test_predefiniti_nella_configurazione(client):
     spending = client.get('/generation/config').json()['spending']
     assert spending == {'defaults': {'GENERATION_MAX_USD_PER_COURSE': '0.50', 'GENERATION_BUDGET_USD': '5.00'},
-                        'spentUsd': '0', 'maxUsdPerCourse': '0.50', 'budgetUsd': '5.00'}
+                        'spentUsd': '0', 'reservedUsd': '0', 'maxUsdPerCourse': '0.50', 'budgetUsd': '5.00',
+                        'remainingUsd': '5.00'}
 
 
 def test_limiti_dalle_variabili_d_ambiente(client, monkeypatch):
@@ -359,3 +360,20 @@ def test_voci_senza_regolato_restano_conteggiate_per_il_prenotato(client):
     reg.aggiorna_corsa(dict(id='senza-chiamate', addebitatoUSD=Decimal('0.20'), chiamate=[]))
     assert reg.speso() == Decimal('0.50')
     assert reg.prenotato() == Decimal('0.50')
+
+
+def test_configurazione_mostra_speso_regolato_e_residuo(client, monkeypatch):
+    monkeypatch.setenv('GENERATION_BUDGET_USD', '1')
+    estratta, _ = prepara(client, testo=tre_blocchi())
+    assert genera(client, estratta).status_code == 201
+    reg = spesa.registro(client.app.state.store)
+    spending = client.get('/generation/config').json()['spending']
+    assert Decimal(spending['spentUsd']) == reg.speso() < reg.prenotato() == Decimal(spending['reservedUsd'])
+    assert Decimal(spending['remainingUsd']) == Decimal('1') - reg.speso()
+
+
+def test_residuo_mai_negativo(client, monkeypatch):
+    monkeypatch.setenv('GENERATION_BUDGET_USD', '0.10')
+    spesa.registro(client.app.state.store).aggiorna_corsa(dict(id='vecchia', addebitatoUSD=Decimal('0.30'), chiamate=[]))
+    spending = client.get('/generation/config').json()['spending']
+    assert (spending['spentUsd'], spending['remainingUsd']) == ('0.30', '0')

@@ -2,7 +2,7 @@ import {CourseSchema,type Course} from '@formazione/contracts';
 import {apiUrl} from './documents';
 import {apiErrorMessage} from './errors';
 import {corpoGenerazione,percorsoPreventivo} from '../state/generazione';
-export type GenerationConfig={configured:boolean;provider:string;missing:string[];invalid?:string[];spending?:{maxUsdPerCourse?:string;budgetUsd?:string;spentUsd:string;error?:{code:string;message:string}}};
+export type GenerationConfig={configured:boolean;provider:string;missing:string[];invalid?:string[];spending?:{maxUsdPerCourse?:string;budgetUsd?:string;spentUsd:string;reservedUsd?:string;remainingUsd?:string;error?:{code:string;message:string}}};
 export type GenerationEstimate={available:boolean;allowed:boolean;provider?:string;model?:string;chunks?:number;maxCostUsd?:string;upperBoundUsd?:string;refusal?:{code:string;message:string};unreadPages?:number[];excludedPages?:number[]};
 // warnings ed excludedPages: avvisi della bozza ed esclusione delle pagine decisa dall'utente (esclusione_pagine.py).
 export type Draft={id:string;revision?:number;status:'draft'|'published';course:Course;warnings?:string[];excludedPages?:number[]};

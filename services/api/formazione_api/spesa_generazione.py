@@ -156,14 +156,20 @@ def registro(store) -> RegistroApp:
 
 
 def configurazione_spesa(store) -> dict:
-    """Parte `spending` di GET /generation/config."""
-    voce = {'defaults': {k: _usd(v) for k, v in PREDEFINITI.items()}, 'spentUsd': _usd(registro(store).speso())}
+    """Parte `spending` di GET /generation/config. `spentUsd` è la spesa regolata, la stessa che
+    sommano i controlli del tetto; `reservedUsd` la somma dei prenotati, per confronto; `remainingUsd`
+    quanto resta del budget rispetto alla spesa regolata (mai negativo)."""
+    reg = registro(store)
+    speso = reg.speso()
+    voce = {'defaults': {k: _usd(v) for k, v in PREDEFINITI.items()}, 'spentUsd': _usd(speso),
+            'reservedUsd': _usd(reg.prenotato())}
     try:
         limiti = limiti_configurati()
     except SpesaRifiuto as rifiuto:
         return {**voce, 'error': {'code': rifiuto.code, 'message': str(rifiuto)}}
-    return {**voce, 'maxUsdPerCourse': _usd(limiti['GENERATION_MAX_USD_PER_COURSE']),
-            'budgetUsd': _usd(limiti['GENERATION_BUDGET_USD'])}
+    budget = limiti['GENERATION_BUDGET_USD']
+    return {**voce, 'maxUsdPerCourse': _usd(limiti['GENERATION_MAX_USD_PER_COURSE']), 'budgetUsd': _usd(budget),
+            'remainingUsd': _usd(max(budget - speso, Decimal(0)))}
 
 
 def fornitore_e_modello(provider) -> tuple[str | None, str | None]:
