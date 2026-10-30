@@ -33,3 +33,4 @@ packages/civis-ui/__tests__/ripasso.test.ts -text
 packages/civis-ui/__tests__/glossarioTesto.test.ts -text
 packages/civis-ui/__tests__/lezione/SlideStep.test.tsx -text
 packages/civis-ui/__tests__/lezione/SpeakerButton.test.tsx -text
+*.bat text eol=crlf

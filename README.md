@@ -2,6 +2,12 @@
 
 Prototipo locale di una piattaforma di formazione da documenti, con interfaccia condivisa web/Android/iOS e valutazione derivata dal motore Civis. Il nome è provvisorio.
 
+## Avvio rapido
+
+Dopo l'installazione (sezione «Avvio» sotto, una volta sola), fare doppio clic su **`Avvia Studio Formazione.bat`** nella radice. Il file controlla che `.venv` e `node_modules` esistano (se mancano stampa i comandi da lanciare e si ferma, senza installare nulla), controlla che le porte 8000 e 8081 siano libere, apre l'API (solo su `127.0.0.1`) e l'app web in due finestre con il nome «Studio Formazione», aspetta che rispondano e apre il browser su `http://localhost:8081`. Per chiudere basta chiudere le due finestre.
+
+Al primo avvio, senza fornitore configurato, l'app apre la schermata **Impostazioni**: si sceglie il fornitore, il modello (solo quelli con un prezzo registrato, con il prezzo accanto) e si incolla la chiave API. La chiave è salvata solo sul server, in `services/api/.env` (escluso da Git), e l'app mostra poi soltanto «configurata ••••1234». La schermata resta raggiungibile dal pulsante «Impostazioni». È pensata per un solo operatore sul proprio computer: la futura versione per studenti non l'avrà, perché le chiavi resteranno sul nostro server.
+
 ## Avvio
 
 Richiede Node.js e Python 3.12. Dalla radice:
@@ -13,7 +19,7 @@ python -m venv .venv
 .venv/Scripts/python.exe -m uvicorn formazione_api.main:app --app-dir services/api --host 127.0.0.1 --port 8000
 ```
 
-Per generare bozze, prima di avviare il server si impostano nello stesso terminale il fornitore e, se servono valori diversi dai predefiniti (0.50 USD per corso, 5.00 USD in tutto), i limiti di spesa ([docs/GENERAZIONE.md](docs/GENERAZIONE.md), «Tetto di spesa»):
+Per generare bozze servono fornitore, chiave e modello: dalla schermata Impostazioni dell'app, oppure nel file `services/api/.env` (modello in `.env.example`), letto dal server all'avvio. In alternativa si impostano nel terminale prima di avviare il server; le variabili del terminale hanno la precedenza sul file. Lo stesso vale per i limiti di spesa, se servono valori diversi dai predefiniti (0.50 USD per corso, 5.00 USD in tutto; [docs/GENERAZIONE.md](docs/GENERAZIONE.md), «Configurazione» e «Tetto di spesa»):
 
 ```powershell
 $env:GENERATION_PROVIDER = 'anthropic'
@@ -46,7 +52,7 @@ L'ambiente è per un solo operatore locale. Account, aziende, classi e risultati
 
 Lettura nativa e OCR sono motori distinti. Il testo nativo non interpreta automaticamente figure o tabelle PDF. Docling richiede dipendenze e pesi locali: istruzioni, versioni e collaudo in [docs/API.md](docs/API.md). I pesi sono nella cache e non in Git.
 
-La generazione richiede `OPENAI_API_KEY` e `OPENAI_MODEL` nel processo server. Le variabili del file `.env.example` **non sono caricate automaticamente**. Nessuna chiave va inserita in variabili `EXPO_PUBLIC_*`. Il testo selezionato viene inviato al provider quando si richiede la generazione. Non sono state eseguite chiamate AI a pagamento durante lo sviluppo iniziale.
+La generazione richiede fornitore, chiave e modello nel processo server: dalla schermata Impostazioni, da `services/api/.env` (letto all'avvio) o dal terminale. `.env.example` è solo il modello dei nomi e non viene letto. Nessuna chiave va inserita in variabili `EXPO_PUBLIC_*`. Il testo selezionato viene inviato al provider quando si richiede la generazione. Non sono state eseguite chiamate AI a pagamento durante lo sviluppo iniziale.
 
 ## Verifiche
 
