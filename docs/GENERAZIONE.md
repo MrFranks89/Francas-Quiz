@@ -8,7 +8,7 @@ Un'estrazione `needs_review` richiede esplicitamente `acknowledge_warnings=True`
 
 La prima versione crea un modulo per blocco di lavoro. Il piano è una partizione deterministica per paragrafi, con divisione di paragrafi troppo lunghi; tutti i caratteri, inclusi spazi e fine riga, rimangono nei pezzi ordinati con offset originali. Un blocco di lavoro può contenere più fonti. Questa soluzione mantiene la tracciabilità, ma non sostituisce un piano pedagogico globale né risolve riferimenti fra capitoli lontani: il miglioramento successivo sarà una pianificazione gerarchica con revisione trasversale.
 
-Il budget è verificato prima della prima chiamata: oltre 40 blocchi da 12.000 caratteri si rifiuta la generazione senza troncare. Il numero di blocchi non è un preventivo esatto in token o denaro. Ogni blocco richiede una chiamata con limite 6.000 token in uscita, timeout 90 secondi, un retry. Una generazione fallita dopo alcune chiamate non restituisce un corso parziale, ma le chiamate già eseguite possono avere un costo.
+Il budget è verificato prima della prima chiamata: oltre 40 blocchi da 12.000 caratteri si rifiuta la generazione senza troncare. Il numero di blocchi non è un preventivo: il costo massimo in denaro e i limiti di spesa sono nella sezione «Tetto di spesa della generazione dall'app» sotto. Ogni blocco richiede una chiamata con limite 6.000 token in uscita, timeout 90 secondi, un retry. Una generazione fallita dopo alcune chiamate non restituisce un corso parziale, ma le chiamate già eseguite possono avere un costo.
 
 Le fonti del corso sono costruite dal server direttamente dal testo originale; il modello non può riscriverne excerpt, ID o numero pagina. Ogni riferimento generato deve appartenere al blocco fornito. La copertura registra pezzi elaborati e caratteri, **non certifica che ogni concetto sia stato spiegato né che il contenuto AI sia corretto**. Il risultato rimane bozza da revisionare; gli esami iniziali sono di esercitazione, senza sbarramenti automatici.
 
@@ -66,3 +66,31 @@ Codici stabili (`violazioni_tipo`): `opzioni_duplicate`, `giusta_troppo_lunga`, 
 Restano fatali: schema non rispettato (campo mancante o estraneo, indice della giusta fuori dalle opzioni, opzione vuota, `rationales` di lunghezza diversa dalle opzioni) → `invalid_generated_content`; fonte inventata, controllata su tutte le domande anche se poi scartate → `invented_source`; rifiuto, troncamento, risposta vuota o guasto del fornitore → `provider_*`. Un modulo che resta **senza domande** fa fallire il blocco (`invalid_generated_content`, il messaggio riporta i codici scartati).
 
 Ogni scarto è in `scarti` del risultato: `moduleId`, `chunkId`, `position` (1-based, nell'elenco del fornitore), `kind`, `prompt`, `rule` e `message` della prima regola violata, `otherRules` per le altre. Negli avvisi della bozza compare il conteggio, es. «2 domande scartate dai controlli di qualità». Gli ID delle domande rimaste restano consecutivi e la soglia dell'esame si calcola sulle rimaste (5 generate, 2 scartate → ⌈60%·3⌉ = 2). La corsa di misura registra `scarti` (`numero` e, per voce, `regola`, `domanda`, `tipo`, `modulo`, `blocco`) nel registro; l'elenco completo resta in `bozza.json`.
+
+## Tetto di spesa della generazione dall'app
+
+Prima di generare, il pannello mostra il **costo massimo garantito** in USD per il fornitore e il modello configurati, per esempio «Costo massimo: 0,13 USD (claude-haiku-5-5, 1 blocco)». Lo calcola `GET /extractions/{id}/generation-estimate`; la stessa funzione (`valuta` e `decidi` in `services/api/formazione_api/spesa_generazione.py`) decide anche la rotta `POST /extractions/{id}/generate`, quindi il costo mostrato è quello applicato.
+
+Il preventivo è quello dello strumento di misura, non una copia (vedi [MISURE.md](MISURE.md), «Limite superiore»): `measurement.preventivo.pianifica` e `preventivo_corsa`, comprese la quota per chiamata misurata (`sovraccaricoIngressoPerChiamata`), tutti i tentativi dello SDK e il moltiplicatore massimo, con i prezzi di `tests/corpus/prezzi.json`. L'importo mostrato è arrotondato per eccesso al centesimo. Il fornitore è quello iniettato in `app.state.generation_provider` (attributi `provider_name` e `model`) oppure quello scelto con `GENERATION_PROVIDER` e `<FORNITORE>_MODEL`.
+
+Il preventivo è **non disponibile**, e la generazione rifiutata con `422 estimate_unavailable` senza chiamare il fornitore, se il modello non ha prezzo in `prezzi.json`, se la quota per chiamata del fornitore non è misurata (oggi OpenAI), se un blocco supera la soglia del contesto lungo o se il fornitore iniettato non dichiara fornitore e modello.
+
+Limiti del processo server, in USD:
+
+| Variabile | Significato | Predefinito |
+|---|---|---|
+| `GENERATION_MAX_USD_PER_COURSE` | limite superiore massimo di una singola generazione | `0.50` |
+| `GENERATION_BUDGET_USD` | tetto cumulativo di tutte le generazioni registrate | `5.00` |
+
+I predefiniti stanno solo in `PREDEFINITI` di `spesa_generazione.py` e compaiono in `GET /generation/config` sotto `spending` (`defaults`, `maxUsdPerCourse`, `budgetUsd`, `spentUsd`). Un valore non numerico, infinito o negativo non è sostituito dal predefinito: rifiuto `422 invalid_spending_limit`. `0` blocca ogni generazione.
+
+Rifiuti, tutti prima di chiamare il fornitore, con codice e messaggio leggibile mostrati dal pannello:
+
+- `over_course_limit` (422): costo massimo oltre `GENERATION_MAX_USD_PER_COURSE`;
+- `over_budget` (422): spesa registrata + costo massimo oltre `GENERATION_BUDGET_USD` (stessa `verifica_avvio` della guardia di misura);
+- `budget_guard` (422): arresto a metà generazione, se prima di un blocco il registro riletto non lascia spazio al suo limite;
+- `generation_in_progress` (409): una generazione alla volta per processo, perché due generazioni simultanee leggerebbero la stessa spesa.
+
+Registro cumulativo: `registro-spesa-app.json` nella cartella dei dati (`var/api/` oppure `FORMAZIONE_DATA_DIR`), separato da quello delle misure, con la stessa logica e lo stesso codice (`Registro` e `FornitoreSorvegliato` di `measurement/guardia.py`): il limite di ogni blocco è prenotato prima della chiamata (`addebitatoUSD`), il costo effettivo dai token dichiarati è registrato dopo (`effettivoUSD`, `null` se un contatore manca). Anche le generazioni fallite o arrestate restano nel registro con quanto prenotato. Il tetto cumulativo somma `addebitatoUSD`, cioè i limiti, non i costi effettivi: è prudente per costruzione. Per ripartire da zero si archivia il file.
+
+Limiti noti: il lucchetto vale per un solo processo (uvicorn con più worker o due server sulla stessa cartella dati non sono coordinati); il predefinito cumulativo non si azzera nel tempo.

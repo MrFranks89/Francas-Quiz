@@ -13,6 +13,19 @@ python -m venv .venv
 .venv/Scripts/python.exe -m uvicorn formazione_api.main:app --app-dir services/api --host 127.0.0.1 --port 8000
 ```
 
+Per generare bozze, prima di avviare il server si impostano nello stesso terminale il fornitore e, se servono valori diversi dai predefiniti (0.50 USD per corso, 5.00 USD in tutto), i limiti di spesa ([docs/GENERAZIONE.md](docs/GENERAZIONE.md), «Tetto di spesa»):
+
+```powershell
+$env:GENERATION_PROVIDER = 'anthropic'
+$env:ANTHROPIC_API_KEY = '<chiave>'
+$env:ANTHROPIC_MODEL = 'claude-haiku-5-5'
+$env:GENERATION_MAX_USD_PER_COURSE = '0.50'
+$env:GENERATION_BUDGET_USD = '5.00'
+.venv/Scripts/python.exe -m uvicorn formazione_api.main:app --app-dir services/api --host 127.0.0.1 --port 8000
+```
+
+Il pannello mostra il costo massimo prima di «Crea bozza AI»; la spesa prenotata si accumula in `var/api/registro-spesa-app.json`.
+
 In un secondo terminale:
 
 ```powershell

@@ -67,6 +67,7 @@ Uscite: `0` misura completa; `1` `ANTHROPIC_API_KEY` assente (nessun client crea
 - L'importo **addebitato** di ogni chiamata è il suo limite superiore, scritto prima della chiamata: i retry interni allo SDK non compaiono nei contatori d'uso, il limite sì. Il costo **effettivo** (token dichiarati × prezzi) è la misura; il costo per corso approvato si calcola su questo, sommando tutte le corse del gruppo selezione × modello, fallite comprese.
 - Se i token dichiarati di un tentativo superano il limite per tentativo, il maggiorante è smentito: la corsa si ferma al blocco successivo.
 - Modello assente da `prezzi.json`, prezzo senza fonte o valuta diversa da USD: rifiuto.
+- La generazione dall'app usa la stessa guardia con un registro separato (`registro-spesa-app.json` nella cartella dei dati) e due limiti del processo server, `GENERATION_MAX_USD_PER_COURSE` (0.50) e `GENERATION_BUDGET_USD` (5.00): vedi [GENERAZIONE.md](GENERAZIONE.md), «Tetto di spesa della generazione dall'app». Il preventivo mostrato nel pannello è `preventivo_corsa` di questa pagina.
 
 ## Fonti dei prezzi
 
