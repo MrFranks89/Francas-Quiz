@@ -16,7 +16,7 @@ from ..documents import KINDS
 from ..extractors import native_extract
 from ..generation import GenerationError, generate
 from ..generation.selection import create_provider
-from ..pagine_non_lette import messaggio_blocco, pagine_non_lette
+from ..pagine_non_lette import messaggio_blocco, pagine_bianche, pagine_non_lette
 from . import preventivo as pv
 from .guardia import FornitoreSorvegliato, GuardiaRifiuto, Registro, adesso, verifica_avvio
 from .integrita import verifica_file, verifica_membro_zip
@@ -88,6 +88,13 @@ def estrai_con_cache(selezione: dict, path: Path, sha: str, cartella_cache: Path
     return estrazione
 
 
+def _pagine_troncate(estrazione: dict) -> list[int]:
+    """Pagine senza blocchi, escluse le pagine bianche segnalate dall'estrattore: quelle non hanno
+    blocchi perché non c'è niente da leggere (02 pp. 2 e 47), non perché l'OCR si è interrotto."""
+    bianche = set(pagine_bianche(estrazione['warnings']))
+    return [p for p in pv.pagine_senza_testo(estrazione) if p not in bianche]
+
+
 def preventivo_selezione(selezione: dict, estrazione: dict, prezzi: dict) -> dict:
     """Nessuna chiamata a fornitori: estrazione, piano dei blocchi e limite per ogni modello con prezzo."""
     risultato = dict(selezione=selezione['id'], documento=selezione['documento'], motore=estrazione['engine'],
@@ -99,7 +106,7 @@ def preventivo_selezione(selezione: dict, estrazione: dict, prezzi: dict) -> dic
         risultato.update(pagineNonLette=non_lette, modelli=[],
                          rifiutataDallaPipeline=dict(code='unread_pages', message=messaggio_blocco(non_lette)))
         return risultato
-    if estrazione['engine'] == 'docling' and (scoperte := pv.pagine_senza_testo(estrazione)):
+    if estrazione['engine'] == 'docling' and (scoperte := _pagine_troncate(estrazione)):
         # Un preventivo su un'estrazione OCR troncata sarebbe un numero senza significato.
         risultato.update(nonStimata=f"estrazione OCR incompleta: {len(scoperte)} pagine su "
                                     f"{estrazione['fine'] - estrazione['inizio'] + 1} senza testo", modelli=[])
@@ -150,7 +157,7 @@ def esegui_selezione(selezione: dict, estrazione: dict, sha: str, prezzi: dict, 
     if non_lette := pagine_non_lette(estrazione['warnings']):
         raise GuardiaRifiuto(messaggio_blocco(non_lette))   # come generation_routes.py
     listino = prezzo(prezzi, fornitore, modello)            # modello senza prezzo: rifiutato qui
-    if estrazione['engine'] == 'docling' and pv.pagine_senza_testo(estrazione):
+    if estrazione['engine'] == 'docling' and _pagine_troncate(estrazione):
         raise GuardiaRifiuto('Estrazione OCR incompleta: nessuna spesa su materiale troncato')
     chunks = pv.pianifica(estrazione['blocks'])
     stima = pv.preventivo_corsa(chunks, listino)

@@ -18,12 +18,28 @@ def avviso_ocr_vuoto(page: int) -> str:
     return f'Pagina {page}: OCR senza testo utile: la scansione non è stata letta.'
 
 
+def avviso_pagina_bianca(page: int) -> str:
+    """Scansione praticamente senza inchiostro (extractors.SOGLIA_PAGINA_BIANCA): non c'è niente da
+    leggere, quindi non blocca. Prende il posto di avviso_scansione o avviso_ocr_vuoto."""
+    return f'Pagina {page}: pagina bianca, ignorata.'
+
+
+# Solo questi due avvisi bloccano; avviso_pagina_bianca no (non comincia con questi testi).
 _NON_LETTA = re.compile(r'^Pagina (\d+): (?:probabile scansione: richiede OCR|OCR senza testo utile)')
 
 
 def pagine_non_lette(warnings: list[str]) -> list[int]:
     """Numeri di pagina, in ordine, degli avvisi prodotti da avviso_scansione o avviso_ocr_vuoto."""
     return sorted({int(m.group(1)) for w in warnings if (m := _NON_LETTA.match(w))})
+
+
+_BIANCA = re.compile(r'^Pagina (\d+): pagina bianca, ignorata\.')
+
+
+def pagine_bianche(warnings: list[str]) -> list[int]:
+    """Numeri di pagina, in ordine, degli avvisi prodotti da avviso_pagina_bianca. Sono pagine
+    senza blocchi di testo per scelta, non per un OCR troncato (measurement/corsa.py)."""
+    return sorted({int(m.group(1)) for w in warnings if (m := _BIANCA.match(w))})
 
 
 def messaggio_blocco(pagine: list[int]) -> str:

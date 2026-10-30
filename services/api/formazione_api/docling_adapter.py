@@ -1,11 +1,12 @@
 """Optional, offline PDF extraction. Models must be provisioned explicitly."""
+import math
 import os
 import re
 from io import BytesIO
 from pathlib import Path
 
-from .extractors import scansioni
-from .pagine_non_lette import avviso_ocr_vuoto
+from .extractors import SOGLIA_PAGINA_BIANCA, scansioni
+from .pagine_non_lette import avviso_ocr_vuoto, avviso_pagina_bianca
 
 # Limite di tempo dell'OCR, proporzionale alle pagine selezionate. Misura reale sul corpus
 # (docs/MISURE.md): 5 pagine di 02-dpr-547-1955 in 134 s, circa 27 s per pagina su CPU. Con il
@@ -23,6 +24,17 @@ MIN_TIMEOUT = 120
 # pagina corta reale) e 262 (02 p. 46); sotto soglia solo le scansioni bianche di 02 (pp. 2, 47: 0;
 # p. 48 «PREZZO L. 300»: 10).
 SOGLIA_CARATTERI_UTILI = 50
+# Una scansione con poco inchiostro può contenere meno di 50 caratteri (02 p. 48: «PREZZO L. 300»,
+# 10 caratteri utili, inchiostro 0,00125). La soglia scende in proporzione all'inchiostro
+# (extractors._inchiostro). Densità misurate, caratteri utili per unità di inchiostro (OCR
+# reale in var/misure/estrazioni, docs/VERIFICHE.md): 02 da 2.297 (p. 46) e 4.351 (p. 1,
+# frontespizio) a circa 42.000; 02 p. 48 7.981; 01 pp. 94-143 da 20.911 a 51.388. DENSITA_MINIMA è
+# 2,3 volte sotto la più bassa: le pagine piene (inchiostro sopra 0,05) restano a 50. Il minimo di
+# 5 caratteri vale per le pagine quasi vuote: la 48 ne legge il doppio, una pagina con contenuto
+# su cui l'OCR non legge niente resta bloccata. Le pagine bianche non arrivano qui
+# (extractors.SOGLIA_PAGINA_BIANCA).
+DENSITA_MINIMA = 1000
+MINIMO_CARATTERI_UTILI = 5
 
 
 class OcrIncompleto(RuntimeError):
@@ -95,8 +107,20 @@ def _scansioni_non_lette(path, start, end, blocks):
     letto = {}
     for block in blocks:
         letto[block['page']] = letto.get(block['page'], '') + ' ' + block['text']
-    return [avviso_ocr_vuoto(page) for page, scansione in scansioni(path, start, end).items()
-            if caratteri_utili(letto.get(page, ''), scansione.testo) < SOGLIA_CARATTERI_UTILI]
+    avvisi = []
+    for page, scansione in scansioni(path, start, end).items():
+        if scansione.inchiostro < SOGLIA_PAGINA_BIANCA:
+            avvisi.append(avviso_pagina_bianca(page))
+        elif caratteri_utili(letto.get(page, ''), scansione.testo) < caratteri_richiesti(scansione.inchiostro):
+            avvisi.append(avviso_ocr_vuoto(page))
+    return avvisi
+
+
+def caratteri_richiesti(inchiostro):
+    """Caratteri utili che l'OCR deve leggere su una scansione con questo inchiostro: proporzionali
+    all'inchiostro, fra MINIMO_CARATTERI_UTILI e SOGLIA_CARATTERI_UTILI. Si blocca solo quando c'è
+    contenuto visibile che l'OCR non ha letto: una riga isolata letta per intero non è un fallimento."""
+    return min(SOGLIA_CARATTERI_UTILI, max(MINIMO_CARATTERI_UTILI, math.ceil(inchiostro * DENSITA_MINIMA)))
 
 
 def _require_all_pages(result, start, end, success):

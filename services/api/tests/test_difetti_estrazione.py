@@ -48,8 +48,13 @@ AVVISO_SCANSIONE = 'probabile scansione: richiede OCR'
 
 
 def immagine(pixel=600):
+    """Scansione con contenuto: righe scure su fondo grigio. Un grigio uniforme sarebbe una
+    pagina bianca (extractors.SOGLIA_PAGINA_BIANCA, test_pagine_bianche.py)."""
     output = BytesIO()
-    Image.new('L', (pixel, pixel), 200).save(output, 'PNG')
+    image = Image.new('L', (pixel, pixel), 200)
+    for y in range(pixel // 10, pixel - pixel // 10, max(1, pixel // 20)):
+        image.paste(0, (pixel // 10, y, pixel - pixel // 10, y + max(1, pixel // 100)))
+    image.save(output, 'PNG')
     output.seek(0)
     return ImageReader(output)
 

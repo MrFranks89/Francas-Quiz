@@ -5,7 +5,7 @@ import pypdfium2.raw as pdfium_c
 from docx import Document
 from pypdf import PdfReader
 
-from .pagine_non_lette import avviso_scansione
+from .pagine_non_lette import avviso_pagina_bianca, avviso_scansione
 
 # Criterio «probabile scansione», misurato sul corpus pubblico (tests/corpus/manifest.json, sha256
 # verificati il 2026-10-29): una pagina con meno di SCAN_MAX_CHARS caratteri nativi e immagini
@@ -135,7 +135,8 @@ def native_extract(path, kind, start, end):
                     selected = rendered[page - 1]
                     try:
                         if _image_coverage(selected) >= SCAN_MIN_COVERAGE:
-                            warnings.append(avviso_scansione(page))
+                            bianca = _inchiostro(selected) < SOGLIA_PAGINA_BIANCA
+                            warnings.append(avviso_pagina_bianca(page) if bianca else avviso_scansione(page))
                     finally:
                         selected.close()
         finally:
