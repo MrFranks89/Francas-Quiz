@@ -78,6 +78,42 @@
           "fonte": "https://developers.openai.com/api/docs/pricing", "lettoIl": "2026-10-19"
         }
       }
+    },
+    "gemini": {
+      "fonte": "https://ai.google.dev/gemini-api/docs/pricing",
+      "lettoIl": "2026-10-30",
+      "nota": "Solo piano gratuito (Free Tier), solo per il confronto sul corpus pubblico. Il piano non dipende dal modello ma dal progetto Google della chiave: le chiavi «inherit the tier limits and billing status of the project» (https://ai.google.dev/gemini-api/docs/billing). Con fatturazione collegata le stesse chiamate sono addebitate a prezzoAPagamento e il tetto di spesa NON lo vede. Limiti di richieste non pubblicati nella documentazione: https://ai.google.dev/gemini-api/docs/rate-limits rimanda ad AI Studio.",
+      "sovraccaricoIngressoPerChiamata": {
+        "token": null,
+        "motivo": "Non pubblicato. Con prezzo 0 non serve: 0 per qualunque numero di token resta 0 (preventivo.preventivo_corsa, Prezzo.gratuito).",
+        "fonte": "https://ai.google.dev/gemini-api/docs/pricing"
+      },
+      "modelli": {
+        "gemini-3.8-flash": {
+          "ingresso": 0, "ingressoCache": 0, "uscita": 0,
+          "piano": "gratuito",
+          "condizione": "Chiave di un progetto Google senza account di fatturazione collegato (Free Tier: «Free of charge»).",
+          "prezzoAPagamento": { "ingresso": 0.75, "ingressoCache": 0.075, "uscita": 3.75, "validoFino": "2026-12-31", "poi": { "ingresso": 1.50, "ingressoCache": 0.15, "uscita": 7.50 }, "fonte": "https://ai.google.dev/gemini-api/docs/pricing" },
+          "sogliaContestoLungo": null,
+          "fonte": "https://ai.google.dev/gemini-api/docs/pricing", "lettoIl": "2026-10-30"
+        },
+        "gemini-3.5-flash-lite": {
+          "ingresso": 0, "ingressoCache": 0, "uscita": 0,
+          "piano": "gratuito",
+          "condizione": "Chiave di un progetto Google senza account di fatturazione collegato (Free Tier: «Free of charge»).",
+          "prezzoAPagamento": { "ingresso": 0.30, "ingressoCache": 0.03, "uscita": 2.50, "fonte": "https://ai.google.dev/gemini-api/docs/pricing" },
+          "sogliaContestoLungo": null,
+          "fonte": "https://ai.google.dev/gemini-api/docs/pricing", "lettoIl": "2026-10-30"
+        },
+        "gemini-2.5-pro": {
+          "ingresso": 0, "ingressoCache": 0, "uscita": 0,
+          "piano": "gratuito",
+          "condizione": "Chiave di un progetto Google senza account di fatturazione collegato (Free Tier: «Free of charge»).",
+          "prezzoAPagamento": { "ingresso": 1.25, "ingressoCache": 0.125, "uscita": 10.00, "sogliaContestoLungo": 200000, "fonte": "https://ai.google.dev/gemini-api/docs/pricing" },
+          "sogliaContestoLungo": null,
+          "fonte": "https://ai.google.dev/gemini-api/docs/pricing", "lettoIl": "2026-10-30"
+        }
+      }
     }
   }
 }

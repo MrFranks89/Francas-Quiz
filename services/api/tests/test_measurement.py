@@ -295,10 +295,11 @@ def test_prezzi_registrati_hanno_fonte_data_e_sono_leggibili():
     from formazione_api.measurement.prezzi import PREZZI
     prezzi = carica(PREZZI)
     coppie = list(modelli(prezzi))
-    assert {f for f, _ in coppie} == {'openai', 'anthropic'}
+    assert {f for f, _ in coppie} == {'openai', 'anthropic', 'gemini'}
     for fornitore, modello in coppie:
         tariffa = prezzo(prezzi, fornitore, modello)
-        assert tariffa.uscita > 0 and tariffa.moltiplicatore_massimo >= 1
+        # Prezzo 0 solo per i piani gratuiti dichiarati (test_prezzo_zero.py).
+        assert (tariffa.uscita > 0 or tariffa.gratuito) and tariffa.moltiplicatore_massimo >= 1
 
 
 def test_estrazione_ocr_incompleta_non_stimata_e_rifiutata(tmp_path, senza_fornitori_reali):

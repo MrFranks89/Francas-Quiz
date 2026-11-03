@@ -18,8 +18,9 @@ from formazione_api.spesa_generazione import PREZZI
 
 TOOLS = Path(__file__).resolve().parents[1] / 'tools'
 
-# Contenuto del file al momento dello spostamento: nessun valore può cambiare insieme al percorso.
-SHA256_LISTINO = '05ff2707fb39f27b34c95c6c114c9682a00e10a15ab8cb9ed52f469eb6637a69'
+# Contenuto del file: nessun valore può cambiare senza aggiornare qui (spostamento: 05ff2707…;
+# 2026-11-03: aggiunti i modelli Gemini a prezzo 0 del piano gratuito).
+SHA256_LISTINO = '372d38b917a9def78fe3b2103e23655b22c76b4ea020aa2720ec6b239132551b'
 
 # (fornitore, modello, ingresso, uscita, ingressoCache, altriIngressi, moltiplicatore, soglia, quota per chiamata)
 ATTESI = [
@@ -30,6 +31,9 @@ ATTESI = [
     ('openai', 'gpt-6.1-sol', '2.00', '10.00', '0.10', (), '1.1', 272000, None),
     ('openai', 'gpt-5.4-mini', '0.75', '4.50', '0.075', (), '1.1', 272000, None),
     ('openai', 'gpt-6-luna', '0.10', '0.50', '0.01', (), '1.1', 272000, None),
+    ('gemini', 'gemini-3.8-flash', '0', '0', '0', (), '1', None, None),
+    ('gemini', 'gemini-3.5-flash-lite', '0', '0', '0', (), '1', None, None),
+    ('gemini', 'gemini-2.5-pro', '0', '0', '0', (), '1', None, None),
 ]
 
 
@@ -64,8 +68,7 @@ def test_impostazioni_elencano_gli_stessi_modelli():
     assert {n: list(v['modelli']) for n, v in voci.items()} == {
         'openai': ['gpt-6-astra', 'gpt-6.1-sol', 'gpt-5.4-mini', 'gpt-6-luna'],
         'anthropic': ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'],
-        # Fornitore selezionabile ma ancora senza prezzi: nessun modello sceglibile.
-        'gemini': [],
+        'gemini': ['gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-2.5-pro'],
     }
     assert {n: v['misurata'] for n, v in voci.items()} == {'openai': False, 'anthropic': True, 'gemini': False}
 

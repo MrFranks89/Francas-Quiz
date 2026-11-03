@@ -108,7 +108,9 @@ def preventivo_corsa(chunks: list[Chunk], prezzo: Prezzo) -> dict:
         tokenIngressoMassimi=sum(l.ingresso_massimo_per_tentativo * l.tentativi for l in limiti),
         tokenUscitaMassimi=sum(l.uscita_massima * l.tentativi for l in limiti),
         limiteSuperioreUSD=sum((costo_limite_blocco(l, prezzo) for l in limiti), Decimal(0)),
-        limiteCompleto=all(l.completo for l in limiti),
+        # Prezzo 0 dichiarato (Prezzo.gratuito): 0 per qualunque numero di token resta 0, quindi la quota
+        # per chiamata non misurata non cambia il limite in USD. I limiti in token restano calcolati.
+        limiteCompleto=prezzo.gratuito or all(l.completo for l in limiti),
         oltreSogliaContestoLungo=any(oltre_soglia(l, prezzo) for l in limiti),
         limiti=limiti)
 

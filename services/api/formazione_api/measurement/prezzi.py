@@ -32,6 +32,12 @@ class Prezzo:
     sovraccarico_ingresso: int | None    # token aggiunti dal fornitore per chiamata; None = non pubblicato
 
     @property
+    def gratuito(self) -> bool:
+        """Ogni tariffa è 0: il costo è 0 per qualunque numero di token. prezzo() lo ammette solo se
+        la voce dichiara `piano: gratuito` con la sua condizione."""
+        return all(v == 0 for v in (self.ingresso, self.uscita, self.ingresso_cache, *self.altri_ingressi))
+
+    @property
     def ingresso_massimo(self) -> Decimal:
         """Tariffa d'ingresso più alta fra quelle elencate: il limite non dipende da come il
         fornitore ripartisce i token fra cache e non cache."""
@@ -60,6 +66,15 @@ def prezzo(prezzi: dict, fornitore: str, modello: str) -> Prezzo:
         raise PrezzoMancante(f'Prezzo senza fonte o data di lettura: {fornitore}/{modello}')
     if any(v < 0 for v in valori.values()):
         raise PrezzoMancante(f'Prezzo negativo per {fornitore}/{modello}')
+    # Prezzo 0 solo dichiarato: piano gratuito con la condizione in cui vale (per Gemini, chiave di un
+    # progetto senza fatturazione). Così uno 0 scritto per errore non diventa una porta a spese vere,
+    # e un piano gratuito non può avere tariffe diverse da 0.
+    altri = [Decimal(v) for v in voce.get('altriIngressi', {}).values()]
+    tutto_zero = all(v == 0 for v in (*valori.values(), *altri))
+    gratuito = voce.get('piano') == 'gratuito' and bool(voce.get('condizione'))
+    if tutto_zero != gratuito:
+        raise PrezzoMancante(f'Prezzo 0 senza piano gratuito dichiarato, o piano gratuito con tariffe non nulle: '
+                             f'{fornitore}/{modello}')
     moltiplicatore = Decimal(voce_fornitore.get('moltiplicatoreMassimo', {}).get('valore', 1))
     if moltiplicatore < 1:
         raise PrezzoMancante('Moltiplicatore massimo inferiore a 1')

@@ -28,7 +28,7 @@ from .generation import selection
 from .measurement.prezzi import PREZZI, PrezzoMancante, carica, modelli, prezzo
 
 VARIABILE_FORNITORE = 'GENERATION_PROVIDER'  # letta da selection.selected_name()
-ETICHETTE = {'openai': 'OpenAI', 'anthropic': 'Anthropic'}
+ETICHETTE = {'openai': 'OpenAI', 'anthropic': 'Anthropic', 'gemini': 'Gemini'}
 CIFRE_MOSTRATE = 4
 # Sotto questa lunghezza le ultime 4 cifre sarebbero una parte troppo grande della chiave.
 LUNGHEZZA_MINIMA_PER_MOSTRARE = 12
@@ -89,7 +89,9 @@ def stato() -> dict:
             'models': [{'id': m, 'inputUsdPerMTok': str(p.ingresso), 'outputUsdPerMTok': str(p.uscita),
                         'cachedInputUsdPerMTok': str(p.ingresso_cache)} for m, p in voce['modelli'].items()],
             'perCallOverheadMeasured': voce['misurata'],
-            'notice': None if voce['misurata'] else (
+            # Con prezzo 0 dichiarato (Prezzo.gratuito) il tetto non ha bisogno della quota: nessun rifiuto.
+            'notice': None if voce['misurata'] or (voce['modelli'] and all(p.gratuito for p in voce['modelli'].values()))
+            else (
                 f'Quota per chiamata di {ETICHETTE.get(nome, nome)} non misurata (prezzi.json): il tetto di spesa '
                 'non può garantire un costo massimo, quindi ogni generazione con questo fornitore viene rifiutata.'),
         })
