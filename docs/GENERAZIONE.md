@@ -121,3 +121,33 @@ Non basta `effettivo × (1 + MAX_RETRIES)`: lo SDK ritenta la stessa richiesta a
 Effetto misurato sulla prima corsa reale (Haiku, 9 blocchi, `var/misure/registro-spesa.json`): prenotato 0,116 USD, regolato 0,087, effettivo 0,020. Il guadagno è limitato perché la copertura di un tentativo precedente vale metà del prenotato: finché il numero di tentativi davvero inviati non è noto, quella metà resta.
 
 Limiti noti: il lucchetto vale per un solo processo (uvicorn con più worker o due server sulla stessa cartella dati non sono coordinati); il predefinito cumulativo non si azzera nel tempo.
+
+## Fornitori gratuiti: ricerca alla fonte (letta il 30 ottobre 2026)
+
+Rapporto della lettura alla fonte che precede l'integrazione di Gemini e NVIDIA (consegna «fornitori gratuiti», etichetta git `prima-fornitori-gratuiti`). Il confronto di qualità con questi fornitori si fa **solo sul corpus pubblico** (vedi [ROADMAP.md](ROADMAP.md), «Fornitori AI»).
+
+### Gemini (Google AI Studio)
+
+| Domanda | Risposta alla fonte | Fonte |
+|---|---|---|
+| Compatibilità SDK OpenAI | Solo Chat Completions (`chat.completions.create` e `beta.chat.completions.parse`); la Responses API non è nominata. `base_url` `https://generativelanguage.googleapis.com/v1beta/openai/`. «Support for the OpenAI libraries is still in beta». | https://ai.google.dev/gemini-api/docs/openai |
+| Output strutturato | Sì, con schema JSON: esempi con `beta.chat.completions.parse` e un modello Pydantic. Parole chiave elencate: `properties`, `required`, `additionalProperties`, `enum`, `items`, `minItems`/`maxItems` (applicati), `anyOf` e `$ref` negli esempi; `$defs` non è nominato; `minLength`/`maxLength` ignorati. Schemi grandi, con molte proprietà o «`anyOf` con molte alternative», possono essere rifiutati con `400 INVALID_ARGUMENT`; nessun limite numerico pubblicato. | https://ai.google.dev/gemini-api/docs/structured-output (aggiornata il 2026-10-21) |
+| Limiti del piano gratuito | Non pubblicati per modello nella documentazione: la pagina rimanda ad AI Studio (https://aistudio.google.com/rate-limit). «Rate limits are applied per project, not per API key»; le quote giornaliere si azzerano a mezzanotte, ora del Pacifico. Non verificabile se 7.000 + 6.000 token ci stanno. | https://ai.google.dev/gemini-api/docs/rate-limits |
+| Uso dei dati, piano gratuito | Contenuti e risposte usati per migliorare i prodotti; «human reviewers may read, annotate, and process your API input and output»; non inviare dati sensibili, riservati o personali. **Ma** per chi si trova nello SEE, in Svizzera o nel Regno Unito le regole sui dati dei servizi a pagamento valgono anche per la quota gratuita. | https://ai.google.dev/gemini-api/terms (aggiornati il 2026-04-28) |
+| Termini d'uso | «You may use only Paid Services when making API Clients available to users in the European Economic Area, Switzerland, or the United Kingdom»: una versione per studenti nell'UE non può usare il piano gratuito. | stessa pagina |
+| Prezzi a pagamento | Esistono per gli stessi modelli (es. `gemini-3.8-flash` 0,75/3,75 USD per milione fino al 31/12/2026, poi 1,50/7,50). Il piano gratuito vale per il **progetto** senza fatturazione: le chiavi «inherit the tier limits and billing status of the project». Con fatturazione collegata le stesse chiamate sono addebitate. | https://ai.google.dev/gemini-api/docs/pricing, https://ai.google.dev/gemini-api/docs/billing |
+
+Conclusione: integrabile come fornitore «compatibile OpenAI Chat Completions», solo per prove dell'operatore sul corpus pubblico, con chiave di un progetto **senza fatturazione**. Rischi non verificabili senza una chiamata reale: che lo strato di compatibilità accetti lo schema con `$defs` e un `anyOf` di sette varianti; che i token di ragionamento (non disattivabili sui modelli 3) stiano nei 6.000 in uscita.
+
+### NVIDIA (API Catalog, build.nvidia.com)
+
+| Domanda | Risposta alla fonte | Fonte |
+|---|---|---|
+| Compatibilità SDK OpenAI | Chat Completions, `POST https://integrate.api.nvidia.com/v1/chat/completions`; la Responses API non è nominata. | https://docs.api.nvidia.com/nim/reference/llm-apis |
+| Output strutturato | **Non documentato per l'endpoint ospitato.** Gli schemi delle richieste dei modelli (`openai/gpt-oss-120b`, `nvidia/nemotron-3-super-120b-a12b`, `deepseek-ai/deepseek-v4-pro`) non hanno `response_format`, `guided_json` né `nvext`, e hanno `additionalProperties: false`. `guided_json` / `response_format` sono documentati solo per i NIM installati in proprio. | https://docs.api.nvidia.com/nim/reference/openai-gpt-oss-120b-infer, …/nvidia-nemotron-3-super-120b-a12b-infer, …/deepseek-ai-deepseek-v4-pro-infer; https://docs.nvidia.com/nim/large-language-models/1.13.0/structured-generation.html |
+| Limiti | Non pubblicati nella documentazione ufficiale (solo crediti nei termini, §1). `max_tokens` fino a 4.096 per `gpt-oss-120b`: meno dei nostri 6.000. | pagine dei modelli; termini |
+| Uso dei dati | §3.3 (iv): NVIDIA raccoglie «User Content and Generated Content to improve NVIDIA products and services, including AI models». | NVIDIA API Trial Terms of Service (PDF del 7 ottobre 2025), https://assets.ngc.nvidia.com/products/api-catalog/legal/NVIDIA%20API%20Trial%20Terms%20of%20Service.pdf |
+| Termini d'uso | §1.2 «limited trial purposes only and without use of the API Service or Generated Content in production»; senza abbonamento «only for internal testing and evaluation purposes». Un confronto interno rientrerebbe nella valutazione. | stesso documento |
+| Prezzi | Nessun prezzo per token pubblicato per il trial; uso in produzione solo con abbonamento. | stesso documento |
+
+Conclusione: **NVIDIA non è integrato**. L'output vincolato a uno schema non è documentato sull'endpoint ospitato, e la consegna dice di fermarsi in questo caso invece di indovinare.
