@@ -121,6 +121,13 @@ def test_impostazioni_elencano_i_modelli_gemini_selezionabili():
     assert all(m['inputUsdPerMTok'] == '0' and m['outputUsdPerMTok'] == '0' for m in voce['models'])
     # Selezionabile e non rifiutata dal tetto: nessun avviso di quota non misurata.
     assert voce['notice'] is None
+    # Avviso sui dati del piano gratuito, solo per i fornitori gratuiti.
+    assert voce['dataNotice'] == impostazioni.AVVISI_DATI['gemini']
+    assert 'materiale pubblico' in voce['dataNotice'] and 'revisori' in voce['dataNotice']
+    assert 'fatturazione' in voce['dataNotice']
+    for altro in stato['providers']:
+        if altro['id'] != 'gemini':
+            assert altro['dataNotice'] is None
 
 
 def test_salvataggio_impostazioni_gemini(monkeypatch, tmp_path):
@@ -132,3 +139,10 @@ def test_salvataggio_impostazioni_gemini(monkeypatch, tmp_path):
                                       'apiKey': 'gemini-key-not-real-0000'})
     assert stato['activeProvider'] == 'gemini' and stato['configured'] is True
     assert 'GEMINI_MODEL=gemini-3.8-flash' in file.read_text(encoding='utf-8')
+
+
+def test_ogni_fornitore_con_modelli_gratuiti_ha_l_avviso_sui_dati():
+    """Regola, non caso singolo: un modello a prezzo 0 aggiunto al listino senza avviso non passa."""
+    for nome, voce in impostazioni.listino().items():
+        if any(p.gratuito for p in voce['modelli'].values()):
+            assert impostazioni.AVVISI_DATI.get(nome), nome

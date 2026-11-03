@@ -1,8 +1,8 @@
 import {readFileSync} from 'node:fs';
-import {apriImpostazioniAllAvvio,avvisaImpostazioniSalvate,corpoSalvataggio,modelloIniziale,seguiImpostazioni,testoChiave,testoPrezzo} from './impostazioni';
+import {apriImpostazioniAllAvvio,avvisaImpostazioniSalvate,corpoSalvataggio,etichettaFornitore,modelloIniziale,seguiImpostazioni,testoChiave,testoPrezzo} from './impostazioni';
 import type {FornitoreImpostazioni,Impostazioni} from '../api/settings';
 
-const anthropic:FornitoreImpostazioni={id:'anthropic',label:'Anthropic',keyConfigured:true,keyLast4:'1234',model:'claude-haiku-5-5',modelPriced:true,perCallOverheadMeasured:true,notice:null,
+const anthropic:FornitoreImpostazioni={id:'anthropic',label:'Anthropic',keyConfigured:true,keyLast4:'1234',model:'claude-haiku-5-5',modelPriced:true,perCallOverheadMeasured:true,notice:null,dataNotice:null,
  models:[{id:'claude-sonnet-5-5',inputUsdPerMTok:'2',outputUsdPerMTok:'10',cachedInputUsdPerMTok:'0.10'},{id:'claude-haiku-5-5',inputUsdPerMTok:'0.10',outputUsdPerMTok:'0.50',cachedInputUsdPerMTok:'0.01'}]};
 const openai:FornitoreImpostazioni={...anthropic,id:'openai',label:'OpenAI',keyConfigured:false,keyLast4:null,model:null,modelPriced:null,perCallOverheadMeasured:false,notice:'Quota non misurata',models:[{id:'gpt-6-luna',inputUsdPerMTok:'0.10',outputUsdPerMTok:'0.50',cachedInputUsdPerMTok:'0.01'}]};
 
@@ -14,6 +14,22 @@ it('mostra la chiave solo come «configurata ••••1234», mai per intero'
 
 it('prezzi per milione di token in formato italiano',()=>{
  expect(testoPrezzo(anthropic.models[1])).toBe('ingresso 0,10 · uscita 0,50 USD per milione di token');
+});
+
+const gemini:FornitoreImpostazioni={...anthropic,id:'gemini',label:'Gemini',keyConfigured:false,keyLast4:null,model:null,modelPriced:null,perCallOverheadMeasured:false,
+ dataNotice:'Piano gratuito: i dati inviati possono essere usati dal fornitore. Usalo solo con materiale pubblico.',
+ models:[{id:'gemini-3.8-flash',inputUsdPerMTok:'0',outputUsdPerMTok:'0',cachedInputUsdPerMTok:'0'}]};
+
+it('i fornitori gratuiti sono riconoscibili nell’elenco e nel prezzo',()=>{
+ expect(etichettaFornitore(gemini)).toBe('Gemini (piano gratuito) · chiave non configurata');
+ expect(etichettaFornitore(anthropic)).toBe('Anthropic · chiave configurata ••••1234');
+ expect(testoPrezzo(gemini.models[0])).toBe('gratuito (piano gratuito del fornitore)');
+});
+
+it('la schermata mostra l’avviso sui dati del fornitore scelto',()=>{
+ const schermata=readFileSync(new URL('../screens/SettingsScreen.tsx',import.meta.url),'utf8');
+ expect(schermata).toMatch(/voce\.dataNotice&&<Avviso testo=\{voce\.dataNotice\}/);
+ expect(schermata).toMatch(/etichettaFornitore\(f\)/);
 });
 
 it('il campo chiave vuoto non manda la chiave; rimuovere è un’azione esplicita',()=>{

@@ -7,7 +7,7 @@ import {Btn} from '@formazione/civis-ui/src/comune/Btn';
 import {Card} from '@formazione/civis-ui/src/comune/Card';
 import {Avviso,Pillola} from '../components/lettore';
 import {leggiImpostazioni,salvaImpostazioni,type Impostazioni} from '../api/settings';
-import {avvisaImpostazioniSalvate,corpoSalvataggio,modelloIniziale,testoChiave,testoPrezzo} from '../state/impostazioni';
+import {avvisaImpostazioniSalvate,corpoSalvataggio,etichettaFornitore,modelloIniziale,testoChiave,testoPrezzo} from '../state/impostazioni';
 
 /**
  * Fornitore, modello e chiave API dell'operatore locale. La chiave va al server (services/api/.env)
@@ -47,8 +47,9 @@ export function SettingsScreen({primoAvvio=false,onChiudi}:{primoAvvio?:boolean;
   {stato&&voce&&<>
    <Card style={{gap:12}}>
     <Text style={s.eyebrow}>Fornitore</Text>
-    <View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>{stato.providers.map(f=><Pillola key={f.id} label={`${f.label} · chiave ${testoChiave(f)}`} attiva={f.id===fornitore} disabled={busy} onPress={()=>scegliFornitore(f.id)}/>)}</View>
+    <View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>{stato.providers.map(f=><Pillola key={f.id} label={etichettaFornitore(f)} attiva={f.id===fornitore} disabled={busy} onPress={()=>scegliFornitore(f.id)}/>)}</View>
     {!!voce.notice&&<Avviso testo={voce.notice} errore/>}
+    {!!voce.dataNotice&&<Avviso testo={voce.dataNotice} colore={C.scenario}/>}
    </Card>
    <Card style={{gap:12}}>
     <Text style={s.eyebrow}>Modello</Text>

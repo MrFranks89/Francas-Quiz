@@ -29,6 +29,19 @@ from .measurement.prezzi import PREZZI, PrezzoMancante, carica, modelli, prezzo
 
 VARIABILE_FORNITORE = 'GENERATION_PROVIDER'  # letta da selection.selected_name()
 ETICHETTE = {'openai': 'OpenAI', 'anthropic': 'Anthropic', 'gemini': 'Gemini'}
+# Avviso sui dati per i fornitori usati con il piano gratuito, dai loro termini (letti il 2026-10-30):
+# Gemini, https://ai.google.dev/gemini-api/terms (aggiornati il 2026-04-28), «Unpaid Services»: contenuti
+# usati «to provide, improve, and develop» i prodotti, «human reviewers may read, annotate, and process»,
+# non inviare dati sensibili, riservati o personali; e https://ai.google.dev/gemini-api/docs/billing:
+# le chiavi ereditano piano e fatturazione del progetto. Nello SEE i termini applicano anche al gratuito le
+# regole dei dati del piano a pagamento, ma vietano il piano gratuito per app rese disponibili ad altri
+# utenti: l'avviso resta prudente (docs/GENERAZIONE.md, «Fornitori gratuiti»).
+AVVISI_DATI = {
+    'gemini': ('Piano gratuito: Google può usare i dati inviati per migliorare i suoi prodotti e farli leggere a '
+               'revisori umani. Usalo solo con materiale pubblico, mai con dati personali o materiale degli '
+               'studenti. È gratuito solo se la chiave appartiene a un progetto Google senza fatturazione: con la '
+               'fatturazione attiva le chiamate sono addebitate e il tetto di spesa dell\'app non le conta.'),
+}
 CIFRE_MOSTRATE = 4
 # Sotto questa lunghezza le ultime 4 cifre sarebbero una parte troppo grande della chiave.
 LUNGHEZZA_MINIMA_PER_MOSTRARE = 12
@@ -89,6 +102,7 @@ def stato() -> dict:
             'models': [{'id': m, 'inputUsdPerMTok': str(p.ingresso), 'outputUsdPerMTok': str(p.uscita),
                         'cachedInputUsdPerMTok': str(p.ingresso_cache)} for m, p in voce['modelli'].items()],
             'perCallOverheadMeasured': voce['misurata'],
+            'dataNotice': AVVISI_DATI.get(nome),
             # Con prezzo 0 dichiarato (Prezzo.gratuito) il tetto non ha bisogno della quota: nessun rifiuto.
             'notice': None if voce['misurata'] or (voce['modelli'] and all(p.gratuito for p in voce['modelli'].values()))
             else (

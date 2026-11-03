@@ -8,7 +8,14 @@ export function testoChiave(fornitore:FornitoreImpostazioni):string{
 
 const usd=(valore:string)=>{const [interi,decimali='']=valore.split('.');return `${interi},${decimali.padEnd(2,'0')}`;};
 export function testoPrezzo(modello:ModelloImpostazioni):string{
+ // Prezzo 0 solo per i piani gratuiti dichiarati in prezzi.json (measurement/prezzi.py, Prezzo.gratuito).
+ if([modello.inputUsdPerMTok,modello.outputUsdPerMTok,modello.cachedInputUsdPerMTok].every(v=>Number(v)===0))return 'gratuito (piano gratuito del fornitore)';
  return `ingresso ${usd(modello.inputUsdPerMTok)} · uscita ${usd(modello.outputUsdPerMTok)} USD per milione di token`;
+}
+
+/** Etichetta nell'elenco dei fornitori: chi ha un avviso sui dati (dataNotice) è usato col piano gratuito. */
+export function etichettaFornitore(fornitore:FornitoreImpostazioni):string{
+ return `${fornitore.label}${fornitore.dataNotice?' (piano gratuito)':''} · chiave ${testoChiave(fornitore)}`;
 }
 
 /** Campo chiave vuoto: la chiave salvata resta. Rimuoverla è un'azione a parte. */

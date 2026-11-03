@@ -3,7 +3,7 @@ import {apiErrorMessage} from './errors';
 
 // Forma di GET/PUT /settings (services/api/formazione_api/impostazioni.py, stato()).
 export type ModelloImpostazioni={id:string;inputUsdPerMTok:string;outputUsdPerMTok:string;cachedInputUsdPerMTok:string};
-export type FornitoreImpostazioni={id:string;label:string;keyConfigured:boolean;keyLast4:string|null;model:string|null;modelPriced:boolean|null;models:ModelloImpostazioni[];perCallOverheadMeasured:boolean;notice:string|null};
+export type FornitoreImpostazioni={id:string;label:string;keyConfigured:boolean;keyLast4:string|null;model:string|null;modelPriced:boolean|null;models:ModelloImpostazioni[];perCallOverheadMeasured:boolean;notice:string|null;dataNotice:string|null};
 export type Impostazioni={configured:boolean;activeProvider:string|null;activeModel:string|null;providers:FornitoreImpostazioni[]};
 export type CorpoImpostazioni={provider:string;model:string;apiKey?:string;removeKey?:true};
 
