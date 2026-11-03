@@ -35,6 +35,8 @@ Per ogni blocco e ogni tentativo:
 
 Costo = token × tariffa d'ingresso più alta del modello (comprese le scritture in cache) + uscita × tariffa d'uscita, × `moltiplicatoreMassimo` (residenza dei dati, 1.1). Una selezione con un blocco oltre la soglia del contesto lungo viene rifiutata.
 
+**Prezzo 0.** Per un modello a prezzo 0 dichiarato (`piano: gratuito` in `prezzi.json`, oggi Gemini) il limite in USD è 0 e completo anche con `sovraccaricoIngressoPerChiamata.token: null`: 0 per qualunque numero di token resta 0. I limiti in token restano calcolati e la guardia controlla ancora i contatori dichiarati. Vale solo se la chiave appartiene a un progetto senza fatturazione: vedi GENERAZIONE.md, «Terzo fornitore: Gemini».
+
 **Limite incompleto.** I fornitori aggiungono token propri (marcatori di ruolo; con gli output strutturati Anthropic inietta un prompt di sistema di dimensione non pubblicata). Finché `sovraccaricoIngressoPerChiamata.token` è `null` il preventivo segna `completo = NO` e la guardia **rifiuta ogni corsa reale**. Per sbloccarla: misurare la quota con l'endpoint di conteggio token sulla richiesta reale, registrarla con la fonte.
 
 ## Misura del sovraccarico Anthropic
@@ -67,14 +69,15 @@ Uscite: `0` misura completa; `1` `ANTHROPIC_API_KEY` assente (nessun client crea
 - L'importo **addebitato** di ogni chiamata è il suo limite superiore, scritto prima della chiamata: i retry interni allo SDK non compaiono nei contatori d'uso, il limite sì. Il costo **effettivo** (token dichiarati × prezzi) è la misura; il costo per corso approvato si calcola su questo, sommando tutte le corse del gruppo selezione × modello, fallite comprese.
 - Se i token dichiarati di un tentativo superano il limite per tentativo, il maggiorante è smentito: la corsa si ferma al blocco successivo.
 - Modello assente da `prezzi.json`, prezzo senza fonte o valuta diversa da USD: rifiuto.
-- La generazione dall'app usa la stessa guardia con un registro separato (`registro-spesa-app.json` nella cartella dei dati) e due limiti del processo server, `GENERATION_MAX_USD_PER_COURSE` (0.50) e `GENERATION_BUDGET_USD` (5.00): vedi [GENERAZIONE.md](GENERAZIONE.md), «Tetto di spesa della generazione dall'app». Il preventivo mostrato nel pannello è `preventivo_corsa` di questa pagina. Solo il registro dell'app sostituisce, dopo ogni chiamata completata con i contatori, il prenotato con un importo regolato (GENERAZIONE.md, «Importo regolato»); il registro delle misure resta prudente e somma sempre `addebitatoUSD`.
+- La generazione dall'app usa la stessa guardia con un registro separato (`registro-spesa-app.json` nella cartella dei dati) e due limiti del processo server, `GENERATION_MAX_USD_PER_COURSE` (0.50) e `GENERATION_BUDGET_USD` (5.00): vedi [GENERAZIONE.md](GENERAZIONE.md), «Tetto di spesa della generazione dall'app». Il preventivo mostrato nel pannello è `preventivo_corsa` di questa pagina. Solo il registro dell'app sostituisce, dopo ogni chiamata completata con i contatori, il prenotato con un importo regolato (GENERAZIONE.md, «Importo regolato»); il registro delle misure resta prudente e somma sempre `addebitatoUSD`. Dal 3 novembre 2026 i fornitori dichiarano anche i tentativi ripetuti dallo SDK (`usage.retriesTaken`), usati solo dalla regolazione dell'app.
 
 ## Fonti dei prezzi
 
 USD per milione di token, tariffa standard, letti il 2026-10-19:
 
 - Anthropic: <https://platform.claude.com/docs/en/about-claude/pricing.md> (claude-opus-5-5, claude-sonnet-5-5, claude-haiku-5-5);
-- OpenAI: <https://developers.openai.com/api/docs/pricing> (gpt-6-astra, gpt-6.1-sol, gpt-5.4-mini, gpt-6-luna).
+- OpenAI: <https://developers.openai.com/api/docs/pricing> (gpt-6-astra, gpt-6.1-sol, gpt-5.4-mini, gpt-6-luna);
+- Gemini, letto il 2026-10-30: <https://ai.google.dev/gemini-api/docs/pricing> (gemini-3.8-flash, gemini-3.5-flash-lite, gemini-2.5-pro), piano gratuito a prezzo 0; prezzo a pagamento in `prezzoAPagamento`, non usato dal tetto.
 
 Prima di una corsa reale, rileggere la fonte e aggiornare valori e data.
 
