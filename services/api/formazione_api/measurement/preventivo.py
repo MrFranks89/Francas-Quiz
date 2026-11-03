@@ -42,6 +42,10 @@ def schema_inviato(fornitore: str) -> dict:
     if fornitore == 'anthropic':
         from ..generation.anthropic_provider import _schema
         return {'type': 'json_schema', 'schema': _schema()}
+    from ..generation.openai_compat_provider import COMPATIBILI, formato_risposta
+    if fornitore in COMPATIBILI:
+        # OpenAICompatProvider invia response_format=formato_risposta() a chat.completions.create.
+        return formato_risposta()
     raise ValueError(f'Fornitore sconosciuto: {fornitore}')
 
 

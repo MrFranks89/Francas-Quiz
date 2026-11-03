@@ -64,8 +64,10 @@ def test_impostazioni_elencano_gli_stessi_modelli():
     assert {n: list(v['modelli']) for n, v in voci.items()} == {
         'openai': ['gpt-6-astra', 'gpt-6.1-sol', 'gpt-5.4-mini', 'gpt-6-luna'],
         'anthropic': ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'],
+        # Fornitore selezionabile ma ancora senza prezzi: nessun modello sceglibile.
+        'gemini': [],
     }
-    assert {n: v['misurata'] for n, v in voci.items()} == {'openai': False, 'anthropic': True}
+    assert {n: v['misurata'] for n, v in voci.items()} == {'openai': False, 'anthropic': True, 'gemini': False}
 
 
 @pytest.fixture
