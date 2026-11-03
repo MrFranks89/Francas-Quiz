@@ -83,8 +83,9 @@ def importo_regolato(usage: dict | None, limite: pv.LimiteBlocco, listino: Prezz
     - ultimo tentativo: token reali alle tariffe del preventivo (tariffa d'ingresso più alta e
       moltiplicatore massimo, preventivo.costo_tentativo), così non dipende da come il fornitore
       ripartisce l'ingresso fra cache, scrittura in cache e non cache;
-    - ogni tentativo precedente possibile (limite.tentativi - 1 = MAX_RETRIES): il limite per
-      tentativo del preventivo, che non dipende da ciò che il fornitore ha dichiarato.
+    - ogni tentativo precedente: il limite per tentativo del preventivo, che non dipende da ciò che
+      il fornitore ha dichiarato. Quanti: `retriesTaken` di usage quando c'è (tentativi ripetuti
+      davvero, da `retries_taken` dello SDK); quando manca, tutti i possibili (MAX_RETRIES).
     Poiché ogni contatore reale è entro il limite per tentativo, il regolato non supera mai il
     prenotato (tentativi × limite per tentativo). Contatori assenti o oltre il limite per tentativo
     (maggiorante smentito, FornitoreSorvegliato.violazione) → None: resta il prenotato.
@@ -96,8 +97,17 @@ def importo_regolato(usage: dict | None, limite: pv.LimiteBlocco, listino: Prezz
         return None
     if entrata > limite.ingresso_massimo_per_tentativo or uscita > limite.uscita_massima:
         return None
+    # Tentativi precedenti: quelli davvero inviati, se il fornitore li dichiara (`retriesTaken`, letto da
+    # `retries_taken` della risposta grezza dello SDK, generation/telemetry.chiama_con_tentativi);
+    # altrimenti tutti quelli possibili (limite.tentativi - 1 = MAX_RETRIES). Un valore non intero o
+    # fuori da 0..MAX_RETRIES smentisce il maggiorante → None, resta il prenotato.
+    ripetuti = usage.get('retriesTaken')
+    if ripetuti is None:
+        ripetuti = limite.tentativi - 1
+    elif type(ripetuti) is not int or not 0 <= ripetuti <= limite.tentativi - 1:
+        return None
     ultimo = pv.costo_tentativo(entrata, uscita, listino)
-    precedenti = pv.costo_tentativo(limite.ingresso_massimo_per_tentativo, limite.uscita_massima, listino)         * (limite.tentativi - 1)
+    precedenti = pv.costo_tentativo(limite.ingresso_massimo_per_tentativo, limite.uscita_massima, listino)         * ripetuti
     return ultimo + precedenti
 
 

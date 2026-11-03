@@ -19,3 +19,19 @@ def aggregate_usage(calls):
     return dict(provider=consistent('provider'), model=consistent('model'), calls=calls,
                 callCount=len(calls), durationMs=total('durationMs'), inputTokens=total('inputTokens'),
                 outputTokens=total('outputTokens'), cachedInputTokens=total('cachedInputTokens'))
+
+
+def chiama_con_tentativi(risorsa, metodo: str, **argomenti):
+    """(risposta, tentativi ripetuti dallo SDK) per `risorsa.<metodo>(**argomenti)`.
+
+    I tentativi si leggono dalla risposta grezza: `with_raw_response.<metodo>` restituisce un oggetto
+    con `retries_taken` («The number of retries made. If no retries happened this will be `0`»,
+    anthropic/_response.py 1.15.0 e openai/_legacy_response.py 3.31.0) e `parse()`, che dà la stessa
+    risposta della chiamata diretta. La richiesta inviata è la stessa: cambia solo l'intestazione
+    X-Stainless-Raw-Response. Un client senza `with_raw_response` (i finti dei test) → None, non zero.
+    """
+    grezza = getattr(risorsa, 'with_raw_response', None)
+    if grezza is None:
+        return getattr(risorsa, metodo)(**argomenti), None
+    risposta = getattr(grezza, metodo)(**argomenti)
+    return risposta.parse(), getattr(risposta, 'retries_taken', None)

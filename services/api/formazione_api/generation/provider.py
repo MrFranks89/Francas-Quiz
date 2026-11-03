@@ -4,6 +4,7 @@ from .chunks import Chunk
 from .errors import GenerationError
 from .instructions import ISTRUZIONI_DIDATTICHE, MAX_OUTPUT_TOKENS, MAX_RETRIES, TIMEOUT_SECONDS, materiale
 from .models import ModuleDraft
+from .telemetry import chiama_con_tentativi
 
 
 class Provider(Protocol):
@@ -35,8 +36,8 @@ class OpenAIProvider:
         # Official Responses structured outputs guide; signature checked against openai 3.31.0.
         # https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=responses
         try:
-            response = self.client.responses.parse(
-                model=self.model, store=False, max_output_tokens=MAX_OUTPUT_TOKENS, truncation='disabled',
+            response, ripetuti = chiama_con_tentativi(
+                self.client.responses, 'parse', model=self.model, store=False, max_output_tokens=MAX_OUTPUT_TOKENS, truncation='disabled',
                 text_format=ModuleDraft,
                 instructions=ISTRUZIONI_DIDATTICHE,
                 input=materiale(chunk),
@@ -50,7 +51,9 @@ class OpenAIProvider:
         self.last_usage = dict(model=getattr(response, 'model', self.model),
                                inputTokens=getattr(usage, 'input_tokens', None),
                                outputTokens=getattr(usage, 'output_tokens', None),
-                               cachedInputTokens=getattr(details, 'cached_tokens', None))
+                               cachedInputTokens=getattr(details, 'cached_tokens', None),
+                               # Tentativi ripetuti dallo SDK (telemetry.chiama_con_tentativi); None = ignoti.
+                               retriesTaken=ripetuti)
         for output in response.output:
             for content in getattr(output, 'content', []):
                 if getattr(content, 'type', None) == 'refusal':

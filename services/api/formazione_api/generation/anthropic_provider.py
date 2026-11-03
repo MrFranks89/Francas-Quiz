@@ -11,6 +11,7 @@ from .chunks import Chunk
 from .errors import GenerationError
 from .instructions import ISTRUZIONI_DIDATTICHE, MAX_OUTPUT_TOKENS, MAX_RETRIES, TIMEOUT_SECONDS, materiale
 from .models import ModuleDraft
+from .telemetry import chiama_con_tentativi
 
 VARIABILI = ('ANTHROPIC_API_KEY', 'ANTHROPIC_MODEL')
 
@@ -66,7 +67,7 @@ class AnthropicProvider:
         # una risposta troncata o rifiutata diventerebbe un errore generico prima di poter leggere
         # stop_reason, e i codici provider_refusal / provider_incomplete andrebbero persi.
         try:
-            response = self.client.messages.create(**richiesta(self.model, chunk))
+            response, ripetuti = chiama_con_tentativi(self.client.messages, 'create', **richiesta(self.model, chunk))
         except Exception as error:
             raise GenerationError('provider_error', 'Il fornitore AI non ha completato la richiesta') from error
         # Nomi letti da anthropic/types/usage.py 1.15.0. `input_tokens` è solo la parte non in cache:
@@ -82,7 +83,9 @@ class AnthropicProvider:
         self.last_usage = dict(model=getattr(response, 'model', self.model),
                                inputTokens=sum(parts) if all(v is not None for v in parts) else None,
                                outputTokens=getattr(usage, 'output_tokens', None),
-                               cachedInputTokens=read)
+                               cachedInputTokens=read,
+                               # Tentativi ripetuti dallo SDK (telemetry.chiama_con_tentativi); None = ignoti.
+                               retriesTaken=ripetuti)
         # Valori di stop_reason letti da anthropic/types/stop_reason.py 1.15.0:
         # end_turn, max_tokens, stop_sequence, tool_use, pause_turn, refusal, model_context_window_exceeded.
         stop_reason = getattr(response, 'stop_reason', None)
