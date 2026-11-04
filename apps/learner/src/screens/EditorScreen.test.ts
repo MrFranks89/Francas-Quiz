@@ -5,8 +5,8 @@ import { readFileSync } from 'node:fs';
 // un campo nell'editor, e l'editor deve usare il componente che li disegna.
 it('shows every question presentation field to the reviewer', () => {
   const screen = readFileSync(new URL('./EditorScreen.tsx', import.meta.url), 'utf8');
-  expect(screen).toMatch(/<DomandaEditor /);
-  expect(screen).toMatch(/erroriDomande\(course\)/);
+  expect(screen).toMatch(/<DomandaEditor\s/);
+  expect(screen).toMatch(/erroriDomande\(\s*course\s*\)/);
   const editor = readFileSync(new URL('../components/DomandaEditor.tsx', import.meta.url), 'utf8');
   for (const campo of ['situation', 'sentence', 'wrong', 'rationale', 'difficulty', 'prompt', 'explanation', 'correctOptionId', 'correctOptionIds'])
     expect(editor).toContain(`'${campo}'`);

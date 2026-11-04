@@ -28,7 +28,7 @@ it('i fornitori gratuiti sono riconoscibili nell’elenco e nel prezzo',()=>{
 
 it('la schermata mostra l’avviso sui dati del fornitore scelto',()=>{
  const schermata=readFileSync(new URL('../screens/SettingsScreen.tsx',import.meta.url),'utf8');
- expect(schermata).toMatch(/voce\.dataNotice&&<Avviso testo=\{voce\.dataNotice\}/);
+ expect(schermata).toMatch(/voce\.dataNotice\s*&&\s*<Avviso\s+testo=\{voce\.dataNotice\}/);
  expect(schermata).toMatch(/etichettaFornitore\(f\)/);
 });
 
@@ -63,7 +63,7 @@ it('avvisa chi segue le impostazioni e smette dopo l’annullamento',()=>{
 // l'app che non apre le impostazioni all'avvio, una chiave rimostrata o in chiaro.
 it('il pannello di generazione rilegge configurazione e preventivo dopo il salvataggio',()=>{
  const pannello=readFileSync(new URL('../components/GenerationPanel.tsx',import.meta.url),'utf8');
- expect(pannello).toMatch(/seguiImpostazioni\(\(\)=>\{void refresh\(\);\}\)/);
+ expect(pannello).toMatch(/seguiImpostazioni\(\s*\(\)\s*=>\s*\{\s*void refresh\(\);\s*\},?\s*\)/);
  const schermata=readFileSync(new URL('../screens/SettingsScreen.tsx',import.meta.url),'utf8');
  expect(schermata).toMatch(/avvisaImpostazioniSalvate\(\)/);
 });

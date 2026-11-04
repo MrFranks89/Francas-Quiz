@@ -36,5 +36,5 @@ it('il ThemeProvider copiato legge «system» dalla chiave salvata', () => {
  expect(provider).toMatch(/AsyncStorage\.getItem\(THEME_STORAGE_KEY\)/);
  expect(provider).toMatch(/value === 'system'\)\) setPreference\(value\)/);
  const app=readFileSync(new URL('../components/TemaIniziale.tsx',import.meta.url),'utf8');
- expect(app).toMatch(/preparaTemaDiSistema\(AsyncStorage,THEME_STORAGE_KEY\)/);
+ expect(app).toMatch(/preparaTemaDiSistema\(\s*AsyncStorage,\s*THEME_STORAGE_KEY,?\s*\)/);
 });
