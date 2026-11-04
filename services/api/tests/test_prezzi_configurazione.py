@@ -60,7 +60,11 @@ def test_listino_dell_app_ha_gli_stessi_valori():
 
 
 def test_listino_ha_lo_stesso_contenuto_byte_per_byte():
-    assert hashlib.sha256(Path(PREZZI).read_bytes()).hexdigest() == SHA256_LISTINO
+    # Fine riga normalizzati prima dell'impronta: con core.autocrlf=true un clone nuovo
+    # scrive il file con CRLF (verificato: impronta ce6f3687… invece di 372d38b9…) pur
+    # avendo lo stesso contenuto. Ogni altro byte resta confrontato.
+    contenuto = Path(PREZZI).read_bytes().replace(b'\r\n', b'\n')
+    assert hashlib.sha256(contenuto).hexdigest() == SHA256_LISTINO
 
 
 def test_impostazioni_elencano_gli_stessi_modelli():
