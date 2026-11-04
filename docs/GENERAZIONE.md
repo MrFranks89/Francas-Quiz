@@ -48,9 +48,34 @@ Stesse istruzioni (`instructions.py`, come messaggio `system`) e stesso JSON del
 
 **Prezzo e tetto.** In `prezzi.json` i modelli Gemini (`gemini-3.8-flash`, `gemini-3.5-flash-lite`, `gemini-2.5-pro`) hanno prezzo 0 con `piano: gratuito` e la `condizione` in cui vale; il prezzo a pagamento è registrato in `prezzoAPagamento` solo per informazione. Si applica il gratuito perché il fornitore serve solo al confronto sul corpus pubblico; ma il piano è del **progetto Google** della chiave, non del modello: con fatturazione collegata le stesse chiamate sono addebitate e il tetto dell'app **non le vede**. La protezione è quindi dichiarata, non verificabile dall'app: usare una chiave di un progetto senza fatturazione (eventualmente con il limite di spesa del progetto in AI Studio). Un prezzo 0 senza piano gratuito dichiarato è rifiutato da `measurement/prezzi.py`, così uno 0 per errore non apre spese vere. Con prezzo 0 il preventivo è completo anche senza quota per chiamata misurata (0 per qualunque numero di token resta 0) e il costo massimo mostrato è 0,00 USD; restano attivi budget a 0 (rifiuto), registro, una generazione alla volta e il controllo dei token per tentativo.
 
-**Limite di richieste.** I limiti del piano gratuito non sono pubblicati nella documentazione (rimandano ad AI Studio; valgono per progetto e si azzerano a mezzanotte, ora del Pacifico): l'app non applica un limite proprio. Una generazione fa al più un invio per blocco più un retry (`chiamateMassime` del preventivo); un `429` dopo il retry diventa `provider_error` e la bozza non viene prodotta.
+**Limite di richieste.** I limiti del piano gratuito non sono pubblicati nella documentazione (rimandano ad AI Studio; valgono per progetto e si azzerano a mezzanotte, ora del Pacifico): l'app non applica un limite proprio. Una generazione fa al più un invio per blocco più un retry (`chiamateMassime` del preventivo); un `429` dopo il retry diventa `provider_error` con il messaggio «limite di utilizzo raggiunto (429)» e la bozza non viene prodotta (vedi «Errori del fornitore»).
 
 **Rischi non verificati senza una chiamata reale** (la prima la lancia l'operatore): che lo strato di compatibilità accetti lo schema con `$defs` e l'`anyOf` di sette tipi di domanda (la documentazione avverte che schemi con molte alternative possono avere `400`); che `max_tokens` limiti anche il ragionamento, non disattivabile sui modelli 3 (se `completion_tokens` supera 6.000 la guardia ferma i blocchi successivi).
+
+## Errori del fornitore
+
+Ogni eccezione del client (SDK o client finto) di uno dei tre fornitori diventa `provider_error` attraverso `errore_fornitore` (`generation/causa.py`). Fino al 4 novembre 2026 il messaggio era fisso e la causa veniva buttata via: le due generazioni Gemini fallite il 3 novembre non dicono nel registro se per il limite del piano gratuito, la chiave o lo schema.
+
+**Causa** (`GenerationError.causa`): `classe` (dell'eccezione), `statoHttp` (`status_code` di `APIStatusError`, assente per timeout e connessione), `tipo` (`type`: openai `APIError.type`, anthropic `APIStatusError.type`), `codice` (`code`, solo openai), `messaggio` (dal corpo d'errore, altrimenti quello dello SDK; al più 500 caratteri). Attributi letti in `openai/_exceptions.py` 3.31.0 e `anthropic/_exceptions.py` 1.15.0, fonti accanto al codice. La forma del corpo d'errore di Gemini sull'endpoint compatibile non è documentata: si legge `message` dall'oggetto o dal primo elemento di un elenco.
+
+**Nessun segreto.** Prima di troncare, ogni testo della causa passa da `oscura`: sequenze `sk-…` (anche `sk-proj-`, `sk-ant-`), `AIza…`, valori dopo `Bearer`, `Authorization`, `x-api-key`, `x-goog-api-key`, `api_key`, `?key=`, e il valore di ogni variabile `*_API_KEY` del processo diventano `[oscurato]`. Il log non riceve mai l'eccezione grezza né la traccia.
+
+**Messaggio** (`detail.message`, mostrato dall'app senza modifiche da `apps/learner/src/api/errors.ts`):
+
+| Caso | Messaggio |
+|---|---|
+| 429 | Il fornitore ha rifiutato la richiesta: limite di utilizzo raggiunto (429) |
+| 401 | Chiave API non valida (401) |
+| 403 | Il fornitore ha negato l'accesso con questa chiave (403) |
+| 400, 422 | Richiesta non valida per il fornitore (400): <messaggio del fornitore> |
+| 404 | Risorsa o modello non trovati dal fornitore (404): <messaggio> |
+| 413 | Richiesta troppo grande per il fornitore (413): <messaggio> |
+| ≥ 500 | Il fornitore non è disponibile al momento (503) |
+| timeout | Il fornitore non ha risposto in tempo (timeout) |
+| connessione | Impossibile raggiungere il fornitore (errore di connessione) |
+| altro | Il fornitore AI non ha completato la richiesta (<classe o codice>) |
+
+**Dove finisce la causa:** nella voce della chiamata fallita (`chiamate[].causa`) del registro dell'app (`registro-spesa-app.json`) e di quello delle misure (`FornitoreSorvegliato` in `measurement/guardia.py`, ereditato da `FornitoreRegolato`); nella risposta `502` di `POST /extractions/{id}/generate` come `detail.cause`, accanto a `code` e `message` (assente per gli errori senza causa, come prima); nel log del server, logger `formazione_api.generation.causa`, livello WARNING (senza configurazione dei log Python lo scrive su stderr, nella finestra dell'API). Test: `test_cause_errori.py` (429, 401, 400, timeout, connessione per OpenAI, Anthropic e Gemini con i veri SDK e un trasporto finto) e `test_cause_errori_destinazioni.py` (registri e rotta vera).
 
 ## Tipi di domanda
 

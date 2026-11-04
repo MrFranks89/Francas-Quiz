@@ -23,7 +23,7 @@ Il preventivo scrive `var/misure/preventivo-<data>.json`. Le pagine scansionate 
 
 La cache delle estrazioni (`var/misure/estrazioni/<selezione>-<motore>-<sha>-<versione>.json`) include la `VERSIONE` dichiarata da `extractors.py` o `docling_adapter.py`: cambiando la versione l'estrazione si ripete. I file senza versione nel nome sono di prima del 29 ottobre 2026 e non vengono più letti.
 
-`esegui` scrive in `var/misure/corse/<id>/` la bozza (`bozza.json`, con `usage` e copertura) e la scheda `revisione.json` da compilare (`minutiRevisione`, `erroriFattuali`, `erroriDidattici`, `domandeDaRiscrivere`, `approvato`). Il registro cumulativo `var/misure/registro-spesa.json` contiene tutte le corse, **anche fallite o arrestate**, con chiamate, usage, durate, errori, costo effettivo e importo addebitato.
+`esegui` scrive in `var/misure/corse/<id>/` la bozza (`bozza.json`, con `usage` e copertura) e la scheda `revisione.json` da compilare (`minutiRevisione`, `erroriFattuali`, `erroriDidattici`, `domandeDaRiscrivere`, `approvato`). Il registro cumulativo `var/misure/registro-spesa.json` contiene tutte le corse, **anche fallite o arrestate**, con chiamate, usage, durate, errori, costo effettivo e importo addebitato. Dal 4 novembre 2026 una chiamata fallita per un errore del fornitore porta anche `causa` (classe, `statoHttp`, tipo, codice, messaggio oscurato e troncato): vedi [GENERAZIONE.md](GENERAZIONE.md), «Errori del fornitore».
 
 ## Limite superiore
 
