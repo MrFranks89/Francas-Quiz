@@ -76,7 +76,12 @@ def generate_course(identifier: str, body: GenerationRequest, request: Request):
             status = 502
         else:
             status = 422
-        raise HTTPException(status, {'code': error.code, 'message': str(error)}) from error
+        # `cause`: causa strutturata e già oscurata di un errore del fornitore (generation/causa.py);
+        # l'app mostra `message` (apps/learner/src/api/errors.ts), che per questi errori la descrive.
+        dettaglio = {'code': error.code, 'message': str(error)}
+        if error.causa:
+            dettaglio['cause'] = error.causa
+        raise HTTPException(status, dettaglio) from error
     result = {'id': draft_id, 'revision': 1, **registra_esclusione(result, body.excludePages)}
     store.save(draft_id, 'draft.json', result)
     return result

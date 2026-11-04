@@ -129,6 +129,10 @@ class FornitoreSorvegliato:
         except Exception as error:
             chiamata['esito'] = 'errore'
             chiamata['errore'] = getattr(error, 'code', type(error).__name__)
+            # Causa dell'errore del fornitore, senza segreti (generation/causa.py): vale per il registro
+            # delle misure e per quello dell'app (spesa_generazione.FornitoreRegolato eredita da qui).
+            if getattr(error, 'causa', None):
+                chiamata['causa'] = error.causa
             raise
         finally:
             usage = self.last_usage
