@@ -1,4 +1,10 @@
 import { readFileSync } from 'node:fs';
+// Import statico, non dinamico dentro la prova: caricare e trasformare il
+// contratto (zod compreso) a freddo, con tutti i file di prova in parallelo,
+// arrivava a 4,4 s misurati, a ridosso dei 5 s del limite per prova, e una
+// volta lo ha superato. Un import in testa al file avviene mentre Vitest
+// raccoglie le prove e non conta nel limite della singola prova.
+import { TIPI_DOMANDA } from '@formazione/contracts';
 
 // Il mescolamento serve solo se il lettore lo usa: le opzioni di un test non
 // devono mai essere disegnate nell'ordine in cui sono state generate.
@@ -19,8 +25,7 @@ it('shows percentage and grade of the last attempt through valutaTentativo', () 
 
 // I tipi di domanda servono solo se il lettore li disegna: la domanda passa per
 // presentazione() e la vista ha un caso per ogni tipo diverso dalla scelta singola.
-it('presents every question kind through presentazione and a case in the exam view', async () => {
-  const {TIPI_DOMANDA}=await import('@formazione/contracts');
+it('presents every question kind through presentazione and a case in the exam view', () => {
   const source = readFileSync(new URL('./CourseScreen.tsx', import.meta.url), 'utf8');
   expect(source).toMatch(/domanda=\{presentazione\(q\)\}/);
   const vista = readFileSync(new URL('../components/ExamView.tsx', import.meta.url), 'utf8');
