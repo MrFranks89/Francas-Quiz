@@ -4,6 +4,19 @@ Data: 14 ottobre 2026. Documento di attività, dipendenze e criteri di completam
 Stato aggiornato al 15 ottobre 2026: prima versione locale implementata con motore Civis estratto, contratti, importazione e OCR, generazione di bozze configurabile, revisione, pubblicazione e lettore universale con sbarramenti. La generazione AI non è ancora collaudata con un provider a pagamento; account, aziende e classi non sono implementati. Questa roadmap comprende anche attività future; lo stato eseguibile è documentato nel README e le prove in VERIFICHE.md.
 Riscontri del codice e test: [ANALISI_CIVIS.md](ANALISI_CIVIS.md).
 
+## Aggiornamento del 4 novembre 2026
+
+Decisione di Federico: **prima le cose di base, l'editor dopo.** Il restyling dell'editor nello stile di Civis passa in fondo. Dallo stile di Civis si prendono adesso tre cose:
+
+1. **le regole dei quiz:**
+   - distrattori;
+   - mai domande su argomenti non presentati nella lezione;
+   - formulazioni, numeri e il resto di `verifica-contenuti.mjs` e delle librerie collegate;
+2. **i tipi di quiz mancanti:** abbinamento, ordinamento, classificazione, carte e gli altri, con la struttura della lezione a sequenza di step;
+3. **l'estetica dei bottoni** in tutte le schermate, con `Btn` di Civis al posto del vecchio `Button`.
+
+Ordine: ricognizione delle regole di Civis (in corso), poi regole, poi tipi, poi bottoni. I punti sotto restano validi.
+
 ## Priorità aggiornate — 29 ottobre 2026
 
 Decisione: [003-due-modalita.md](decisions/003-due-modalita.md). La piattaforma ha due modalità sullo stesso motore: **Studio**, per lo studente in abbonamento senza revisione manuale, e **Formazione**, per le aziende su richiesta con revisione umana. Si costruisce prima Studio. Le fasi 8 (aziende e classi) e 9 (attestati e report gestionali) sono **rimandate** finché non c'è un cliente aziendale reale. Le fasi sotto restano valide come elenco di attività, ma l'ordine di lavoro è questo:
