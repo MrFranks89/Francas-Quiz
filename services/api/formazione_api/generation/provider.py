@@ -1,6 +1,7 @@
 import os
 from typing import Protocol
 from .chunks import Chunk
+from .causa import errore_fornitore
 from .errors import GenerationError
 from .instructions import ISTRUZIONI_DIDATTICHE, MAX_OUTPUT_TOKENS, MAX_RETRIES, TIMEOUT_SECONDS, materiale
 from .models import ModuleDraft
@@ -43,7 +44,7 @@ class OpenAIProvider:
                 input=materiale(chunk),
             )
         except Exception as error:
-            raise GenerationError('provider_error', 'Il fornitore AI non ha completato la richiesta') from error
+            raise errore_fornitore(self.provider_name, error) from error
         # Names read from installed SDK 3.31.0 ResponseUsage/InputTokensDetails:
         # openai/types/responses/response_usage.py. Missing usage is not zero.
         usage = getattr(response, 'usage', None)

@@ -8,6 +8,7 @@ Fonti dei valori decisi dal fornitore (lette, non dedotte):
 """
 import os
 from .chunks import Chunk
+from .causa import errore_fornitore
 from .errors import GenerationError
 from .instructions import ISTRUZIONI_DIDATTICHE, MAX_OUTPUT_TOKENS, MAX_RETRIES, TIMEOUT_SECONDS, materiale
 from .models import ModuleDraft
@@ -69,7 +70,7 @@ class AnthropicProvider:
         try:
             response, ripetuti = chiama_con_tentativi(self.client.messages, 'create', **richiesta(self.model, chunk))
         except Exception as error:
-            raise GenerationError('provider_error', 'Il fornitore AI non ha completato la richiesta') from error
+            raise errore_fornitore(self.provider_name, error) from error
         # Nomi letti da anthropic/types/usage.py 1.15.0. `input_tokens` è solo la parte non in cache:
         # il totale è input_tokens + cache_creation_input_tokens + cache_read_input_tokens
         # (skill claude-api, shared/prompt-caching.md). Per avere la stessa semantica di OpenAI

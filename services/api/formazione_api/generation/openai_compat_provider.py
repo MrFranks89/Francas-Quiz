@@ -16,6 +16,7 @@ import os
 from dataclasses import dataclass
 
 from .chunks import Chunk
+from .causa import errore_fornitore
 from .errors import GenerationError
 from .instructions import ISTRUZIONI_DIDATTICHE, MAX_OUTPUT_TOKENS, MAX_RETRIES, TIMEOUT_SECONDS, materiale
 from .models import ModuleDraft
@@ -95,7 +96,7 @@ class OpenAICompatProvider:
             response, ripetuti = chiama_con_tentativi(self.client.chat.completions, 'create',
                                                       **richiesta(self.model, chunk))
         except Exception as error:
-            raise GenerationError('provider_error', 'Il fornitore AI non ha completato la richiesta') from error
+            raise errore_fornitore(self.provider_name, error) from error
         # Nomi letti da openai/types/completion_usage.py 3.31.0: prompt_tokens è il totale dell'ingresso,
         # prompt_tokens_details.cached_tokens la sua parte in cache, completion_tokens l'uscita (stessa
         # semantica di inputTokens/cachedInputTokens degli altri fornitori). Se il fornitore conti
