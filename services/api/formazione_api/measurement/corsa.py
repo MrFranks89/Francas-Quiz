@@ -184,7 +184,8 @@ def esegui_selezione(selezione: dict, estrazione: dict, sha: str, prezzi: dict, 
         corsa['scarti'] = rapporto_scarti(risultato['scarti'])
     except GenerationError as error:
         corsa['esito'] = 'arrestata' if error.code == 'budget_guard' else 'fallita'
-        corsa['errore'] = dict(code=error.code, message=str(error))
+        # Anche il testo di un errore della generazione passa dal filtro dei segreti (generation/causa.py).
+        corsa['errore'] = dict(code=error.code, message=oscura(str(error)))
     except Exception as error:  # registrata comunque: anche le corse fallite costano
         corsa['esito'] = 'fallita'
         # Testo di un'eccezione imprevista: può contenere una chiave (generation/causa.py).

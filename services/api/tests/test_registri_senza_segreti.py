@@ -1,12 +1,13 @@
 """Un'eccezione imprevista con una chiave nel testo non deve finire nel registro della spesa.
 
-Il ramo `except Exception` di genera_con_tetto (spesa_generazione.py) e di esegui_selezione
-(measurement/corsa.py) registrava str(error) senza filtro: ora passa da oscura di generation/causa.py.
+I rami `except Exception` e `except GenerationError` di genera_con_tetto (spesa_generazione.py) e di esegui_selezione
+(measurement/corsa.py) registravano str(error) senza filtro: ora passa da oscura di generation/causa.py.
 """
 from decimal import Decimal
 
 import pytest
 
+from formazione_api.generation import GenerationError
 from formazione_api.measurement import corsa as misura
 from formazione_api.measurement.guardia import Registro
 from test_api import client, extraction, upload  # noqa: F401  (fixture)
@@ -54,5 +55,40 @@ def test_corsa_di_misura_con_eccezione_imprevista_non_registra_la_chiave(tmp_pat
     corsa = misura.esegui_selezione(SELEZIONE, estrazione(), 'sha', listino(), 'anthropic', 'modello-prova',
                                     Decimal(1000), reg, tmp_path)
     assert corsa['esito'] == 'fallita' and corsa['errore']['code'] == 'RuntimeError'
+    _senza_chiavi(corsa['errore']['message'])
+    _senza_chiavi((tmp_path / 'r.json').read_text(encoding='utf-8'))
+
+
+# Ramo `except GenerationError`: anche il testo di un errore della generazione passa dal filtro. Un errore
+# del fornitore oggi porta un messaggio fisso, ma il registro non deve dipendere da chi lo ha scritto.
+
+def test_generazione_con_generation_error_non_registra_la_chiave(client, monkeypatch):
+    monkeypatch.setenv('FINTO_API_KEY', CHIAVE_SENZA_PREFISSO)
+
+    class Rifiuta(Contato):
+        def module(self, chunk):
+            self.chiamate += 1
+            raise GenerationError('provider_error', _messaggio())
+
+    estratta, _ = prepara(client, fornitore=Rifiuta())
+    # La rotta trasforma l'errore in una risposta HTTP (generation_routes.py): qui conta il registro.
+    assert genera(client, estratta).status_code >= 400
+    (corsa,) = registro(client).leggi()['corse']
+    assert corsa['esito'] == 'fallita' and corsa['errore']['code'] == 'provider_error'
+    _senza_chiavi(corsa['errore']['message'])
+    _senza_chiavi(str(registro(client).leggi()))
+
+
+def test_corsa_di_misura_con_generation_error_non_registra_la_chiave(tmp_path, monkeypatch):
+    monkeypatch.setenv('FINTO_API_KEY', CHIAVE_SENZA_PREFISSO)
+
+    class Rifiuta(FornitoreFinto):
+        def module(self, chunk):
+            raise GenerationError('provider_error', _messaggio())
+    con_fornitore(monkeypatch, Rifiuta())
+    reg = Registro(tmp_path / 'r.json')
+    corsa = misura.esegui_selezione(SELEZIONE, estrazione(), 'sha', listino(), 'anthropic', 'modello-prova',
+                                    Decimal(1000), reg, tmp_path)
+    assert corsa['esito'] == 'fallita' and corsa['errore']['code'] == 'provider_error'
     _senza_chiavi(corsa['errore']['message'])
     _senza_chiavi((tmp_path / 'r.json').read_text(encoding='utf-8'))

@@ -289,7 +289,8 @@ def genera_con_tetto(extraction: dict, provider, store, corsa_id: str, **opzioni
             return risultato
         except GenerationError as error:
             corsa['esito'] = 'arrestata' if error.code == 'budget_guard' else 'fallita'
-            corsa['errore'] = dict(code=error.code, message=str(error))
+            # Anche il testo di un errore della generazione passa dal filtro dei segreti (generation/causa.py).
+            corsa['errore'] = dict(code=error.code, message=oscura(str(error)))
             raise
         except Exception as error:  # registrata comunque: anche le generazioni fallite costano
             corsa['esito'] = 'fallita'
