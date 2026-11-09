@@ -9,7 +9,7 @@
   ],
   "scripts": {
     "test": "vitest run && npm run test:ui",
-    "test:ui": "jest --config packages/civis-ui/jest.config.js",
+    "test:ui": "jest --config packages/civis-ui/jest.config.js && jest --config apps/learner/jest.config.js",
     "test:watch": "vitest",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
