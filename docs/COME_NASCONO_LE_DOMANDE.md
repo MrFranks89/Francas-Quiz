@@ -116,7 +116,8 @@ Prima corsa reale, 20 ottobre 2026: Claude Haiku 5.5 sulle pagine 166–195 del 
 - **Nessuna verifica semantica automatica**: il codice controlla che la fonte citata esista, non che la risposta sia davvero quella giusta secondo la fonte. Per questo la revisione umana resta obbligatoria.
 - **Figure e grafici non vengono letti**: i dati presenti solo in un grafico non entrano nelle domande.
 - **Pagine scansionate**: senza OCR riuscito non c'è testo, quindi niente domande; esistono tre difetti noti dell'estrazione ancora da correggere (vedi la sessione dedicata).
-- **Un solo tipo di domanda**, la scelta singola. In lavorazione: vero/falso, completa la frase, scenario, intruso, correggi l'errore e risposta multipla.
+- **Sette tipi di domanda, scelti dal modello**: scelta singola, vero/falso, completa la frase, scenario, intruso, correggi l'errore e risposta multipla. Il mix dipende dal materiale e dal modello: il codice non impone quote per tipo, e scenario e correggi l'errore escono solo se il testo descrive fatti o comportamenti che li permettono.
+- **Le regole di qualità sono di forma, non di sostanza**: opzioni duplicate, giusta più lunga di 1,5 volte, formule autoreferenziali (compresi i rimandi al materiale come «il testo indica»), rimandi a un contesto assente e riferimenti temporali scartano la domanda (punto 4); i ruoli dei distrattori (plausibile, ingannevole, chiaramente errata) e il vincolo «solo fatti delle slide del modulo» sono chiesti nelle istruzioni ma nessun controllo li verifica. Le regole valgono quando si genera, si salva o si pubblica; un corso salvato prima di una regola si apre comunque, e nell'editor ne mostra gli errori.
 
 ## Dove guardare nel codice
 

@@ -9,7 +9,8 @@ ISTRUZIONI_DIDATTICHE = ('Sei un autore didattico. Scrivi in italiano un modulo 
                          'Ogni slide e domanda deve citare sourceRefs realmente presenti nel blocco; '
                          'non inventare fatti o fonti. correctIndex è indice a partire da zero. '
                          'Non aggiungere campi excerpt né riscrivere il testo delle fonti. '
-                         # Tipi di domanda: regole in packages/contracts/src/tipi.ts e generation/models.py.
+                         # Tipi di domanda: regole in packages/contracts/src/tipi.ts e generation/regole.py;
+                         # forma delle bozze in generation/bozze.py.
                          'Varia il tipo delle domande (kind) secondo il materiale: single (scelta singola), '
                          'truefalse (un\'affermazione vera o falsa), fillblank (una frase del materiale con '
                          'esattamente un ___ al posto di una parola chiave), oddOneOut (trova l\'opzione che non '
