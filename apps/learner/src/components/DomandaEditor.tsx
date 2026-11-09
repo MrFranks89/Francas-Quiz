@@ -144,6 +144,7 @@ export function DomandaEditor({
         />
       </View>
       {field(`Spiegazione ${n}`, ['explanation'], question.explanation, { multiline: true })}
+      {sotto('explanation')}
     </View>
   );
 }

@@ -7,10 +7,10 @@ import React from 'react';
 import { describe, expect, jest, test } from '@jest/globals';
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { TextInput } from 'react-native';
-import { CourseSchema, type Question } from '@formazione/contracts';
+import { CourseSchema, erroriTipo, type Question } from '@formazione/contracts';
 import sample from '../../../../packages/contracts/fixtures/sample-course.json';
 import { DomandaEditor } from './DomandaEditor';
-import { Button } from './ui';
+import { Button, Notice } from './ui';
 
 const corso = CourseSchema.parse(sample);
 const domanda = (kind: Question['kind']) => corso.questions.find((q) => q.kind === kind)!;
@@ -221,4 +221,43 @@ test('gli errori compaiono sotto il loro campo', () => {
   expect(testo.indexOf('Situazione troppo corta')).toBeLessThan(
     testo.indexOf('Domanda sulla situazione 4'),
   );
+});
+
+test('l’errore della spiegazione compare sotto la spiegazione', () => {
+  // Una formula autoreferenziale nella spiegazione blocca il salvataggio: il motivo deve vedersi.
+  const q = { ...domanda('single'), explanation: 'Il testo indica che è la prima.' };
+  const errori = { explanation: erroriTipo(q).map((e) => e.messaggio) };
+  expect(errori.explanation.join()).toContain('«Il testo indica»');
+  const { testo } = disegna(q, { errori });
+  expect(testo).toContain('«Il testo indica»');
+  expect(testo.indexOf('«Il testo indica»')).toBeGreaterThan(testo.indexOf('Spiegazione 4'));
+});
+
+test('ogni campo che le regole possono segnalare ha il suo errore visibile', () => {
+  // Campi di ErroreDomanda (tipi.ts): un campo senza `sotto` renderebbe l’errore invisibile.
+  // Le motivazioni (`rationale`) sono segnalate sotto `options`.
+  const campiPerTipo: [Question['kind'], string[]][] = [
+    ['single', ['prompt', 'options', 'correctOptionId', 'correctOptionIds', 'explanation']],
+    ['scenario', ['situation']],
+    ['correctStatement', ['sentence', 'wrong']],
+  ];
+  for (const [kind, campi] of campiPerTipo) {
+    const errori = Object.fromEntries(campi.map((c) => [c, [`errore di ${c}`]]));
+    const avvisi = (() => {
+      let albero!: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        albero = ReactTestRenderer.create(
+          <DomandaEditor
+            question={domanda(kind)}
+            qi={3}
+            errori={errori}
+            disabled={false}
+            change={jest.fn()}
+          />,
+        );
+      });
+      return albero.root.findAllByType(Notice).map((n) => n.props.text as string);
+    })();
+    expect(avvisi.sort()).toEqual(campi.map((c) => `errore di ${c}`).sort());
+  }
 });

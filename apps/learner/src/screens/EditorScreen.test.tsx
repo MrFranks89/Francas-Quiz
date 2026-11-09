@@ -133,6 +133,13 @@ describe('salvataggio', () => {
     expect(s.errori().length).toBeGreaterThan(0);
     expect(s.pulsante('Salva modifiche')!.props.disabled).toBe(true);
   });
+
+  test('una formula nella spiegazione si vede sotto il campo e blocca il salvataggio', () => {
+    const s = disegna(bozza());
+    s.scrivi('Spiegazione 1', 'Il testo indica che è la prima.');
+    expect(s.errori().join()).toContain('«Il testo indica»');
+    expect(s.pulsante('Salva modifiche')!.props.disabled).toBe(true);
+  });
 });
 
 describe('pubblicazione', () => {
