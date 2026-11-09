@@ -11,6 +11,8 @@
     "test": "vitest run && npm run test:ui",
     "test:ui": "jest --config packages/civis-ui/jest.config.js",
     "test:watch": "vitest",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit && tsc --noEmit -p packages/civis-ui/tsconfig.json",
     "dev:web": "expo start apps/learner --web",
     "export:web": "npm run export:web --workspace @formazione/learner",
@@ -21,6 +23,7 @@
   },
   "devDependencies": {
     "@types/node": "26.6.5",
+    "prettier": "3.9.10",
     "typescript": "7.0.2",
     "vitest": "5.0.4"
   }

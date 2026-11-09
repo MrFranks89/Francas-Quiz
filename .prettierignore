@@ -1,0 +1,16 @@
+# Prettier formatta solo i sorgenti nostri dell'app (apps/learner/src).
+# Tutto il resto è escluso, in particolare:
+# - packages/civis-ui e packages/civis-engine: file copiati da Civis, protetti
+#   da impronta sha256 (provenance.json); riformattarli rompe il test d'integrità;
+# - services/api/formazione_api/config/prezzi.json e gli altri JSON: hanno
+#   impronte e contenuti fissati dai test.
+*
+!apps/
+!apps/learner/
+!apps/learner/src/
+!apps/learner/src/**
+
+# Esclusi per ora: li sta modificando un altro lavoro in parallelo. Da
+# formattare in un commit di sola formattazione appena è chiuso.
+apps/learner/src/components/GenerationPanel.tsx
+apps/learner/src/api/errors.test.ts
