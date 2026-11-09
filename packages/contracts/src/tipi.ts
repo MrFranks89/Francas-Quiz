@@ -42,15 +42,24 @@ function occorrenze(testo: string, parte: string): number {
 }
 /** Lunghezza in punti di codice, come len() di Python (non in unità UTF-16). */
 const lunghezza = (testo: string) => Array.from(testo.trim()).length;
+/** Tipi su cui si controlla la lunghezza della giusta. */
+const TIPI_CON_LUNGHEZZA: readonly TipoDomanda[] = ['single', 'scenario', 'oddOneOut', 'correctStatement', 'multiple'];
+/**
+ * Testo di un'opzione per il confronto dei duplicati: NFC, spazi compressi, minuscole. Gli accenti
+ * restano, perché in italiano distinguono parole diverse (papa/papà, e/è); NFC rende uguali le due
+ * scritture di «è», identiche a vedersi. Stessa funzione di normalizza_opzione in regole.py.
+ */
+export const normalizzaOpzione = (testo: string) => testo.normalize('NFC').replace(/\s+/g, ' ').trim().toLowerCase();
 
 /**
  * Regole per tipo. Riscritte, non copiate, da C:\Civica\CivicaApp\scripts\verifica-contenuti.mjs
  * (righe 281–331), che le applica a scenario, intruso e correggi l'errore:
  * - una sola risposta giusta: qui è garantita dalla forma (un solo correctOptionId);
  * - indice della giusta valido: correctOptionId deve essere fra le opzioni (controllo del corso);
- * - nessuna opzione duplicata;
- * - la giusta non più lunga di 1,5 volte la più lunga delle altre (in Civis è un conteggio
- *   segnalato; qui, su richiesta, è un errore: l'indizio vale per chi risponde).
+ * - nessuna opzione duplicata, su tutti i tipi, a meno di spazi e maiuscole (righe 290 e 904);
+ * - la giusta non più lunga di 1,5 volte la più lunga delle altre, anche su single e multiple
+ *   (righe 292–301 e 924–930; in Civis è un conteggio segnalato; qui, su richiesta, è un errore:
+ *   l'indizio vale per chi risponde).
  */
 export function erroriTipo(q: DomandaDaControllare): ErroreDomanda[] {
   const errori: ErroreDomanda[] = [];
@@ -68,8 +77,6 @@ export function erroriTipo(q: DomandaDaControllare): ErroreDomanda[] {
     if (giuste.length < 2) err('correctOptionIds', 'Risposta multipla: servono almeno 2 risposte giuste');
     else if (new Set(giuste).size !== giuste.length || giuste.some(g => !ids.has(g))) err('correctOptionIds', 'Risposta multipla: le giuste devono essere opzioni diverse della domanda');
     else if (giuste.length >= q.options.length) err('correctOptionIds', 'Risposta multipla: serve almeno una risposta sbagliata');
-    const testi = q.options.map(o => o.text.trim());
-    if (new Set(testi).size !== testi.length) err('options', 'Opzioni duplicate');
   } else {
     if (q.correctOptionIds !== undefined && q.correctOptionIds !== null) err('correctOptionIds', 'Il campo correctOptionIds vale solo per il tipo multiple');
     if (!q.correctOptionId) err('correctOptionId', 'Manca la risposta giusta');
@@ -91,15 +98,22 @@ export function erroriTipo(q: DomandaDaControllare): ErroreDomanda[] {
       err('wrong', 'Correggi l\'errore: la parte sbagliata deve comparire esattamente una volta nella frase');
     }
   }
-  if (q.kind === 'scenario' || q.kind === 'oddOneOut' || q.kind === 'correctStatement') {
-    const testi = q.options.map(o => o.text.trim());
-    if (new Set(testi).size !== testi.length) err('options', 'Opzioni duplicate');
-    const giusta = q.options.findIndex(o => o.id === q.correctOptionId);
-    if (giusta >= 0 && q.options.length > 1) {
+  // Opzioni duplicate, su tutti i tipi, dopo normalizzaOpzione (verifica-contenuti.mjs righe 290 e
+  // 904 confronta i testi così come sono; qui « prima » e «Prima» sono la stessa risposta).
+  const normalizzati = q.options.map(o => normalizzaOpzione(o.text));
+  if (new Set(normalizzati).size !== normalizzati.length) err('options', 'Opzioni duplicate');
+  // Giusta troppo lunga (verifica-contenuti.mjs righe 292–301 e 924–930): non su fillblank (parole
+  // singole) né su truefalse (opzioni fisse); su multiple ogni giusta contro la più lunga di tutte le
+  // altre, la stessa definizione di Civis. Motivazioni in regole.py (violazioni_tipo).
+  if (TIPI_CON_LUNGHEZZA.includes(q.kind) && q.options.length > 1) {
+    const giuste = q.kind === 'multiple' ? (q.correctOptionIds ?? []) : [q.correctOptionId];
+    const indici = [...new Set(giuste.map(g => q.options.findIndex(o => o.id === g)).filter(i => i >= 0))].sort((a, b) => a - b);
+    for (const giusta of indici) {
       const rivale = Math.max(...q.options.filter((_, i) => i !== giusta).map(o => lunghezza(o.text)));
       // Confronto in interi: giusta > 1,5·rivale  ⇔  2·giusta > 3·rivale.
       if (2 * lunghezza(q.options[giusta].text) > 3 * rivale) {
         err('options', 'La risposta giusta è più lunga di 1,5 volte la più lunga delle altre: si riconosce senza conoscere la materia');
+        break;
       }
     }
   }

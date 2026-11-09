@@ -1,8 +1,23 @@
 """Regole di qualità per tipo di domanda e codici di scarto della generazione."""
+import unicodedata
+
 from .comune import OPZIONI_VERO_FALSO, SPAZIO
 
 
 _CAMPI_DEL_TIPO = {'situation': 'scenario', 'sentence': 'correctStatement', 'wrong': 'correctStatement'}
+# Tipi su cui si controlla la lunghezza della giusta (vedi violazioni_tipo).
+_TIPI_CON_LUNGHEZZA = ('single', 'scenario', 'oddOneOut', 'correctStatement', 'multiple')
+
+
+def normalizza_opzione(testo: str) -> str:
+    """Testo di un'opzione per il confronto dei duplicati: NFC, spazi compressi, minuscole.
+
+    Gli accenti restano: in italiano distinguono parole diverse (papa/papà, e/è, pero/però) e
+    toglierli scarterebbe distrattori legittimi, soprattutto in fillblank dove le opzioni sono parole
+    singole. NFC fa sì che «è» scritto con un carattere solo o con «e» più l'accento combinante,
+    identici a vedersi, risultino uguali. Stessa funzione di normalizzaOpzione in tipi.ts.
+    """
+    return ' '.join(unicodedata.normalize('NFC', testo).split()).lower()
 
 
 def errori_tipo(kind, prompt, options, correct_id, situation=None, sentence=None, wrong=None,
@@ -44,8 +59,6 @@ def violazioni_tipo(kind, prompt, options, correct_id, situation=None, sentence=
             errori.append(('correctOptionIds', 'multipla_giuste_non_valide', 'Risposta multipla: le giuste devono essere opzioni diverse della domanda'))
         elif len(giuste) >= len(options):
             errori.append(('correctOptionIds', 'multipla_senza_sbagliate', 'Risposta multipla: serve almeno una risposta sbagliata'))
-        if len(set(testi)) != len(testi):
-            errori.append(('options', 'opzioni_duplicate', 'Opzioni duplicate'))
     else:
         if correct_ids is not None:
             errori.append(('correctOptionIds', 'giuste_multiple_fuori_tipo', 'Il campo correctOptionIds vale solo per il tipo multiple'))
@@ -64,17 +77,29 @@ def violazioni_tipo(kind, prompt, options, correct_id, situation=None, sentence=
             errori.append(('wrong', 'parte_sbagliata_mancante', 'Correggi l\'errore: la parte sbagliata è obbligatoria'))
         elif (sentence or '').strip() and sentence.count(wrong) != 1:
             errori.append(('wrong', 'parte_sbagliata_non_unica', 'Correggi l\'errore: la parte sbagliata deve comparire esattamente una volta nella frase'))
-    if kind in ('scenario', 'oddOneOut', 'correctStatement'):
-        if len(set(testi)) != len(testi):
-            errori.append(('options', 'opzioni_duplicate', 'Opzioni duplicate'))
-        ids = [i for i, _ in options]
-        if correct_id in ids and len(options) > 1:
-            giusta = ids.index(correct_id)
+    # Opzioni duplicate, su tutti i tipi. Civis confronta i testi così come sono (verifica-contenuti.mjs
+    # riga 290 per scenario, intruso e correggi; riga 904 per le domande a scelta singola del quiz);
+    # qui il confronto avviene dopo normalizza_opzione, perché «Prima» e « prima » sono la stessa
+    # risposta per chi legge. Vale anche per fillblank, che Civis non controlla.
+    normalizzati = [normalizza_opzione(t) for t in testi]
+    if len(set(normalizzati)) != len(normalizzati):
+        errori.append(('options', 'opzioni_duplicate', 'Opzioni duplicate'))
+    # Giusta troppo lunga (verifica-contenuti.mjs righe 292–301 e 924–930; in Civis è un conteggio,
+    # qui un errore). Non su fillblank: le opzioni sono parole singole, e la parola giusta è quella
+    # del materiale. Non su truefalse: le opzioni sono fisse. Su multiple, opzione per opzione: ogni
+    # giusta contro la più lunga di tutte le altre, la stessa definizione di Civis. Confrontarla con le
+    # sole sbagliate scarterebbe domande naturali (la multipla della pipeline di prova, «Testo di
+    # formazione» contro «Una tabella», cadrebbe), perché le giuste tendono a essere frasi più piene.
+    ids = [i for i, _ in options]
+    if kind in _TIPI_CON_LUNGHEZZA and len(options) > 1:
+        giuste = (correct_ids or []) if kind == 'multiple' else [correct_id]
+        for giusta in sorted({ids.index(g) for g in giuste if g in ids}):
             rivale = max(len(t) for k, t in enumerate(testi) if k != giusta)
             # len() conta punti di codice, come Array.from in TypeScript; 2·giusta > 3·rivale ⇔ giusta > 1,5·rivale.
             if 2 * len(testi[giusta]) > 3 * rivale:
                 errori.append(('options', 'giusta_troppo_lunga', 'La risposta giusta è più lunga di 1,5 volte la più lunga delle altre: '
                                           'si riconosce senza conoscere la materia'))
+                break
     return errori
 
 

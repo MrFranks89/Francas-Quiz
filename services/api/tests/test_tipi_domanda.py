@@ -75,7 +75,8 @@ def test_soglia_della_lunghezza_in_punti_di_codice():
     assert errori_tipo('oddOneOut', 'Intruso?', opts('aaaaaa'), 'a') == []
     assert len(errori_tipo('oddOneOut', 'Intruso?', opts('aaaaaaa'), 'a')) == 1
     assert errori_tipo('oddOneOut', 'Intruso?', opts('aaaaa\U0001F600'), 'a') == []
-    assert errori_tipo('single', 'Domanda?', [('a', 'giusta molto molto lunga'), ('b', 'no')], 'a') == []
+    # Anche sulla scelta singola, come le domande del quiz in Civis (verifica-contenuti.mjs 924–930).
+    assert len(errori_tipo('single', 'Domanda?', [('a', 'giusta molto molto lunga'), ('b', 'no')], 'a')) == 1
 
 
 def test_null_esplicito_su_campo_facoltativo_rifiutato_anche_da_zod():

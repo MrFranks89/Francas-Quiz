@@ -109,7 +109,7 @@
         },
         {
           "id": "option-1-b",
-          "text": "Nessuno"
+          "text": "Il cliente"
         }
       ],
       "correctOptionId": "option-1-a",
@@ -132,7 +132,7 @@
         },
         {
           "id": "option-2-b",
-          "text": "Nessuno"
+          "text": "Il cliente"
         }
       ],
       "correctOptionId": "option-2-a",

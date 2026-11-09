@@ -58,8 +58,9 @@ describe('tipi di domanda', () => {
     expect(erroriTipo({ ...base, options: opts('aaaaa\u{1F600}') })).toEqual([]);
   });
 
-  it('la lunghezza non si controlla sulla scelta singola, come in Civis', () => {
+  it('la lunghezza si controlla anche sulla scelta singola, come le domande del quiz in Civis', () => {
+    // verifica-contenuti.mjs righe 924–930.
     const q = { kind: 'single' as const, prompt: 'Domanda?', correctOptionId: 'a', options: [{ id: 'a', text: 'giusta molto molto lunga' }, { id: 'b', text: 'no' }] };
-    expect(erroriTipo(q)).toEqual([]);
+    expect(erroriTipo(q)).toHaveLength(1);
   });
 });
