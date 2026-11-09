@@ -19,6 +19,7 @@ from decimal import ROUND_CEILING, Decimal, InvalidOperation
 from pathlib import Path
 
 from .generation import GenerationError, generate
+from .generation.causa import oscura
 from .generation.selection import config_status, create_provider, selected_name
 from .measurement import preventivo as pv
 from .measurement.guardia import FornitoreSorvegliato, GuardiaRifiuto, Registro, adesso, verifica_avvio
@@ -292,7 +293,8 @@ def genera_con_tetto(extraction: dict, provider, store, corsa_id: str, **opzioni
             raise
         except Exception as error:  # registrata comunque: anche le generazioni fallite costano
             corsa['esito'] = 'fallita'
-            corsa['errore'] = dict(code=type(error).__name__, message=str(error))
+            # Testo di un'eccezione imprevista: può contenere una chiave (generation/causa.py).
+            corsa['errore'] = dict(code=type(error).__name__, message=oscura(str(error)))
             raise
         finally:
             effettivi = [c.get('effettivoUSD') for c in corsa['chiamate']]

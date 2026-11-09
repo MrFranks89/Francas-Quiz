@@ -15,6 +15,7 @@ from pathlib import Path
 from ..documents import KINDS
 from ..extractors import native_extract
 from ..generation import GenerationError, generate
+from ..generation.causa import oscura
 from ..generation.selection import create_provider
 from ..pagine_non_lette import messaggio_blocco, pagine_bianche, pagine_non_lette
 from . import preventivo as pv
@@ -186,7 +187,8 @@ def esegui_selezione(selezione: dict, estrazione: dict, sha: str, prezzi: dict, 
         corsa['errore'] = dict(code=error.code, message=str(error))
     except Exception as error:  # registrata comunque: anche le corse fallite costano
         corsa['esito'] = 'fallita'
-        corsa['errore'] = dict(code=type(error).__name__, message=str(error))
+        # Testo di un'eccezione imprevista: può contenere una chiave (generation/causa.py).
+        corsa['errore'] = dict(code=type(error).__name__, message=oscura(str(error)))
     finally:
         effettivi = [c.get('effettivoUSD') for c in corsa['chiamate']]
         corsa.update(fine=adesso(), durataMs=round((time.perf_counter() - iniziata) * 1000),
