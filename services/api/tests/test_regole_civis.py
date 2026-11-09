@@ -156,3 +156,12 @@ def test_la_pipeline_scarta_le_domande_con_le_formule_vietate():
     result = generate(extraction(), Fornitore(domande))
     assert [q['prompt'] for q in result['course']['questions']] == ['Quale risposta?']
     assert [s['rule'] for s in result['scarti']] == ['autoreferenziale', 'contesto_non_viaggia', 'tempo_relativo', 'autoreferenziale']
+
+
+def test_rimando_alla_slide_non_viaggia():
+    # Non è in Civis (lì le sfide non hanno slide): qui le domande del test stanno staccate dalle slide.
+    assert formule(prompt='Che cosa dice la slide sul comune?') == [('prompt', 'contesto_non_viaggia')]
+    assert formule(prompt='Quale ente, nelle slide, decide?') == [('prompt', 'contesto_non_viaggia')]
+    assert formule(prompt='Che cosa riporta questa slide?') == [('prompt', 'contesto_non_viaggia')]
+    assert formule(prompt='Che cosa riporta quest’slide?') == [('prompt', 'contesto_non_viaggia')]
+    assert formule(prompt='Quale ente decide sullo slideshow?') == []

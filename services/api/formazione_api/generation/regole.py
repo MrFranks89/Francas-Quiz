@@ -46,7 +46,10 @@ TEMPO_RELATIVO = re.compile(
 CONTESTO_NON_VIAGGIA = re.compile(
     r"nell'immagine|nella foto|in questa (?:immagine|foto|frase|situazione|scheda)|nel testo (?:sopra|precedente)|"
     r"qui sopra|l'esempio (?:sopra|precedente|appena)|il caso (?:descritto|sopra)|secondo il (?:grafico|testo)|"
-    r"nello schema|nell'illustrazione|come mostrato\b" + _NON_FONTE, re.IGNORECASE | re.ASCII)
+    r"nello schema|nell'illustrazione|come mostrato\b" + _NON_FONTE +
+    # Aggiunta, non in Civis (le sfide di Civis non hanno slide): le domande del test stanno staccate
+    # dalle slide del modulo, quindi «la slide», «nelle slide», «questa slide» non hanno referente.
+    r"|(?:\bnell[ae]|\bquest[ae]|\bl[ae]) slides?\b|\bquest'slides?\b", re.IGNORECASE | re.ASCII)
 # Rimandi che in un tipo indicano un pezzo della domanda stessa, che viaggia con lei: la situazione
 # di uno scenario, la frase di correggi l'errore o di completa la frase. Civis cerca il contesto solo
 # nel testo del quiz, dove questi pezzi non esistono, quindi non ha l'eccezione.

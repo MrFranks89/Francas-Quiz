@@ -122,3 +122,11 @@ describe('formule che non reggono fuori dalla lezione', () => {
     expect(e.messaggio).toContain('«attualmente»');
   });
 });
+
+it('il rimando alla slide non viaggia (non è in Civis: qui il test sta staccato dalle slide)', () => {
+  expect(formule({ prompt: 'Che cosa dice la slide sul comune?' })).toEqual([['prompt', 'contesto_non_viaggia']]);
+  expect(formule({ prompt: 'Quale ente, nelle slide, decide?' })).toEqual([['prompt', 'contesto_non_viaggia']]);
+  expect(formule({ prompt: 'Che cosa riporta questa slide?' })).toEqual([['prompt', 'contesto_non_viaggia']]);
+  expect(formule({ prompt: 'Che cosa riporta quest’slide?' })).toEqual([['prompt', 'contesto_non_viaggia']]);
+  expect(formule({ prompt: 'Quale ente decide sullo slideshow?' })).toEqual([]);
+});

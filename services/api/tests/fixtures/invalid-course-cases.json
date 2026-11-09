@@ -34,6 +34,7 @@
   {"rule":"contesto_non_viaggia","messaggio":"Rimanda a un contesto che nel test non c'è («l'esempio sopra»): la domanda si mostra senza slide né immagini","path":["questions",0,"prompt"],"value":"Quale risposta mostra l’esempio sopra?"},
   {"rule":"tempo_relativo","messaggio":"Riferimento temporale che invecchia da solo («attualmente»): va datato o tolto","path":["questions",1,"prompt"],"value":"Il testo attualmente ha un secondo paragrafo."},
   {"rule":"tempo_relativo","messaggio":"Riferimento temporale che invecchia da solo («Di recente»): va datato o tolto","path":["questions",3,"situation"],"value":"Di recente un collega legge il materiale."},
+  {"rule":"contesto_non_viaggia","messaggio":"Rimanda a un contesto che nel test non c'è («la slide»): la domanda si mostra senza slide né immagini","path":["questions",0,"prompt"],"value":"Che cosa dice la slide?"},
   {"path":["questions",6,"correctOptionIds"],"value":["option-0"]},
   {"path":["questions",6,"correctOptionIds"],"value":["option-0","option-1","option-2","option-3"]},
   {"path":["questions",6,"correctOptionIds"],"value":["option-0","option-9"]},

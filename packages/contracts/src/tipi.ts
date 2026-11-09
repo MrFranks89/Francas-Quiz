@@ -74,7 +74,9 @@ export const TEMPO_RELATIVO = new RegExp(
 export const CONTESTO_NON_VIAGGIA = new RegExp(
   String.raw`nell'immagine|nella foto|in questa (?:immagine|foto|frase|situazione|scheda)|nel testo (?:sopra|precedente)|` +
   String.raw`qui sopra|l'esempio (?:sopra|precedente|appena)|il caso (?:descritto|sopra)|secondo il (?:grafico|testo)|` +
-  String.raw`nello schema|nell'illustrazione|come mostrato\b` + NON_FONTE, 'gi');
+  String.raw`nello schema|nell'illustrazione|come mostrato\b` + NON_FONTE +
+  // Aggiunta, non in Civis: le domande del test stanno staccate dalle slide (vedi regole.py).
+  String.raw`|(?:\bnell[ae]|\bquest[ae]|\bl[ae]) slides?\b|\bquest'slides?\b`, 'gi');
 /** Rimandi a un pezzo della domanda stessa, che viaggia con lei (vedi _CONTESTO_PROPRIO in regole.py). */
 const CONTESTO_PROPRIO: Partial<Record<TipoDomanda, string>> = { scenario: 'in questa situazione', correctStatement: 'in questa frase', fillblank: 'in questa frase' };
 
