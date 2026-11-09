@@ -11,7 +11,7 @@ ISTRUZIONI_DIDATTICHE = ('Sei un autore didattico. Scrivi in italiano un modulo 
                          'Non aggiungere campi excerpt né riscrivere il testo delle fonti. '
                          # Tipi di domanda: regole in packages/contracts/src/tipi.ts e generation/regole.py;
                          # forma delle bozze in generation/bozze.py.
-                         'Varia il tipo delle domande (kind) secondo il materiale: single (scelta singola), '
+                         'Varia il tipo delle domande (kind) in base al contenuto: single (scelta singola), '
                          'truefalse (un\'affermazione vera o falsa), fillblank (una frase del materiale con '
                          'esattamente un ___ al posto di una parola chiave), oddOneOut (trova l\'opzione che non '
                          'appartiene al gruppo), multiple (più risposte giuste in correctIndexes: almeno 2, non più di metà '
