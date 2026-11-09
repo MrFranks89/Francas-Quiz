@@ -1,6 +1,5 @@
 import React, { useReducer } from 'react';
 import { View, Text, TextInput, Switch } from 'react-native';
-import { CourseSchema } from '@formazione/contracts';
 import { draftRequest, type Draft } from '../api/generation';
 import {
   createEditorState,
@@ -9,6 +8,13 @@ import {
   erroriSoglia,
   strictPositive,
 } from '../state/editor';
+import {
+  bozzaBloccata,
+  messaggioErrore,
+  richiestaPubblicazione,
+  richiestaSalvataggio,
+  validaBozza,
+} from '../state/bozza';
 import { DomandaEditor } from '../components/DomandaEditor';
 import { Button, Card, Notice, styles } from '../components/ui';
 export function EditorScreen({
@@ -28,10 +34,9 @@ export function EditorScreen({
   const published = draft.status === 'published';
   // Una soglia sotto il minimo blocca salvataggio e pubblicazione finché non viene corretta.
   const soglie = erroriSoglia(course);
-  const sogliaNonValida = Object.keys(soglie).length > 0;
   // Lo stesso per le regole dei tipi di domanda: errore sotto il campo, salvataggio bloccato.
   const domande = erroriDomande(course);
-  const bloccata = sogliaNonValida || Object.keys(domande).length > 0;
+  const bloccata = bozzaBloccata(soglie, domande);
   function change(path: (string | number)[], value: unknown) {
     dispatch({ type: 'change', path, value });
   }
@@ -53,21 +58,14 @@ export function EditorScreen({
   async function save() {
     dispatch({ type: 'start' });
     try {
-      const validated = CourseSchema.safeParse(course);
-      if (!validated.success)
-        throw new Error(
-          `Bozza non valida: ${validated.error.issues.map((i) => i.message).join('; ')}`,
-        );
-      const next = await draftRequest(`/drafts/${draft.id}`, 'PUT', {
-        expectedRevision: draft.revision ?? 1,
-        course: validated.data,
-      });
+      const richiesta = richiestaSalvataggio(draft, validaBozza(course));
+      const next = await draftRequest(richiesta.path, richiesta.method, richiesta.body);
       onChange(next);
       dispatch({ type: 'saved', course: next.course });
     } catch (e) {
       dispatch({
         type: 'error',
-        message: e instanceof Error ? e.message : 'Salvataggio non riuscito.',
+        message: messaggioErrore(e, 'Salvataggio non riuscito.'),
       });
     } finally {
       dispatch({ type: 'end' });
@@ -76,16 +74,12 @@ export function EditorScreen({
   async function publish() {
     dispatch({ type: 'start' });
     try {
-      onChange(
-        await draftRequest(`/drafts/${draft.id}/publish`, 'POST', {
-          expectedRevision: draft.revision ?? 1,
-          confirmReviewed: reviewed,
-        }),
-      );
+      const richiesta = richiestaPubblicazione(draft, reviewed);
+      onChange(await draftRequest(richiesta.path, richiesta.method, richiesta.body));
     } catch (e) {
       dispatch({
         type: 'error',
-        message: e instanceof Error ? e.message : 'Pubblicazione non riuscita.',
+        message: messaggioErrore(e, 'Pubblicazione non riuscita.'),
       });
     } finally {
       dispatch({ type: 'end' });
