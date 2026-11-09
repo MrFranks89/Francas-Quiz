@@ -9,8 +9,3 @@
 !apps/learner/
 !apps/learner/src/
 !apps/learner/src/**
-
-# Esclusi per ora: li sta modificando un altro lavoro in parallelo. Da
-# formattare in un commit di sola formattazione appena è chiuso.
-apps/learner/src/components/GenerationPanel.tsx
-apps/learner/src/api/errors.test.ts

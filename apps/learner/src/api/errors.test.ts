@@ -1,4 +1,43 @@
-import {apiErrorMessage} from './errors';
-it('shows provider and budget error messages sent as structured detail',()=>{expect(apiErrorMessage({detail:{code:'budget_exceeded',message:'Il documento supera il budget configurato.'}},'Generazione non riuscita.')).toBe('Il documento supera il budget configurato.');});
-it('shows the readable provider cause message, not the structured cause',()=>{expect(apiErrorMessage({detail:{code:'provider_error',message:'Il fornitore ha rifiutato la richiesta: limite di utilizzo raggiunto (429)',cause:{classe:'RateLimitError',statoHttp:429,tipo:null,codice:'429',messaggio:'Quota exceeded'}}},'Generazione non riuscita.')).toBe('Il fornitore ha rifiutato la richiesta: limite di utilizzo raggiunto (429)');});
-it('keeps string errors and handles malformed or missing detail explicitly',()=>{expect(apiErrorMessage({detail:'Bozza non trovata'},'Errore')).toBe('Bozza non trovata');for(const value of [null,{}, {detail:[]},{detail:{code:'failure'}},{detail:{message:34}},{detail:''}])expect(apiErrorMessage(value,'Errore comprensibile')).toBe('Errore comprensibile');});
+import { apiErrorMessage } from './errors';
+it('shows provider and budget error messages sent as structured detail', () => {
+  expect(
+    apiErrorMessage(
+      {
+        detail: { code: 'budget_exceeded', message: 'Il documento supera il budget configurato.' },
+      },
+      'Generazione non riuscita.',
+    ),
+  ).toBe('Il documento supera il budget configurato.');
+});
+it('shows the readable provider cause message, not the structured cause', () => {
+  expect(
+    apiErrorMessage(
+      {
+        detail: {
+          code: 'provider_error',
+          message: 'Il fornitore ha rifiutato la richiesta: limite di utilizzo raggiunto (429)',
+          cause: {
+            classe: 'RateLimitError',
+            statoHttp: 429,
+            tipo: null,
+            codice: '429',
+            messaggio: 'Quota exceeded',
+          },
+        },
+      },
+      'Generazione non riuscita.',
+    ),
+  ).toBe('Il fornitore ha rifiutato la richiesta: limite di utilizzo raggiunto (429)');
+});
+it('keeps string errors and handles malformed or missing detail explicitly', () => {
+  expect(apiErrorMessage({ detail: 'Bozza non trovata' }, 'Errore')).toBe('Bozza non trovata');
+  for (const value of [
+    null,
+    {},
+    { detail: [] },
+    { detail: { code: 'failure' } },
+    { detail: { message: 34 } },
+    { detail: '' },
+  ])
+    expect(apiErrorMessage(value, 'Errore comprensibile')).toBe('Errore comprensibile');
+});

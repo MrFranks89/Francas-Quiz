@@ -32,12 +32,7 @@ const RIGHE_MASSIME = 400;
  * misurato come tetto. Non possono peggiorare, e un'eccezione che non serve
  * più fa fallire il test, così la lista si accorcia invece di restare.
  */
-const ECCEZIONI_MEDIA: Record<string, number> = {
-  // Non riformattati: un altro lavoro li stava modificando in parallelo
-  // (vedi .prettierignore). Da togliere con la loro riformattazione.
-  'apps/learner/src/components/GenerationPanel.tsx': 154,
-  'apps/learner/src/api/errors.test.ts': 275,
-};
+const ECCEZIONI_MEDIA: Record<string, number> = {};
 const ECCEZIONI_RIGHE: Record<string, number> = {
   // Lettore del corso e vista d'esame: tutti i tipi di domanda in un file.
   // Da dividere come l'editor (stato in state/, un componente per parte).
