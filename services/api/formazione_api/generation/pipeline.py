@@ -15,21 +15,32 @@ def avviso_scarti(n: int) -> str:
 
 
 def domanda_del_contratto(question, qid: str, module_id: str, lesson_id: str) -> dict:
-    """Una bozza di domanda (una variante di QuestionDraft) nella forma del contratto Course."""
+    """Una bozza di domanda (QuestionDraft, forma piatta) nella forma del contratto Course.
+
+    I campi che il tipo non usa arrivano con un valore neutro (bozze.py). Un campo neutro resta fuori
+    dalla domanda; un campo pieno che il tipo non usa entra com'è, così violazioni_domanda scarta la
+    domanda con il codice di regole.py invece di perderlo in silenzio: situation, sentence o wrong fuori
+    tipo → campo_di_altro_tipo; correctIndexes fuori da multiple → giuste_multiple_fuori_tipo; opzioni
+    scritte in truefalse → vero_falso_opzioni. Il campo del tipo lasciato vuoto resta fuori, e la regola
+    del tipo lo segnala (situazione_mancante, frase_mancante, parte_sbagliata_mancante).
+    """
+    # Motivazione vuota = assente: il contratto rifiuta un testo vuoto.
+    options = [dict(id=f'option-{k}', text=text, **({'rationale': why} if why.strip() else {}))
+               for k, (text, why) in enumerate(zip(question.options, question.rationales))]
     if question.kind == 'truefalse':
         # Opzioni fisse nell'ordine Vero, Falso (OPZIONI_VERO_FALSO): non le scrive il modello.
-        options = [dict(id=f'option-{k}', text=text) for k, text in enumerate(OPZIONI_VERO_FALSO)]
+        options = options or [dict(id=f'option-{k}', text=text) for k, text in enumerate(OPZIONI_VERO_FALSO)]
         correct = 0 if question.correct else 1
     else:
-        # Motivazione vuota = assente: il contratto rifiuta un testo vuoto.
-        options = [dict(id=f'option-{k}', text=text, **({'rationale': why} if why.strip() else {}))
-                   for k, (text, why) in enumerate(zip(question.options, question.rationales))]
-        correct = None if question.kind == 'multiple' else question.correctIndex
-    extra = {name: getattr(question, name) for name in ('situation', 'sentence', 'wrong') if hasattr(question, name)}
+        correct = question.correctIndex
+    extra = {name: getattr(question, name) for name in ('situation', 'sentence', 'wrong') if getattr(question, name).strip()}
+    giuste = {}
+    if question.kind == 'multiple' or question.correctIndexes:
+        giuste['correctOptionIds'] = [f'option-{i}' for i in question.correctIndexes]
+    if question.kind != 'multiple':
+        giuste['correctOptionId'] = f'option-{correct}'
     return dict(id=qid, moduleId=module_id, lessonId=lesson_id, kind=question.kind, prompt=question.prompt, **extra,
-                difficulty=question.difficulty, options=options,
-                **({'correctOptionIds': [f'option-{i}' for i in question.correctIndexes]} if question.kind == 'multiple'
-                   else {'correctOptionId': f'option-{correct}'}),
+                difficulty=question.difficulty, options=options, **giuste,
                 explanation=question.explanation, sourceRefs=question.sourceRefs)
 
 

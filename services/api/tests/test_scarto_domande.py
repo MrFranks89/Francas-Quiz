@@ -17,6 +17,7 @@ from formazione_api.generation.models import Course, ModuleDraft, violazioni_dom
 from formazione_api.generation.provider import OpenAIProvider
 from test_anthropic_provider import message, sdk_provider
 from test_generation import extraction
+from bozze_di_prova import bozza
 
 FIXTURE = Path(__file__).parent / 'fixtures' / 'generated-course-con-scarti.json'
 COMUNI = dict(explanation='Spiegazione di prova', difficulty='base')
@@ -26,14 +27,14 @@ def cinque_domande(refs):
     """5 bozze: 3 buone, 1 con la giusta troppo lunga (intruso), 1 completa la frase con due spazi."""
     comuni = dict(COMUNI, sourceRefs=refs)
     return [
-        dict(kind='single', prompt='Quale risposta?', options=['Prima', 'Seconda'], correctIndex=0, rationales=['', ''], **comuni),
-        dict(kind='oddOneOut', prompt='Quale elemento non compare nel materiale?',
+        bozza(kind='single', prompt='Quale risposta?', options=['Prima', 'Seconda'], correctIndex=0, rationales=['', ''], **comuni),
+        bozza(kind='oddOneOut', prompt='Quale elemento non compare nel materiale?',
              options=['Testo', 'Paragrafo', 'Una tabella riassuntiva molto lunga'], correctIndex=2,
              rationales=['', '', ''], **comuni),
-        dict(kind='truefalse', prompt='Il testo ha un secondo paragrafo.', correct=True, **comuni),
-        dict(kind='fillblank', prompt='Il ___ paragrafo segue il ___ di formazione.', options=['secondo', 'terzo'],
+        bozza(kind='truefalse', prompt='Il testo ha un secondo paragrafo.', correct=True, **comuni),
+        bozza(kind='fillblank', prompt='Il ___ paragrafo segue il ___ di formazione.', options=['secondo', 'terzo'],
              correctIndex=0, rationales=['', ''], **comuni),
-        dict(kind='multiple', prompt='Che cosa contiene il materiale?',
+        bozza(kind='multiple', prompt='Che cosa contiene il materiale?',
              options=['Testo di formazione', 'Secondo paragrafo', 'Una tabella', 'Un grafico'], correctIndexes=[0, 1],
              rationales=['', '', '', ''], **comuni),
     ]
@@ -94,7 +95,7 @@ def test_una_sola_domanda_scartata_avviso_al_singolare():
 
 def test_piu_regole_violate_dalla_stessa_domanda():
     def domande(refs):
-        doppia = dict(kind='oddOneOut', prompt='Intruso?', options=['A', 'A', 'Una risposta lunghissima'], correctIndex=2,
+        doppia = bozza(kind='oddOneOut', prompt='Intruso?', options=['A', 'A', 'Una risposta lunghissima'], correctIndex=2,
                       rationales=['', '', ''], sourceRefs=refs, **COMUNI)
         return [cinque_domande(refs)[0], doppia]
     scarto, = generate(extraction(), Fornitore(domande))['scarti']

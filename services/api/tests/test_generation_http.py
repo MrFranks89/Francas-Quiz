@@ -3,6 +3,7 @@ from fastapi.testclient import TestClient
 from formazione_api.main import create_app
 from formazione_api.generation import GenerationError
 from test_api import client, extraction, upload, pdf_bytes
+from bozze_di_prova import bozza
 
 
 class Provider:
@@ -13,7 +14,7 @@ class Provider:
         source = chunk.pieces[0].source_id
         return dict(title='Lezione', objectives=['Comprendere la procedura'],
                     slides=[dict(heading='Procedura', body='Leggere il manuale', highlight='Verificare', sourceRefs=[source])],
-                    questions=[dict(kind='single', rationales=['', ''], difficulty='base', prompt='Cosa leggere?', options=['Il manuale', 'Un romanzo'], correctIndex=0,
+                    questions=[bozza(kind='single', rationales=['', ''], difficulty='base', prompt='Cosa leggere?', options=['Il manuale', 'Un romanzo'], correctIndex=0,
                                     explanation='La procedura è nel manuale.', sourceRefs=[source])])
 
 

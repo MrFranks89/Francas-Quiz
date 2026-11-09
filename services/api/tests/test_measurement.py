@@ -16,6 +16,7 @@ from formazione_api.measurement import preventivo as pv
 from formazione_api.measurement.guardia import GuardiaRifiuto, Registro, costo_effettivo, verifica_avvio
 from formazione_api.measurement.integrita import FileNonConforme, sha256_file, verifica_file, verifica_membro_zip
 from formazione_api.measurement.prezzi import PrezzoMancante, prezzo
+from bozze_di_prova import bozza
 
 
 def listino(sovraccarico=100, modello='modello-prova'):
@@ -55,7 +56,7 @@ class FornitoreFinto:
         refs = list(dict.fromkeys(p.source_id for p in chunk.pieces))
         return ModuleDraft(title='Modulo', objectives=['Obiettivo'],
                            slides=[dict(heading='Titolo', body='Testo', highlight='', sourceRefs=refs)],
-                           questions=[dict(kind='single', rationales=['', ''], difficulty='base', prompt='Domanda?', options=['A', 'B'], correctIndex=0,
+                           questions=[bozza(kind='single', rationales=['', ''], difficulty='base', prompt='Domanda?', options=['A', 'B'], correctIndex=0,
                                            explanation='Perché', sourceRefs=refs)])
 
 

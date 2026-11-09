@@ -5,6 +5,7 @@ import pytest
 from formazione_api.generation import generate
 from formazione_api.generation.models import ModuleDraft
 from formazione_api.generation.pipeline import SOGLIA_SUPERAMENTO_PERCENTO, soglia_predefinita
+from bozze_di_prova import bozza
 
 # Unica fonte della scala, letta anche dal motore TypeScript (packages/learning-engine/src/grade.ts).
 SCALA = Path(__file__).resolve().parents[3] / 'packages' / 'contracts' / 'fixtures' / 'grading-scale.json'
@@ -25,7 +26,7 @@ class SetteDomande:
         refs = list(dict.fromkeys(p.source_id for p in chunk.pieces))
         return ModuleDraft(title='Modulo', objectives=['Obiettivo'],
                            slides=[dict(heading='T', body='Corpo', highlight='', sourceRefs=refs)],
-                           questions=[dict(kind='single', rationales=['', ''], difficulty='base', prompt=f'Domanda {i}?', options=['A', 'B'], correctIndex=0,
+                           questions=[bozza(kind='single', rationales=['', ''], difficulty='base', prompt=f'Domanda {i}?', options=['A', 'B'], correctIndex=0,
                                            explanation='Spiegazione', sourceRefs=refs) for i in range(7)])
 
 

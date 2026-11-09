@@ -1,4 +1,4 @@
-"""Lo schema dell'output (ModuleDraft, con l'unione dei tipi di domanda) resta accettabile da entrambi i fornitori.
+"""Lo schema dell'output (ModuleDraft, una forma piatta per tutti i tipi di domanda) resta accettabile da entrambi i fornitori.
 
 Le richieste sono catturate dagli SDK veri con un trasporto finto: nessuna chiave reale, nessuna rete.
 Restrizioni lette alla fonte:
@@ -92,10 +92,13 @@ def test_schema_entro_le_restrizioni_comuni(costruisci):
 
 
 @pytest.mark.parametrize('costruisci', [schema_openai, schema_anthropic], ids=['openai', 'anthropic'])
-def test_ogni_tipo_ha_una_variante_vincolata_da_enum(costruisci):
+def test_una_sola_forma_di_domanda_con_kind_vincolato_da_enum(costruisci):
+    """Forma piatta (generation/bozze.py): un oggetto domanda, nessuna unione, kind fra i sette tipi."""
     schema = costruisci()
-    varianti = [risolvi(schema, v) for v in schema['properties']['questions']['items']['anyOf']]
-    assert [v['properties']['kind']['enum'] for v in varianti] == [[t] for t in TIPI]
+    domanda = risolvi(schema, schema['properties']['questions']['items'])
+    assert 'anyOf' not in domanda
+    assert domanda['properties']['kind']['enum'] == TIPI
+    assert not [n for _, n in nodi(schema) if 'anyOf' in n or isinstance(n.get('type'), list)]
 
 
 def test_anthropic_minitems_solo_zero_o_uno_e_niente_vincoli_di_lunghezza():

@@ -22,6 +22,7 @@ from formazione_api.generation import generate
 from formazione_api.generation.models import violazioni_domanda
 from formazione_api.generation_routes import router as generation
 from formazione_api.storage import Store
+from bozze_di_prova import bozza
 
 VECCHIO = json.loads((Path(__file__).parent / 'fixtures' / 'corso-prima-delle-regole.json').read_text(encoding='utf-8'))
 
@@ -113,12 +114,12 @@ def test_la_generazione_continua_a_scartare_le_stesse_domande():
     def domande(refs):
         comuni = dict(COMUNI, sourceRefs=refs)
         return [
-            dict(kind='single', prompt='Quale risposta?', options=['Prima', 'Seconda'], correctIndex=0, rationales=['', ''], **comuni),
-            {**comuni, **dict(kind='single', prompt=VECCHIO['questions'][0]['prompt'], correctIndex=0, rationales=['', ''],
+            bozza(kind='single', prompt='Quale risposta?', options=['Prima', 'Seconda'], correctIndex=0, rationales=['', ''], **comuni),
+            {**comuni, **bozza(kind='single', prompt=VECCHIO['questions'][0]['prompt'], correctIndex=0, rationales=['', ''],
                               options=[o['text'] for o in VECCHIO['questions'][0]['options']])},
-            {**comuni, **dict(kind='single', prompt=VECCHIO['questions'][7]['prompt'], correctIndex=0, rationales=['', ''],
+            {**comuni, **bozza(kind='single', prompt=VECCHIO['questions'][7]['prompt'], correctIndex=0, rationales=['', ''],
                               options=[o['text'] for o in VECCHIO['questions'][7]['options']])},
-            {**comuni, **dict(kind='single', prompt='Quanti sono gli occupati in più?', correctIndex=0, rationales=['', ''],
+            {**comuni, **bozza(kind='single', prompt='Quanti sono gli occupati in più?', correctIndex=0, rationales=['', ''],
                               options=[o['text'] for o in VECCHIO['questions'][7]['options']],
                               explanation=VECCHIO['questions'][7]['explanation'])},
         ]

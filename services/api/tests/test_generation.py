@@ -7,6 +7,7 @@ from formazione_api.generation import GenerationError, generate
 from formazione_api.generation.models import Course, ModuleDraft
 from pydantic import ValidationError
 from formazione_api.generation.provider import OpenAIProvider, config_status
+from bozze_di_prova import bozza
 
 
 def extraction(pages=1, text='Testo di formazione.\n\nSecondo paragrafo.'):
@@ -30,19 +31,19 @@ def domande_di_prova(refs):
     """Una bozza per ogni tipo di domanda, come le restituirebbe un fornitore (forma di QuestionDraft)."""
     comuni = dict(explanation='Spiegazione di prova', sourceRefs=refs, difficulty='base')
     return [
-        dict(kind='single', prompt='Quale risposta?', options=['Prima', 'Seconda'], correctIndex=0, rationales=['', ''], **comuni),
-        dict(kind='truefalse', prompt='Il testo ha un secondo paragrafo.', correct=True, **comuni),
-        dict(kind='fillblank', prompt='Il ___ paragrafo segue il testo di formazione.', options=['secondo', 'terzo'],
+        bozza(kind='single', prompt='Quale risposta?', options=['Prima', 'Seconda'], correctIndex=0, rationales=['', ''], **comuni),
+        bozza(kind='truefalse', prompt='Il testo ha un secondo paragrafo.', correct=True, **comuni),
+        bozza(kind='fillblank', prompt='Il ___ paragrafo segue il testo di formazione.', options=['secondo', 'terzo'],
              correctIndex=0, rationales=['', ''], **comuni),
-        dict(kind='scenario', situation="Un collega legge il materiale dall'inizio.",
+        bozza(kind='scenario', situation="Un collega legge il materiale dall'inizio.",
              prompt='Che cosa trova dopo il testo di formazione?', options=['Il secondo paragrafo', 'Una tabella riassuntiva'],
              correctIndex=0, rationales=['', 'Il materiale non contiene tabelle.'], **{**comuni, 'difficulty': 'medio'}),
-        dict(kind='oddOneOut', prompt='Quale elemento non compare nel materiale?',
+        bozza(kind='oddOneOut', prompt='Quale elemento non compare nel materiale?',
              options=['Testo di formazione', 'Secondo paragrafo', 'Tabella'], correctIndex=2, rationales=['', '', ''], **comuni),
-        dict(kind='correctStatement', prompt='Quale parola sostituisce quella sbagliata?',
+        bozza(kind='correctStatement', prompt='Quale parola sostituisce quella sbagliata?',
              sentence='Il terzo paragrafo segue il testo di formazione.', wrong='terzo', options=['secondo', 'quarto'],
              correctIndex=0, rationales=['', ''], **{**comuni, 'difficulty': 'avanzato'}),
-        dict(kind='multiple', prompt='Che cosa contiene il materiale?',
+        bozza(kind='multiple', prompt='Che cosa contiene il materiale?',
              options=['Testo di formazione', 'Secondo paragrafo', 'Una tabella', 'Un grafico'], correctIndexes=[0, 1],
              rationales=['', '', '', 'Il materiale è solo testo.'], **comuni),
     ]

@@ -9,6 +9,7 @@ from pathlib import Path
 
 from formazione_api.generation.models import violazioni_domanda
 from formazione_api.generation.regole import normalizza_opzione, violazioni_tipo
+from bozze_di_prova import bozza
 
 FIXTURES = Path(__file__).parent / 'fixtures'
 
@@ -185,7 +186,7 @@ def test_la_pipeline_scarta_le_domande_con_le_formule_vietate():
 
     def domande(refs):
         comuni = dict(COMUNI, sourceRefs=refs)
-        singola = lambda prompt, **altro: {**comuni, **dict(kind='single', prompt=prompt, options=['Prima', 'Seconda'],
+        singola = lambda prompt, **altro: {**comuni, **bozza(kind='single', prompt=prompt, options=['Prima', 'Seconda'],
                                                             correctIndex=0, rationales=['', '']), **altro}
         return [singola('Quale risposta?'), singola('Come hai visto, quale risposta?'),
                 singola('Quale risposta, nell\'immagine?'), singola('Quale risposta vale attualmente?'),
