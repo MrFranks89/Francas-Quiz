@@ -109,7 +109,7 @@ Prima corsa reale, 20 ottobre 2026: Claude Haiku 5.5 sulle pagine 166–195 del 
 | Cosa | File |
 |---|---|
 | Istruzioni al modello e limiti | `services/api/formazione_api/generation/instructions.py` |
-| Schema della risposta richiesta | `services/api/formazione_api/generation/models.py` (`ModuleDraft`, `QuestionDraft`) |
+| Schema della risposta richiesta | `services/api/formazione_api/generation/bozze.py` (`ModuleDraft`, `QuestionDraft`) |
 | Taglio in blocchi | `services/api/formazione_api/generation/chunks.py` |
 | Controlli e assemblaggio | `services/api/formazione_api/generation/pipeline.py` |
 | Chiamata ai fornitori | `generation/provider.py` (OpenAI), `generation/anthropic_provider.py` (Anthropic) |

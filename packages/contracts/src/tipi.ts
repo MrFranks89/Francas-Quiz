@@ -8,7 +8,7 @@
 // FillBlankStep, ScenarioStep, OddOneOutStep, CorrectStatementStep).
 //
 // Le stesse regole, con gli stessi messaggi, sono in
-// services/api/formazione_api/generation/models.py (errori_tipo); i casi
+// services/api/formazione_api/generation/regole.py (errori_tipo); i casi
 // condivisi stanno in services/api/tests/fixtures/invalid-course-cases.json.
 
 export const TIPI_DOMANDA = ['single', 'truefalse', 'fillblank', 'scenario', 'oddOneOut', 'correctStatement', 'multiple'] as const;
