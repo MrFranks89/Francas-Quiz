@@ -72,7 +72,7 @@ Decisione: [003-due-modalita.md](decisions/003-due-modalita.md). La piattaforma 
     - avvisi di sicurezza delle dipendenze;
     - build e prova su dispositivi Android e iOS reali.
 
-**Fornitori AI.** Il confronto di qualità con modelli gratuiti, come Gemini, si fa solo sul corpus pubblico: i piani gratuiti letti alla fonte usano i dati inviati e non vanno usati per il materiale degli studenti. Stato (3 novembre 2026): Gemini integrato come fornitore compatibile OpenAI Chat Completions, a prezzo 0 del piano gratuito, con avviso sui dati nelle Impostazioni; prima chiamata reale ancora da fare. NVIDIA non integrato: output vincolato a schema non documentato sull'endpoint ospitato. Dettagli in [GENERAZIONE.md](GENERAZIONE.md).
+**Fornitori AI.** Il confronto di qualità con modelli gratuiti, come Gemini, si fa solo sul corpus pubblico: i piani gratuiti letti alla fonte usano i dati inviati e non vanno usati per il materiale degli studenti. Stato (3 novembre 2026): Gemini integrato come fornitore compatibile OpenAI Chat Completions, a prezzo 0 del piano gratuito, con avviso sui dati nelle Impostazioni; prima chiamata reale ancora da fare. Schema della bozza (9 novembre 2026): la prima chiamata vera ad Anthropic è stata rifiutata per grammatica troppo grande; `QuestionDraft` è ora un oggetto piatto senza `anyOf` (7,7 → 3,0 KB), con la coerenza per tipo controllata dopo la risposta e soglie automatiche sulla dimensione dello schema; da confermare con una generazione vera (`tools/prova_schema_anthropic.py` è solo un indizio). NVIDIA non integrato: output vincolato a schema non documentato sull'endpoint ospitato. Dettagli in [GENERAZIONE.md](GENERAZIONE.md).
 
 ## Obiettivo e percorso utente
 
