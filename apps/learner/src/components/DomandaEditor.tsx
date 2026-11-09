@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TextInput } from 'react-native';
 import { DIFFICOLTA, type Question } from '@formazione/contracts';
 import { ETICHETTA_PROMPT, NOMI_TIPO, facoltativo } from '../state/editor';
+import { alternaGiusta, campiDelTipo, etichettaDifficolta, giusteDi } from '../state/editorDomanda';
 import { Button, Notice, styles } from './ui';
 
 /**
@@ -50,13 +51,14 @@ export function DomandaEditor({
     );
   }
   const kind = question.kind,
-    giuste = question.correctOptionIds ?? [];
+    giuste = giusteDi(question),
+    campi = campiDelTipo(kind);
   return (
     <View style={{ gap: 12 }}>
       <Text style={styles.subtitle}>
         Domanda {n} · {NOMI_TIPO[kind]}
       </Text>
-      {kind === 'scenario' && (
+      {campi.situazione && (
         <>
           {field(`Situazione ${n}`, ['situation'], question.situation ?? '', { multiline: true })}
           {sotto('situation')}
@@ -64,7 +66,7 @@ export function DomandaEditor({
       )}
       {field(`${ETICHETTA_PROMPT[kind]} ${n}`, ['prompt'], question.prompt, { multiline: true })}
       {sotto('prompt')}
-      {kind === 'correctStatement' && (
+      {campi.fraseConErrore && (
         <>
           {field(`Frase con l'errore ${n}`, ['sentence'], question.sentence ?? '', {
             multiline: true,
@@ -78,16 +80,16 @@ export function DomandaEditor({
         <View key={option.id} style={{ gap: 8 }}>
           {/* Vero/falso: le due opzioni sono fisse, si sceglie solo quale è giusta. */}
           {field(`Risposta ${n}.${oi + 1}`, ['options', oi, 'text'], option.text, {
-            editable: kind !== 'truefalse',
+            editable: campi.testoRisposteModificabile,
           })}
-          {kind !== 'truefalse' &&
+          {campi.motivazioni &&
             field(
               `Motivazione ${n}.${oi + 1} (facoltativa)`,
               ['options', oi, 'rationale'],
               option.rationale ?? '',
               { optional: true },
             )}
-          {kind === 'multiple' ? (
+          {campi.piuGiuste ? (
             <Button
               label={
                 giuste.includes(option.id)
@@ -97,12 +99,7 @@ export function DomandaEditor({
               disabled={disabled}
               secondary={!giuste.includes(option.id)}
               onPress={() =>
-                change(
-                  [...base, 'correctOptionIds'],
-                  giuste.includes(option.id)
-                    ? giuste.filter((g) => g !== option.id)
-                    : [...giuste, option.id],
-                )
+                change([...base, 'correctOptionIds'], alternaGiusta(giuste, option.id))
               }
             />
           ) : (
@@ -120,7 +117,7 @@ export function DomandaEditor({
         </View>
       ))}
       {/* Risposta multipla: l'insieme delle giuste, con l'errore sotto (almeno 2, almeno una sbagliata). */}
-      {kind === 'multiple' && (
+      {campi.piuGiuste && (
         <Text style={styles.muted}>
           Risposte giuste: {giuste.length} su {question.options.length}
         </Text>
@@ -133,7 +130,7 @@ export function DomandaEditor({
         {DIFFICOLTA.map((d) => (
           <Button
             key={d}
-            label={d.charAt(0).toUpperCase() + d.slice(1)}
+            label={etichettaDifficolta(d)}
             disabled={disabled}
             secondary={question.difficulty !== d}
             onPress={() => change([...base, 'difficulty'], d)}
