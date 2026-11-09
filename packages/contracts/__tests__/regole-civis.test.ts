@@ -90,11 +90,11 @@ describe('formule che non reggono fuori dalla lezione', () => {
   });
 
   it('contesto e tempo solo nel testo della domanda', () => {
-    expect(formule({ prompt: 'Di quanto sono cresciuti gli occupati, secondo il testo?' })).toEqual([['prompt', 'contesto_non_viaggia']]);
+    expect(formule({ prompt: 'Quale ente decide, secondo il grafico?' })).toEqual([['prompt', 'contesto_non_viaggia']]);
     expect(formule({ prompt: 'Quale ente decide, nell’immagine?' })).toEqual([['prompt', 'contesto_non_viaggia']]);
     expect(formule({ prompt: 'Quale ente decide attualmente?' })).toEqual([['prompt', 'tempo_relativo']]);
     expect(formule({ kind: 'scenario', situation: 'Di recente Marta è stata assunta.' })).toEqual([['situation', 'tempo_relativo']]);
-    expect(formule({ spiegazione: 'Secondo il testo, attualmente decide il comune.' })).toEqual([]);
+    expect(formule({ spiegazione: 'Come mostrato qui sopra, attualmente decide il comune.' })).toEqual([]);
     expect(formule({ opzioni: ['Il comune, attualmente', 'La regione qui sopra'] })).toEqual([]);
   });
 
@@ -129,4 +129,35 @@ it('il rimando alla slide non viaggia (non è in Civis: qui il test sta staccato
   expect(formule({ prompt: 'Che cosa riporta questa slide?' })).toEqual([['prompt', 'contesto_non_viaggia']]);
   expect(formule({ prompt: 'Che cosa riporta quest’slide?' })).toEqual([['prompt', 'contesto_non_viaggia']]);
   expect(formule({ prompt: 'Quale ente decide sullo slideshow?' })).toEqual([]);
+});
+
+// Rimandi al materiale da cui nasce il corso: non in Civis, che non genera da documenti. Stessi casi di
+// test_regole_civis.py; decisione dell'utente del 9 novembre 2026.
+describe('rimandi al materiale', () => {
+  it('sono autoreferenziali in ogni campo', () => {
+    expect(formule({ spiegazione: 'Il testo indica che decide il comune.' })).toEqual([['explanation', 'autoreferenziale']]);
+    expect(formule({ spiegazione: 'Il materiale riporta che decide il comune.' })).toEqual([['explanation', 'autoreferenziale']]);
+    expect(formule({ spiegazione: 'Il documento afferma che decide il comune.' })).toEqual([['explanation', 'autoreferenziale']]);
+    expect(formule({ prompt: 'Quale ente decide, secondo il materiale?' })).toEqual([['prompt', 'autoreferenziale']]);
+    expect(formule({ prompt: 'Quale variazione riporta il materiale?' })).toEqual([['prompt', 'autoreferenziale']]);
+    expect(formule({ prompt: 'Quale ente indica il documento?' })).toEqual([['prompt', 'autoreferenziale']]);
+    expect(formule({ motivazioni: ['', 'Lo afferma il testo, ma per un altro ente.'] })).toEqual([['options', 'autoreferenziale']]);
+    expect(formule({ opzioni: ['Il comune, come riportato nel documento', 'La regione, per ogni caso simile'] })).toEqual([['options', 'autoreferenziale']]);
+    expect(formule({ kind: 'scenario', situation: 'Marta legge che, secondo il documento, decide il comune.' })).toEqual([['situation', 'autoreferenziale']]);
+  });
+
+  it('«secondo il testo» è autoreferenziale, non contesto', () => {
+    expect(formule({ prompt: 'Di quanto sono cresciuti gli occupati, secondo il testo?' })).toEqual([['prompt', 'autoreferenziale']]);
+    expect(formule({ spiegazione: 'Secondo il testo, decide il comune.' })).toEqual([['explanation', 'autoreferenziale']]);
+  });
+
+  it('falsi positivi esclusi', () => {
+    expect(formule({ prompt: 'Secondo il documento di valutazione dei rischi, chi decide?' })).toEqual([]);
+    expect(formule({ prompt: 'Secondo il testo unico sulla sicurezza, chi decide?' })).toEqual([]);
+    expect(formule({ prompt: 'Quale articolo riporta il testo della norma?' })).toEqual([]);
+    expect(formule({ spiegazione: 'Decide il comune, come riportato nel documento di sintesi della regione.' })).toEqual([]);
+    expect(formule({ prompt: "Che cosa indica il documento d'identità?" })).toEqual([]);
+    expect(formule({ prompt: 'Il documento di identità indica la scadenza?' })).toEqual([]);
+    expect(formule({ spiegazione: 'Il testo indicato in bolletta è il totale.' })).toEqual([]);
+  });
 });

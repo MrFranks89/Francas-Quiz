@@ -103,11 +103,11 @@ def test_autoreferenziale_in_ogni_campo_come_in_civis():
 def test_contesto_e_tempo_solo_nel_testo_della_domanda():
     # Civis li cerca solo in q.q, il testo della domanda (righe 906 e 908); qui il testo della domanda
     # è prompt più situation e sentence, che lo spezzano per tipo.
-    assert formule(prompt='Di quanto sono cresciuti gli occupati, secondo il testo?') == [('prompt', 'contesto_non_viaggia')]
+    assert formule(prompt='Quale ente decide, secondo il grafico?') == [('prompt', 'contesto_non_viaggia')]
     assert formule(prompt='Quale ente decide, nell’immagine?') == [('prompt', 'contesto_non_viaggia')]
     assert formule(prompt='Quale ente decide attualmente?') == [('prompt', 'tempo_relativo')]
     assert formule(kind='scenario', situation='Di recente Marta è stata assunta.') == [('situation', 'tempo_relativo')]
-    assert formule(spiegazione='Secondo il testo, attualmente decide il comune.') == []
+    assert formule(spiegazione='Come mostrato qui sopra, attualmente decide il comune.') == []
     assert formule(opzioni=('Il comune, attualmente', 'La regione qui sopra')) == []
 
 
@@ -133,6 +133,43 @@ def test_apostrofo_tipografico_come_quello_dritto():
     assert formule(prompt='Che cosa mostra l’esempio sopra?') == [('prompt', 'contesto_non_viaggia')]
     assert formule(prompt='Che cosa fa l’apparato?') == []
     assert formule(prompt='Che cosa ti suggerisce l’app consiglia?') == [('prompt', 'autoreferenziale')]
+
+
+# --- rimandi al materiale da cui nasce il corso (non in Civis, che non genera da documenti) -----------------
+
+def test_rimandi_al_materiale_sono_autoreferenziali():
+    # Decisione dell'utente del 9 novembre 2026: «il testo indica», «riporta il materiale», «secondo il
+    # materiale» e varianti. Formule vere della corsa del 20 ottobre 2026 (bozza.json).
+    assert formule(spiegazione='Il testo indica che decide il comune.') == [('explanation', 'autoreferenziale')]
+    assert formule(spiegazione='Il materiale riporta che decide il comune.') == [('explanation', 'autoreferenziale')]
+    assert formule(spiegazione='Il documento afferma che decide il comune.') == [('explanation', 'autoreferenziale')]
+    assert formule(prompt='Quale ente decide, secondo il materiale?') == [('prompt', 'autoreferenziale')]
+    assert formule(prompt='Quale variazione riporta il materiale?') == [('prompt', 'autoreferenziale')]
+    assert formule(prompt='Quale ente indica il documento?') == [('prompt', 'autoreferenziale')]
+    assert formule(motivazioni=['', 'Lo afferma il testo, ma per un altro ente.']) == [('options', 'autoreferenziale')]
+    assert formule(opzioni=('Il comune, come riportato nel documento', 'La regione, per ogni caso simile')) == [('options', 'autoreferenziale')]
+    assert formule(kind='scenario', situation='Marta legge che, secondo il documento, decide il comune.') == [
+        ('situation', 'autoreferenziale')]
+
+
+def test_secondo_il_testo_e_autoreferenziale_non_contesto():
+    # Qui «il testo» è il materiale da cui nasce il corso, come «il materiale»: non un brano mostrato
+    # accanto alla domanda (in Civis, dove la regola stava in CONTESTO_NON_VIAGGIA). Vale quindi in tutti
+    # i campi dell'autoreferenziale, spiegazione compresa.
+    assert formule(prompt='Di quanto sono cresciuti gli occupati, secondo il testo?') == [('prompt', 'autoreferenziale')]
+    assert formule(spiegazione='Secondo il testo, decide il comune.') == [('explanation', 'autoreferenziale')]
+
+
+def test_rimandi_al_materiale_falsi_positivi_esclusi():
+    # Un testo o un documento qualificato è un contenuto citato, non il materiale del corso.
+    assert formule(prompt='Secondo il documento di valutazione dei rischi, chi decide?') == []
+    assert formule(prompt='Secondo il testo unico sulla sicurezza, chi decide?') == []
+    assert formule(prompt='Quale articolo riporta il testo della norma?') == []
+    assert formule(spiegazione='Decide il comune, come riportato nel documento di sintesi della regione.') == []
+    assert formule(prompt="Che cosa indica il documento d'identità?") == []
+    # Il soggetto qualificato precede il verbo: «il documento di identità indica» non è un rimando.
+    assert formule(prompt='Il documento di identità indica la scadenza?') == []
+    assert formule(spiegazione='Il testo indicato in bolletta è il totale.') == []
 
 
 def test_il_messaggio_cita_la_formula_trovata():

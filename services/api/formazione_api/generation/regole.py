@@ -39,20 +39,33 @@ def normalizza_opzione(testo: str) -> str:
 #   («al momento della firma»), non un «adesso»: non conta;
 # - l'apostrofo tipografico (’) vale come quello dritto, l'unico scritto nelle espressioni.
 _NON_FONTE = r"(?!\s+da(?:l|llo|lla|ll'|i|gli|lle)?\b)"
+# Rimandi al materiale da cui nasce il corso: non in Civis, che non genera da documenti (decisione
+# dell'utente del 9 novembre 2026). «il testo/materiale/documento indica/riporta/afferma», l'ordine
+# inverso («riporta il materiale»), il participio («riportato nel documento») e «secondo il …». Qui «il
+# testo» è il materiale, come «il materiale»: per questo «secondo il testo» sta in questa regola e non in
+# CONTESTO_NON_VIAGGIA, dove Civis lo mette perché lì indica un brano mostrato accanto al quiz; così vale
+# anche in opzioni, motivazioni e spiegazione. Un nome qualificato («secondo il documento di valutazione
+# dei rischi», «il testo unico», «il testo della norma») cita un contenuto, non il materiale: non conta.
+_MATERIALE = r"(?:testo|materiale|documento)"
+_QUALIFICATO = r"(?!\s+(?:unico\b|d(?:'|i|el|ello|ella|ell'|ei|egli|elle)\b))"
+_RIMANDI_AL_MATERIALE = (r"\bil " + _MATERIALE + r" (?:indica|riporta|afferma)\b|"
+                         r"\b(?:indica|riporta|afferma) il " + _MATERIALE + r"\b" + _QUALIFICATO + "|"
+                         r"\b(?:indicato|riportato|affermato) nel " + _MATERIALE + r"\b" + _QUALIFICATO + "|"
+                         r"\bsecondo il " + _MATERIALE + r"\b" + _QUALIFICATO)
 AUTOREFERENZIALE = re.compile(
     r"quest[ao] lezione|come hai visto|secondo quanto spiegato|secondo quanto descritto|come spiegato sopra|"
     r"hai studiato|come detto sopra|visto sopra|nel modulo precedente|(?:nel|dal|del|secondo il) modulo\b|"
     r"il modulo (?:dice|spiega|descrive|indica|riporta)|(?:spiegato|descritto|indicato|visto) nella lezione|"
     r"la lezione (?:dice|spiega|cita|propone|intende|descrive|indica|riporta|presenta|suggerisce|consiglia|invita)|"
     r"l'app (?:dice|spiega|suggerisce|consiglia|propone|insegna)|(?:questa|quest') app\b|(?:dalla|della) lezione\b|"
-    r"come indicato\b" + _NON_FONTE, re.IGNORECASE | re.ASCII)
+    r"come indicato\b" + _NON_FONTE + "|" + _RIMANDI_AL_MATERIALE, re.IGNORECASE | re.ASCII)
 TEMPO_RELATIVO = re.compile(
     r"\battualmente\b|\bal momento\b(?!\s*(?:d(?:i|el|ello|ella|ell'|ei|egli|elle)\b|in cui\b|che\b))|"
     r"\bdi recente\b|\brecentemente\b|negli ultimi mesi|in questi giorni|\boggigiorno\b|\bad oggi\b|"
     r"l'anno scorso|il mese scorso|\bprossimamente\b", re.IGNORECASE | re.ASCII)
 CONTESTO_NON_VIAGGIA = re.compile(
     r"nell'immagine|nella foto|in questa (?:immagine|foto|frase|situazione|scheda)|nel testo (?:sopra|precedente)|"
-    r"qui sopra|l'esempio (?:sopra|precedente|appena)|il caso (?:descritto|sopra)|secondo il (?:grafico|testo)|"
+    r"qui sopra|l'esempio (?:sopra|precedente|appena)|il caso (?:descritto|sopra)|secondo il grafico|"
     r"nello schema|nell'illustrazione|come mostrato\b" + _NON_FONTE +
     # Aggiunta, non in Civis (le sfide di Civis non hanno slide): le domande del test stanno staccate
     # dalle slide del modulo, quindi «la slide», «nelle slide», «questa slide» non hanno referente.

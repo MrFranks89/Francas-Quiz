@@ -60,20 +60,29 @@ export const normalizzaOpzione = (testo: string) => testo.normalize('NFC').repla
 // cita il contenuto; «al momento di/della…» è un complemento di tempo; l'apostrofo tipografico vale
 // come quello dritto.
 const NON_FONTE = String.raw`(?!\s+da(?:l|llo|lla|ll'|i|gli|lle)?\b)`;
+// Rimandi al materiale da cui nasce il corso (non in Civis; motivazioni in regole.py, _RIMANDI_AL_MATERIALE):
+// «secondo il testo» sta qui e non in CONTESTO_NON_VIAGGIA; un nome qualificato cita un contenuto.
+const MATERIALE = String.raw`(?:testo|materiale|documento)`;
+const QUALIFICATO = String.raw`(?!\s+(?:unico\b|d(?:'|i|el|ello|ella|ell'|ei|egli|elle)\b))`;
+const RIMANDI_AL_MATERIALE =
+  String.raw`\bil ` + MATERIALE + String.raw` (?:indica|riporta|afferma)\b|` +
+  String.raw`\b(?:indica|riporta|afferma) il ` + MATERIALE + String.raw`\b` + QUALIFICATO + '|' +
+  String.raw`\b(?:indicato|riportato|affermato) nel ` + MATERIALE + String.raw`\b` + QUALIFICATO + '|' +
+  String.raw`\bsecondo il ` + MATERIALE + String.raw`\b` + QUALIFICATO;
 export const AUTOREFERENZIALE = new RegExp(
   String.raw`quest[ao] lezione|come hai visto|secondo quanto spiegato|secondo quanto descritto|come spiegato sopra|` +
   String.raw`hai studiato|come detto sopra|visto sopra|nel modulo precedente|(?:nel|dal|del|secondo il) modulo\b|` +
   String.raw`il modulo (?:dice|spiega|descrive|indica|riporta)|(?:spiegato|descritto|indicato|visto) nella lezione|` +
   String.raw`la lezione (?:dice|spiega|cita|propone|intende|descrive|indica|riporta|presenta|suggerisce|consiglia|invita)|` +
   String.raw`l'app (?:dice|spiega|suggerisce|consiglia|propone|insegna)|(?:questa|quest') app\b|(?:dalla|della) lezione\b|` +
-  String.raw`come indicato\b` + NON_FONTE, 'gi');
+  String.raw`come indicato\b` + NON_FONTE + '|' + RIMANDI_AL_MATERIALE, 'gi');
 export const TEMPO_RELATIVO = new RegExp(
   String.raw`\battualmente\b|\bal momento\b(?!\s*(?:d(?:i|el|ello|ella|ell'|ei|egli|elle)\b|in cui\b|che\b))|` +
   String.raw`\bdi recente\b|\brecentemente\b|negli ultimi mesi|in questi giorni|\boggigiorno\b|\bad oggi\b|` +
   String.raw`l'anno scorso|il mese scorso|\bprossimamente\b`, 'gi');
 export const CONTESTO_NON_VIAGGIA = new RegExp(
   String.raw`nell'immagine|nella foto|in questa (?:immagine|foto|frase|situazione|scheda)|nel testo (?:sopra|precedente)|` +
-  String.raw`qui sopra|l'esempio (?:sopra|precedente|appena)|il caso (?:descritto|sopra)|secondo il (?:grafico|testo)|` +
+  String.raw`qui sopra|l'esempio (?:sopra|precedente|appena)|il caso (?:descritto|sopra)|secondo il grafico|` +
   String.raw`nello schema|nell'illustrazione|come mostrato\b` + NON_FONTE +
   // Aggiunta, non in Civis: le domande del test stanno staccate dalle slide (vedi regole.py).
   String.raw`|(?:\bnell[ae]|\bquest[ae]|\bl[ae]) slides?\b|\bquest'slides?\b`, 'gi');

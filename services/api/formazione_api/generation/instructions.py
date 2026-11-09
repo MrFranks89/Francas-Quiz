@@ -38,10 +38,15 @@ ISTRUZIONI_DIDATTICHE = ('Sei un autore didattico. Scrivi in italiano un modulo 
                          'seria nel tono, mai una battuta. '
                          # Formule scartate dalle regole autoreferenziale, contesto_non_viaggia e tempo_relativo
                          # (generation/regole.py, da verifica-contenuti.mjs 94, 100, 106).
+                         # «il testo indica», «secondo il materiale»: rimandi al materiale, aggiunti il 9
+                         # novembre 2026 (_RIMANDI_AL_MATERIALE in regole.py), valgono anche in opzioni,
+                         # motivazioni e spiegazione: si scrive il fatto, non da dove viene.
                          'Ogni domanda deve reggersi da sola, staccata dalle slide e senza immagini: niente rimandi '
-                         'alla lezione o al corso (come hai visto, la lezione dice, come spiegato sopra, nel '
-                         'modulo), niente rimandi a un contesto che non c\'è (nell\'immagine, qui sopra, nella '
-                         'slide, secondo il testo), niente riferimenti temporali che invecchiano (attualmente, '
+                         'alla lezione, al corso o al materiale (come hai visto, la lezione dice, come spiegato '
+                         'sopra, nel modulo, il testo indica, secondo il materiale, secondo il testo, riporta il '
+                         'documento) né nella domanda né in opzioni, rationales e spiegazione, dove si scrive il '
+                         'fatto e non da dove viene; niente rimandi a un contesto che non c\'è (nell\'immagine, '
+                         'qui sopra, nella slide), niente riferimenti temporali che invecchiano (attualmente, '
                          'di recente, ad oggi): se serve, scrivi l\'anno. '
                          # Il «perché» di Civis: Contenuti_Regole_Editoriali.md, «3. Il perché dell'errore».
                          'rationales ha un elemento per opzione: per le plausibili e le ingannevoli una frase di '

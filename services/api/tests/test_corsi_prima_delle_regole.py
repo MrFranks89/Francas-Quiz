@@ -32,7 +32,7 @@ def _codici(course):
 
 def test_la_fixture_viola_solo_regole_di_qualita():
     # Esclude che il corso vecchio sia rifiutato per un motivo strutturale invece che di qualità.
-    assert _codici(VECCHIO) == ['autoreferenziale', 'contesto_non_viaggia', 'giusta_troppo_lunga']
+    assert _codici(VECCHIO) == ['autoreferenziale', 'autoreferenziale', 'giusta_troppo_lunga']
 
 
 @pytest.fixture
@@ -124,7 +124,7 @@ def test_la_generazione_continua_a_scartare_le_stesse_domande():
         ]
     result = generate(extraction(), Fornitore(domande))
     assert [q['prompt'] for q in result['course']['questions']] == ['Quale risposta?']
-    assert [s['rule'] for s in result['scarti']] == ['giusta_troppo_lunga', 'contesto_non_viaggia', 'autoreferenziale']
+    assert [s['rule'] for s in result['scarti']] == ['giusta_troppo_lunga', 'autoreferenziale', 'autoreferenziale']
 
 
 def test_i_casi_con_regola_sono_le_regole_di_qualita():
