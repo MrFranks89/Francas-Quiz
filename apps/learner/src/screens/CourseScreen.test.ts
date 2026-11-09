@@ -10,7 +10,9 @@ import { TIPI_DOMANDA } from '@formazione/contracts';
 // devono mai essere disegnate nell'ordine in cui sono state generate.
 it('renders exam options through displayOptions, never in generated order', () => {
   const source = readFileSync(new URL('./CourseScreen.tsx', import.meta.url), 'utf8');
-  expect(source).toMatch(/displayOptions\(\s*course,\s*exam\.id,\s*attempts\.length,\s*id,?\s*\)\s*\.map\(/);
+  expect(source).toMatch(
+    /displayOptions\(\s*course,\s*exam\.id,\s*attempts\.length,\s*id,?\s*\)\s*\.map\(/,
+  );
   expect(source).not.toMatch(/\.options\.map\(/);
 });
 
@@ -29,6 +31,7 @@ it('presents every question kind through presentazione and a case in the exam vi
   const source = readFileSync(new URL('./CourseScreen.tsx', import.meta.url), 'utf8');
   expect(source).toMatch(/domanda=\{\s*presentazione\(\s*q\s*\)\s*\}/);
   const vista = readFileSync(new URL('../components/ExamView.tsx', import.meta.url), 'utf8');
-  for (const kind of TIPI_DOMANDA.filter(k => k !== 'single' && k !== 'oddOneOut')) expect(vista).toContain(`case '${kind}':`);
+  for (const kind of TIPI_DOMANDA.filter((k) => k !== 'single' && k !== 'oddOneOut'))
+    expect(vista).toContain(`case '${kind}':`);
   expect(vista).toMatch(/<RiepilogoDomanda|export function RiepilogoDomanda/);
 });

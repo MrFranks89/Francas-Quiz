@@ -12,11 +12,17 @@
  * packages/civis-ui/src/ThemeProvider.tsx (ThemeMode e l'effetto che legge
  * AsyncStorage): accetta 'light', 'dark' o 'system'.
  */
-export type Archivio={getItem(key:string):Promise<string|null>;setItem(key:string,value:string):Promise<void>};
+export type Archivio = {
+  getItem(key: string): Promise<string | null>;
+  setItem(key: string, value: string): Promise<void>;
+};
 
-export async function preparaTemaDiSistema(archivio:Archivio,chiave:string):Promise<'salvato'|'già scelto'>{
- const attuale=await archivio.getItem(chiave);
- if(attuale==='light'||attuale==='dark'||attuale==='system')return 'già scelto';
- await archivio.setItem(chiave,'system');
- return 'salvato';
+export async function preparaTemaDiSistema(
+  archivio: Archivio,
+  chiave: string,
+): Promise<'salvato' | 'già scelto'> {
+  const attuale = await archivio.getItem(chiave);
+  if (attuale === 'light' || attuale === 'dark' || attuale === 'system') return 'già scelto';
+  await archivio.setItem(chiave, 'system');
+  return 'salvato';
 }

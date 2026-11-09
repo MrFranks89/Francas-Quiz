@@ -8,7 +8,18 @@ it('shows every question presentation field to the reviewer', () => {
   expect(screen).toMatch(/<DomandaEditor\s/);
   expect(screen).toMatch(/erroriDomande\(\s*course\s*\)/);
   const editor = readFileSync(new URL('../components/DomandaEditor.tsx', import.meta.url), 'utf8');
-  for (const campo of ['situation', 'sentence', 'wrong', 'rationale', 'difficulty', 'prompt', 'explanation', 'correctOptionId', 'correctOptionIds'])
+  for (const campo of [
+    'situation',
+    'sentence',
+    'wrong',
+    'rationale',
+    'difficulty',
+    'prompt',
+    'explanation',
+    'correctOptionId',
+    'correctOptionIds',
+  ])
     expect(editor).toContain(`'${campo}'`);
-  for (const campo of ['situation', 'sentence', 'wrong', 'prompt', 'options', 'correctOptionIds']) expect(editor).toContain(`sotto('${campo}')`);
+  for (const campo of ['situation', 'sentence', 'wrong', 'prompt', 'options', 'correctOptionIds'])
+    expect(editor).toContain(`sotto('${campo}')`);
 });

@@ -1,4 +1,4 @@
-import type {Course} from '@formazione/contracts';
+import type { Course } from '@formazione/contracts';
 
 /**
  * Adattatore puro dalle slide del nostro contratto (packages/contracts) ai
@@ -14,11 +14,11 @@ import type {Course} from '@formazione/contracts';
  * `emoji` resta assente: per decisione dell'utente niente icone né emoji (il
  * sostituto di EmojiIcon comunque non disegnerebbe nulla).
  */
-export type Slide=Course['modules'][number]['lessons'][number]['slides'][number];
-export type SlideCivis={heading:string;body:string;highlight:string};
+export type Slide = Course['modules'][number]['lessons'][number]['slides'][number];
+export type SlideCivis = { heading: string; body: string; highlight: string };
 
-export function slidePerCivis(slide:Slide):SlideCivis{
- const highlight=slide.highlight.trim();
- if(!highlight)return {heading:slide.heading,body:'',highlight:slide.body};
- return {heading:slide.heading,body:slide.body,highlight};
+export function slidePerCivis(slide: Slide): SlideCivis {
+  const highlight = slide.highlight.trim();
+  if (!highlight) return { heading: slide.heading, body: '', highlight: slide.body };
+  return { heading: slide.heading, body: slide.body, highlight };
 }
