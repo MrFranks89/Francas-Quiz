@@ -18,10 +18,36 @@ ISTRUZIONI_DIDATTICHE = ('Sei un autore didattico. Scrivi in italiano un modulo 
                          'correctStatement (una frase del materiale in cui wrong, presente una sola volta, è '
                          'sbagliato; le opzioni lo sostituiscono) solo se il testo descrive comportamenti o fatti '
                          'precisi che lo permettono: la situazione e la correzione devono derivare dal materiale, '
-                         'senza fatti inventati. Ogni domanda cita sempre i suoi sourceRefs. Opzioni diverse fra '
-                         'loro; la giusta non più lunga di una volta e mezza la più lunga delle altre. '
-                         'rationales ha un elemento per opzione: una frase breve solo per un errore plausibile, '
-                         'altrimenti stringa vuota. difficulty: base, medio o avanzato.')
+                         'senza fatti inventati. Ogni domanda cita sempre i suoi sourceRefs. '
+                         # Regola madre di Civis (C:\Civica\Contenuti_Regole_Editoriali.md, «Dove vanno gli
+                         # esercizi»): nessun esercizio presenta argomenti non spiegati prima, risposte
+                         # sbagliate comprese. Le domande del test si mostrano dopo le slide del modulo.
+                         'Ogni domanda, risposte sbagliate comprese, riguarda solo fatti presenti nelle slide di '
+                         'questo modulo, che vengono prima delle domande: se un fatto non è scritto in una slide, '
+                         'aggiungilo alla slide o non chiederlo. Opzioni diverse fra '
+                         'loro; la giusta non più lunga di una volta e mezza la più lunga delle altre: allunga i '
+                         'distrattori, non accorciare la giusta. '
+                         # Ruoli dei distrattori: Contenuti_Regole_Editoriali.md (tre opzioni: giusta, plausibile,
+                         # chiaramente errata; quattro: più un'ingannevole) e RUOLI_AMMESSI in
+                         # C:\Civica\CivicaApp\scripts\lib-modello2.mjs 296–392. Solo istruzione: i ruoli non
+                         # sono ancora nello schema.
+                         'Ogni risposta sbagliata ha un compito: una plausibile, che sceglie chi ha capito a metà '
+                         'e che resta sbagliata per chi ha capito tutto (mai un sinonimo della giusta, soprattutto '
+                         'in fillblank); con quattro opzioni o più, una ingannevole, costruita sulla confusione più '
+                         'comune fra due concetti vicini; una chiaramente errata, riconoscibile da chi ha seguito ma '
+                         'seria nel tono, mai una battuta. '
+                         # Formule scartate dalle regole autoreferenziale, contesto_non_viaggia e tempo_relativo
+                         # (generation/regole.py, da verifica-contenuti.mjs 94, 100, 106).
+                         'Ogni domanda deve reggersi da sola, staccata dalle slide e senza immagini: niente rimandi '
+                         'alla lezione o al corso (come hai visto, la lezione dice, come spiegato sopra, nel '
+                         'modulo), niente rimandi a un contesto che non c\'è (nell\'immagine, qui sopra, nella '
+                         'slide, secondo il testo), niente riferimenti temporali che invecchiano (attualmente, '
+                         'di recente, ad oggi): se serve, scrivi l\'anno. '
+                         # Il «perché» di Civis: Contenuti_Regole_Editoriali.md, «3. Il perché dell'errore».
+                         'rationales ha un elemento per opzione: per le plausibili e le ingannevoli una frase di '
+                         'al massimo 140 caratteri che dice perché quell\'errore è comprensibile e dove sta la '
+                         'differenza, senza fatti nuovi; per la giusta e la chiaramente errata stringa vuota. '
+                         'difficulty: base, medio o avanzato.')
 
 # Limiti comuni a ogni fornitore (docs/GENERAZIONE.md).
 MAX_OUTPUT_TOKENS = 6000
