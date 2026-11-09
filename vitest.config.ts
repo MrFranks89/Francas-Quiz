@@ -4,7 +4,12 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['packages/**/__tests__/**/*.test.ts', 'apps/**/src/**/*.test.ts'],
+    include: [
+      'packages/**/__tests__/**/*.test.ts',
+      'apps/**/src/**/*.test.ts',
+      // Controlli sull'intero repository (codice compresso).
+      'tests/**/*.test.ts',
+    ],
     // civis-ui usa Jest con il preset di React Native (vedi
     // packages/civis-ui/jest.config.js): `npm test` lo lancia dopo Vitest.
     exclude: ['**/node_modules/**', 'packages/civis-ui/**'],

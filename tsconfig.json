@@ -18,6 +18,7 @@
     "packages/**/*.ts",
     "apps/**/*.ts",
     "apps/**/*.tsx",
+    "tests/**/*.ts",
     "vitest.config.ts"
   ],
   "exclude": [
