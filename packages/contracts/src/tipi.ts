@@ -29,9 +29,10 @@ export const SPAZIO = '___';
 const CAMPI_DEL_TIPO: Record<string, TipoDomanda> = { situation: 'scenario', sentence: 'correctStatement', wrong: 'correctStatement' };
 
 export type DomandaDaControllare = {
-  kind: TipoDomanda; prompt: string; options: { id: string; text: string }[];
+  kind: TipoDomanda; prompt: string; options: { id: string; text: string; rationale?: string | null }[];
   correctOptionId?: string | null; correctOptionIds?: string[] | null;
   situation?: string | null; sentence?: string | null; wrong?: string | null;
+  explanation?: string | null;
 };
 /** `campo`: percorso relativo alla domanda ('prompt', 'situation', 'options'...), per mostrare l'errore sotto il campo. */
 export type ErroreDomanda = { campo: string; messaggio: string };
@@ -51,6 +52,49 @@ const TIPI_CON_LUNGHEZZA: readonly TipoDomanda[] = ['single', 'scenario', 'oddOn
  */
 export const normalizzaOpzione = (testo: string) => testo.normalize('NFC').replace(/\s+/g, ' ').trim().toLowerCase();
 
+// --- Formule che non reggono fuori dalla lezione ---
+// Riscritte da C:\Civica\CivicaApp\scripts\verifica-contenuti.mjs, righe 94 (AUTOREFERENZIALE),
+// 100 (TEMPO_RELATIVO) e 106 (CONTESTO_NON_VIAGGIA). Stesse espressioni di regole.py: solo caratteri
+// ASCII e niente flag `u`, così \b e le maiuscole valgono come con re.ASCII in Python. Differenze da
+// Civis, per i falsi positivi dell'italiano (motivate in regole.py): «come indicato/mostrato dal…»
+// cita il contenuto; «al momento di/della…» è un complemento di tempo; l'apostrofo tipografico vale
+// come quello dritto.
+const NON_FONTE = String.raw`(?!\s+da(?:l|llo|lla|ll'|i|gli|lle)?\b)`;
+export const AUTOREFERENZIALE = new RegExp(
+  String.raw`quest[ao] lezione|come hai visto|secondo quanto spiegato|secondo quanto descritto|come spiegato sopra|` +
+  String.raw`hai studiato|come detto sopra|visto sopra|nel modulo precedente|(?:nel|dal|del|secondo il) modulo\b|` +
+  String.raw`il modulo (?:dice|spiega|descrive|indica|riporta)|(?:spiegato|descritto|indicato|visto) nella lezione|` +
+  String.raw`la lezione (?:dice|spiega|cita|propone|intende|descrive|indica|riporta|presenta|suggerisce|consiglia|invita)|` +
+  String.raw`l'app (?:dice|spiega|suggerisce|consiglia|propone|insegna)|(?:questa|quest') app\b|(?:dalla|della) lezione\b|` +
+  String.raw`come indicato\b` + NON_FONTE, 'gi');
+export const TEMPO_RELATIVO = new RegExp(
+  String.raw`\battualmente\b|\bal momento\b(?!\s*(?:d(?:i|el|ello|ella|ell'|ei|egli|elle)\b|in cui\b|che\b))|` +
+  String.raw`\bdi recente\b|\brecentemente\b|negli ultimi mesi|in questi giorni|\boggigiorno\b|\bad oggi\b|` +
+  String.raw`l'anno scorso|il mese scorso|\bprossimamente\b`, 'gi');
+export const CONTESTO_NON_VIAGGIA = new RegExp(
+  String.raw`nell'immagine|nella foto|in questa (?:immagine|foto|frase|situazione|scheda)|nel testo (?:sopra|precedente)|` +
+  String.raw`qui sopra|l'esempio (?:sopra|precedente|appena)|il caso (?:descritto|sopra)|secondo il (?:grafico|testo)|` +
+  String.raw`nello schema|nell'illustrazione|come mostrato\b` + NON_FONTE, 'gi');
+/** Rimandi a un pezzo della domanda stessa, che viaggia con lei (vedi _CONTESTO_PROPRIO in regole.py). */
+const CONTESTO_PROPRIO: Partial<Record<TipoDomanda, string>> = { scenario: 'in questa situazione', correctStatement: 'in questa frase', fillblank: 'in questa frase' };
+
+/** La prima formula della regola nel testo, o null. Stessa funzione di formula_trovata in regole.py. */
+export function formulaTrovata(regola: RegExp, testo: string | null | undefined, kind?: TipoDomanda): string | null {
+  for (const trovata of (testo ?? '').replace(/[\u2018\u2019\u02bc]/g, "'").matchAll(regola)) {
+    if (!(regola === CONTESTO_NON_VIAGGIA && kind && trovata[0].toLowerCase() === CONTESTO_PROPRIO[kind])) return trovata[0];
+  }
+  return null;
+}
+
+type Campi = [string, string | null | undefined][];
+/** (regola, campi in cui cercarla, messaggio): stesso ordine e stessi messaggi di _FORMULE in regole.py. */
+const FORMULE: [RegExp, (d: Campi, o: string, e: string | null | undefined) => Campi, (f: string) => string][] = [
+  [AUTOREFERENZIALE, (d, o, e) => [...d, ['options', o], ['explanation', e]],
+    f => `Formulazione autoreferenziale («${f}»): la domanda deve reggersi sul contenuto, non sul fatto che qualcosa sia stato spiegato`],
+  [CONTESTO_NON_VIAGGIA, d => d, f => `Rimanda a un contesto che nel test non c'è («${f}»): la domanda si mostra senza slide né immagini`],
+  [TEMPO_RELATIVO, d => d, f => `Riferimento temporale che invecchia da solo («${f}»): va datato o tolto`],
+];
+
 /**
  * Regole per tipo. Riscritte, non copiate, da C:\Civica\CivicaApp\scripts\verifica-contenuti.mjs
  * (righe 281–331), che le applica a scenario, intruso e correggi l'errore:
@@ -59,7 +103,9 @@ export const normalizzaOpzione = (testo: string) => testo.normalize('NFC').repla
  * - nessuna opzione duplicata, su tutti i tipi, a meno di spazi e maiuscole (righe 290 e 904);
  * - la giusta non più lunga di 1,5 volte la più lunga delle altre, anche su single e multiple
  *   (righe 292–301 e 924–930; in Civis è un conteggio segnalato; qui, su richiesta, è un errore:
- *   l'indizio vale per chi risponde).
+ *   l'indizio vale per chi risponde);
+ * - nessuna formula autoreferenziale, di contesto che non viaggia o di tempo relativo (righe 94,
+ *   100 e 106; vedi FORMULE).
  */
 export function erroriTipo(q: DomandaDaControllare): ErroreDomanda[] {
   const errori: ErroreDomanda[] = [];
@@ -115,6 +161,17 @@ export function erroriTipo(q: DomandaDaControllare): ErroreDomanda[] {
         err('options', 'La risposta giusta è più lunga di 1,5 volte la più lunga delle altre: si riconosce senza conoscere la materia');
         break;
       }
+    }
+  }
+  // Formule che non reggono fuori dalla lezione. Campi come in Civis: l'autoreferenziale in tutta la
+  // domanda (righe 280, 905, 959: JSON.stringify), contesto e tempo solo nel testo della domanda
+  // (righe 906 e 908: q.q), qui spezzato fra prompt, situation e sentence.
+  const domanda: Campi = [['prompt', q.prompt], ['situation', q.situation], ['sentence', q.sentence]];
+  const opzioni = [...q.options.map(o => o.text), ...q.options.map(o => o.rationale).filter((r): r is string => !!r)].join('\n');
+  for (const [regola, campi, messaggio] of FORMULE) {
+    for (const [campo, valore] of campi(domanda, opzioni, q.explanation)) {
+      const trovata = formulaTrovata(regola, valore, q.kind);
+      if (trovata) err(campo, messaggio(trovata));
     }
   }
   return errori;

@@ -74,7 +74,85 @@ def _casi_con_regola():
 def test_i_casi_condivisi_sono_rifiutati_per_la_regola_dichiarata():
     # Esclude che un caso sia rifiutato per un motivo diverso da quello che vuole provare.
     casi = list(_casi_con_regola())
-    assert {c['rule'] for c, _ in casi} >= {'opzioni_duplicate', 'giusta_troppo_lunga'}
+    assert {c['rule'] for c, _ in casi} >= {'opzioni_duplicate', 'giusta_troppo_lunga', 'autoreferenziale',
+                                            'contesto_non_viaggia', 'tempo_relativo'}
     for caso, invalido in casi:
         trovate = [v for q in invalido['questions'] for v in violazioni_domanda(q)]
         assert (caso['rule'], caso['messaggio']) in trovate, caso
+
+
+# --- formulazioni che non reggono fuori dalla lezione (verifica-contenuti.mjs righe 94, 100, 106) ------------
+
+def formule(kind='single', prompt='Quale ente decide?', opzioni=('Il comune', 'La regione'), spiegazione='Decide il comune.',
+          motivazioni=None, situation=None, sentence=None, wrong=None):
+    ids = [chr(ord('a') + k) for k in range(len(opzioni))]
+    return [(campo, codice) for campo, codice, _ in violazioni_tipo(
+        kind, prompt, list(zip(ids, opzioni)), 'a', situation, sentence, wrong, None, spiegazione, motivazioni)]
+
+
+def test_autoreferenziale_in_ogni_campo_come_in_civis():
+    # Civis la cerca in JSON.stringify della domanda intera (righe 280, 905, 959).
+    assert formule(prompt='Come hai visto, quale ente decide?') == [('prompt', 'autoreferenziale')]
+    assert formule(opzioni=('Il comune, come spiegato sopra', 'La regione, come in ogni caso simile')) == [('options', 'autoreferenziale')]
+    assert formule(motivazioni=['', 'La lezione dice che non decide.']) == [('options', 'autoreferenziale')]
+    assert formule(spiegazione='Il primo gruppo comprende 121 SLL, come indicato nel testo.') == [('explanation', 'autoreferenziale')]
+    assert formule(kind='scenario', situation='Nel modulo precedente Marta ha letto il manuale.') == [
+        ('situation', 'autoreferenziale')]
+
+
+def test_contesto_e_tempo_solo_nel_testo_della_domanda():
+    # Civis li cerca solo in q.q, il testo della domanda (righe 906 e 908); qui il testo della domanda
+    # è prompt più situation e sentence, che lo spezzano per tipo.
+    assert formule(prompt='Di quanto sono cresciuti gli occupati, secondo il testo?') == [('prompt', 'contesto_non_viaggia')]
+    assert formule(prompt='Quale ente decide, nell’immagine?') == [('prompt', 'contesto_non_viaggia')]
+    assert formule(prompt='Quale ente decide attualmente?') == [('prompt', 'tempo_relativo')]
+    assert formule(kind='scenario', situation='Di recente Marta è stata assunta.') == [('situation', 'tempo_relativo')]
+    assert formule(spiegazione='Secondo il testo, attualmente decide il comune.') == []
+    assert formule(opzioni=('Il comune, attualmente', 'La regione qui sopra')) == []
+
+
+def test_falsi_positivi_italiani_esclusi():
+    # «al momento di/della…» è un complemento di tempo determinato, non un «adesso».
+    assert formule(prompt='Che cosa si verifica al momento della firma?') == []
+    assert formule(prompt='Che cosa si verifica al momento dell\'assunzione?') == []
+    assert formule(prompt='Quale ente decide al momento?') == [('prompt', 'tempo_relativo')]
+    # «come indicato dall'articolo 5» cita il contenuto, non la lezione; lo stesso per «come mostrato dai dati».
+    assert formule(spiegazione='Decide il comune, come indicato dall\'articolo 5.') == []
+    assert formule(prompt='Come mostrato dai dati Istat, quale ente decide?') == []
+    assert formule(prompt='Come mostrato, quale ente decide?') == [('prompt', 'contesto_non_viaggia')]
+    # In uno scenario la situazione viaggia con la domanda; in correggi l'errore la frase pure.
+    assert formule(kind='scenario', prompt='Che cosa fa Marta in questa situazione?', situation='Marta arriva.') == []
+    assert formule(prompt='Che cosa fa Marta in questa situazione?') == [('prompt', 'contesto_non_viaggia')]
+    assert formule(kind='correctStatement', prompt='Quale parola è sbagliata in questa frase?', sentence='Il comune decide.',
+                 wrong='comune') == []
+    # Parole che contengono i termini senza esserlo.
+    assert formule(prompt='Quale ente decide oggi? Che cosa fa il modulista?') == []
+
+
+def test_apostrofo_tipografico_come_quello_dritto():
+    assert formule(prompt='Che cosa mostra l’esempio sopra?') == [('prompt', 'contesto_non_viaggia')]
+    assert formule(prompt='Che cosa fa l’apparato?') == []
+    assert formule(prompt='Che cosa ti suggerisce l’app consiglia?') == [('prompt', 'autoreferenziale')]
+
+
+def test_il_messaggio_cita_la_formula_trovata():
+    (campo, codice, messaggio), = violazioni_tipo('single', 'Quale ente decide attualmente?', [('a', 'Il comune'), ('b', 'La regione')], 'a')
+    assert '«attualmente»' in messaggio
+
+
+def test_la_pipeline_scarta_le_domande_con_le_formule_vietate():
+    # Percorso vero: le regole non devono restare inerti fuori da violazioni_tipo.
+    from test_generation import extraction
+    from test_scarto_domande import COMUNI, Fornitore
+    from formazione_api.generation import generate
+
+    def domande(refs):
+        comuni = dict(COMUNI, sourceRefs=refs)
+        singola = lambda prompt, **altro: {**comuni, **dict(kind='single', prompt=prompt, options=['Prima', 'Seconda'],
+                                                            correctIndex=0, rationales=['', '']), **altro}
+        return [singola('Quale risposta?'), singola('Come hai visto, quale risposta?'),
+                singola('Quale risposta, nell\'immagine?'), singola('Quale risposta vale attualmente?'),
+                singola('Quale risposta segue?', explanation='La lezione dice che è la prima.')]
+    result = generate(extraction(), Fornitore(domande))
+    assert [q['prompt'] for q in result['course']['questions']] == ['Quale risposta?']
+    assert [s['rule'] for s in result['scarti']] == ['autoreferenziale', 'contesto_non_viaggia', 'tempo_relativo', 'autoreferenziale']

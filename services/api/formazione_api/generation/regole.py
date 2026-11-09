@@ -1,4 +1,5 @@
 """Regole di qualità per tipo di domanda e codici di scarto della generazione."""
+import re
 import unicodedata
 
 from .comune import OPZIONI_VERO_FALSO, SPAZIO
@@ -20,8 +21,49 @@ def normalizza_opzione(testo: str) -> str:
     return ' '.join(unicodedata.normalize('NFC', testo).split()).lower()
 
 
+# --- Formule che non reggono fuori dalla lezione ---------------------------------------------------------
+# Riscritte da C:\Civica\CivicaApp\scripts\verifica-contenuti.mjs, righe 94 (AUTOREFERENZIALE),
+# 100 (TEMPO_RELATIVO) e 106 (CONTESTO_NON_VIAGGIA). Stesse espressioni in tipi.ts: solo caratteri
+# ASCII, e re.ASCII fa valere \b e le maiuscole come in JavaScript senza flag `u`. Differenze da Civis,
+# per i falsi positivi dell'italiano di un documento qualsiasi:
+# - «come indicato» e «come mostrato» seguiti da da/dal/dalla/dall'… citano il contenuto («come
+#   indicato dall'articolo 5», «come mostrato dai dati Istat»), non la lezione: non contano;
+# - «al momento» seguito da di/del/della/dell'…/in cui/che è un complemento di tempo determinato
+#   («al momento della firma»), non un «adesso»: non conta;
+# - l'apostrofo tipografico (’) vale come quello dritto, l'unico scritto nelle espressioni.
+_NON_FONTE = r"(?!\s+da(?:l|llo|lla|ll'|i|gli|lle)?\b)"
+AUTOREFERENZIALE = re.compile(
+    r"quest[ao] lezione|come hai visto|secondo quanto spiegato|secondo quanto descritto|come spiegato sopra|"
+    r"hai studiato|come detto sopra|visto sopra|nel modulo precedente|(?:nel|dal|del|secondo il) modulo\b|"
+    r"il modulo (?:dice|spiega|descrive|indica|riporta)|(?:spiegato|descritto|indicato|visto) nella lezione|"
+    r"la lezione (?:dice|spiega|cita|propone|intende|descrive|indica|riporta|presenta|suggerisce|consiglia|invita)|"
+    r"l'app (?:dice|spiega|suggerisce|consiglia|propone|insegna)|(?:questa|quest') app\b|(?:dalla|della) lezione\b|"
+    r"come indicato\b" + _NON_FONTE, re.IGNORECASE | re.ASCII)
+TEMPO_RELATIVO = re.compile(
+    r"\battualmente\b|\bal momento\b(?!\s*(?:d(?:i|el|ello|ella|ell'|ei|egli|elle)\b|in cui\b|che\b))|"
+    r"\bdi recente\b|\brecentemente\b|negli ultimi mesi|in questi giorni|\boggigiorno\b|\bad oggi\b|"
+    r"l'anno scorso|il mese scorso|\bprossimamente\b", re.IGNORECASE | re.ASCII)
+CONTESTO_NON_VIAGGIA = re.compile(
+    r"nell'immagine|nella foto|in questa (?:immagine|foto|frase|situazione|scheda)|nel testo (?:sopra|precedente)|"
+    r"qui sopra|l'esempio (?:sopra|precedente|appena)|il caso (?:descritto|sopra)|secondo il (?:grafico|testo)|"
+    r"nello schema|nell'illustrazione|come mostrato\b" + _NON_FONTE, re.IGNORECASE | re.ASCII)
+# Rimandi che in un tipo indicano un pezzo della domanda stessa, che viaggia con lei: la situazione
+# di uno scenario, la frase di correggi l'errore o di completa la frase. Civis cerca il contesto solo
+# nel testo del quiz, dove questi pezzi non esistono, quindi non ha l'eccezione.
+_CONTESTO_PROPRIO = {'scenario': 'in questa situazione', 'correctStatement': 'in questa frase', 'fillblank': 'in questa frase'}
+_APOSTROFI = re.compile('[\u2018\u2019\u02bc]')
+
+
+def formula_trovata(regola: re.Pattern, testo: str | None, kind: str | None = None) -> str | None:
+    """La prima formula della regola nel testo, o None. Stessa funzione di formulaTrovata in tipi.ts."""
+    for trovata in regola.finditer(_APOSTROFI.sub("'", testo or '')):
+        if not (regola is CONTESTO_NON_VIAGGIA and trovata[0].lower() == _CONTESTO_PROPRIO.get(kind)):
+            return trovata[0]
+    return None
+
+
 def errori_tipo(kind, prompt, options, correct_id, situation=None, sentence=None, wrong=None,
-                correct_ids=None) -> list[tuple[str, str]]:
+                correct_ids=None, explanation=None, rationales=None) -> list[tuple[str, str]]:
     """Regole per tipo, (campo, messaggio). `options`: elenco di (id, testo).
 
     Riscritte, non copiate, da C:\\Civica\\CivicaApp\\scripts\\verifica-contenuti.mjs (righe 281–331);
@@ -29,11 +71,11 @@ def errori_tipo(kind, prompt, options, correct_id, situation=None, sentence=None
     è garantita dalla forma (un correctOptionId); che sia fra le opzioni lo controlla il corso.
     """
     return [(campo, messaggio) for campo, _, messaggio in
-            violazioni_tipo(kind, prompt, options, correct_id, situation, sentence, wrong, correct_ids)]
+            violazioni_tipo(kind, prompt, options, correct_id, situation, sentence, wrong, correct_ids, explanation, rationales)]
 
 
 def violazioni_tipo(kind, prompt, options, correct_id, situation=None, sentence=None, wrong=None,
-                    correct_ids=None) -> list[tuple[str, str, str]]:
+                    correct_ids=None, explanation=None, rationales=None) -> list[tuple[str, str, str]]:
     """Le regole di errori_tipo con il loro codice stabile: (campo, codice, messaggio).
 
     Il codice identifica la regola negli scarti della generazione e nel rapporto della misura, e non
@@ -100,7 +142,28 @@ def violazioni_tipo(kind, prompt, options, correct_id, situation=None, sentence=
                 errori.append(('options', 'giusta_troppo_lunga', 'La risposta giusta è più lunga di 1,5 volte la più lunga delle altre: '
                                           'si riconosce senza conoscere la materia'))
                 break
+    # Formule che non reggono fuori dalla lezione (vedi sopra). Campi come in Civis: l'autoreferenziale
+    # in tutta la domanda (righe 280, 905, 959: JSON.stringify della domanda intera), quindi anche
+    # opzioni, motivazioni (`rationales`, parallele a options) e spiegazione; contesto e tempo solo nel
+    # testo della domanda (righe 906 e 908: q.q), che qui è spezzato fra prompt, situation e sentence.
+    domanda = [('prompt', prompt), ('situation', situation), ('sentence', sentence)]
+    opzioni = '\n'.join([t for _, t in options] + [r for r in (rationales or []) if r])
+    for regola, codice, campi, testo in _FORMULE:
+        for campo, valore in campi(domanda, opzioni, explanation):
+            if trovata := formula_trovata(regola, valore, kind):
+                errori.append((campo, codice, testo.format(trovata)))
     return errori
+
+
+# (regola, codice, campi in cui cercarla, messaggio); stesso ordine e stessi messaggi di FORMULE in tipi.ts.
+_FORMULE = (
+    (AUTOREFERENZIALE, 'autoreferenziale', lambda d, o, e: [*d, ('options', o), ('explanation', e)],
+     'Formulazione autoreferenziale («{}»): la domanda deve reggersi sul contenuto, non sul fatto che qualcosa sia stato spiegato'),
+    (CONTESTO_NON_VIAGGIA, 'contesto_non_viaggia', lambda d, o, e: d,
+     'Rimanda a un contesto che nel test non c\'è («{}»): la domanda si mostra senza slide né immagini'),
+    (TEMPO_RELATIVO, 'tempo_relativo', lambda d, o, e: d,
+     'Riferimento temporale che invecchia da solo («{}»): va datato o tolto'),
+)
 
 
 def violazioni_domanda(domanda: dict) -> list[tuple[str, str]]:
@@ -113,7 +176,8 @@ def violazioni_domanda(domanda: dict) -> list[tuple[str, str]]:
     giuste = domanda.get('correctOptionIds')
     violazioni = [(codice, messaggio) for _, codice, messaggio in violazioni_tipo(
         domanda['kind'], domanda['prompt'], [(o['id'], o['text']) for o in domanda['options']],
-        domanda.get('correctOptionId'), domanda.get('situation'), domanda.get('sentence'), domanda.get('wrong'), giuste)]
+        domanda.get('correctOptionId'), domanda.get('situation'), domanda.get('sentence'), domanda.get('wrong'), giuste,
+        domanda.get('explanation'), [o.get('rationale') for o in domanda['options']])]
     # Regola della generazione, più stretta del contratto (che chiede solo almeno una sbagliata):
     # con più giuste che sbagliate la domanda si indovina scegliendo quasi tutto.
     if domanda['kind'] == 'multiple' and giuste is not None and 2 * len(giuste) > len(domanda['options']):

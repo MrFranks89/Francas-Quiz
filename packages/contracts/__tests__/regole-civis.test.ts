@@ -53,7 +53,7 @@ describe('regole portate da Civis', () => {
     type Change = { path: (string | number)[]; value: unknown };
     type Caso = (Change | { changes: Change[] }) & { rule?: string; messaggio?: string };
     const casi = (JSON.parse(readFileSync(new URL('invalid-course-cases.json', base), 'utf8')) as Caso[]).filter(c => c.rule);
-    expect(casi.map(c => c.rule)).toEqual(expect.arrayContaining(['opzioni_duplicate', 'giusta_troppo_lunga']));
+    expect(casi.map(c => c.rule)).toEqual(expect.arrayContaining(['opzioni_duplicate', 'giusta_troppo_lunga', 'autoreferenziale', 'contesto_non_viaggia', 'tempo_relativo']));
     for (const caso of casi) {
       const invalido = structuredClone(corso);
       for (const change of 'changes' in caso ? caso.changes : [caso]) {
@@ -64,5 +64,61 @@ describe('regole portate da Civis', () => {
       const trovati = invalido.questions.flatMap((q: any) => erroriTipo(q).map(e => e.messaggio));
       expect(trovati, caso.rule).toContain(caso.messaggio);
     }
+  });
+});
+
+// --- formulazioni che non reggono fuori dalla lezione (verifica-contenuti.mjs righe 94, 100, 106) ---
+const CODICI: [string, string][] = [
+  ['Formulazione autoreferenziale', 'autoreferenziale'],
+  ['Rimanda a un contesto', 'contesto_non_viaggia'],
+  ['Riferimento temporale', 'tempo_relativo'],
+];
+type Formule = { kind?: TipoDomanda; prompt?: string; opzioni?: string[]; spiegazione?: string; motivazioni?: string[]; situation?: string; sentence?: string; wrong?: string };
+const formule = ({ kind = 'single', prompt = 'Quale ente decide?', opzioni = ['Il comune', 'La regione'], spiegazione = 'Decide il comune.', motivazioni, situation, sentence, wrong }: Formule) =>
+  erroriTipo({
+    kind, prompt, correctOptionId: 'a', explanation: spiegazione, situation, sentence, wrong,
+    options: opzioni.map((text, k) => ({ id: String.fromCharCode(97 + k), text, rationale: motivazioni?.[k] })),
+  }).map(e => [e.campo, CODICI.find(([inizio]) => e.messaggio.startsWith(inizio))?.[1] ?? e.messaggio]);
+
+describe('formule che non reggono fuori dalla lezione', () => {
+  it('autoreferenziale in ogni campo, come in Civis', () => {
+    expect(formule({ prompt: 'Come hai visto, quale ente decide?' })).toEqual([['prompt', 'autoreferenziale']]);
+    expect(formule({ opzioni: ['Il comune, come spiegato sopra', 'La regione, come in ogni caso simile'] })).toEqual([['options', 'autoreferenziale']]);
+    expect(formule({ motivazioni: ['', 'La lezione dice che non decide.'] })).toEqual([['options', 'autoreferenziale']]);
+    expect(formule({ spiegazione: 'Il primo gruppo comprende 121 SLL, come indicato nel testo.' })).toEqual([['explanation', 'autoreferenziale']]);
+    expect(formule({ kind: 'scenario', situation: 'Nel modulo precedente Marta ha letto il manuale.' })).toEqual([['situation', 'autoreferenziale']]);
+  });
+
+  it('contesto e tempo solo nel testo della domanda', () => {
+    expect(formule({ prompt: 'Di quanto sono cresciuti gli occupati, secondo il testo?' })).toEqual([['prompt', 'contesto_non_viaggia']]);
+    expect(formule({ prompt: 'Quale ente decide, nell’immagine?' })).toEqual([['prompt', 'contesto_non_viaggia']]);
+    expect(formule({ prompt: 'Quale ente decide attualmente?' })).toEqual([['prompt', 'tempo_relativo']]);
+    expect(formule({ kind: 'scenario', situation: 'Di recente Marta è stata assunta.' })).toEqual([['situation', 'tempo_relativo']]);
+    expect(formule({ spiegazione: 'Secondo il testo, attualmente decide il comune.' })).toEqual([]);
+    expect(formule({ opzioni: ['Il comune, attualmente', 'La regione qui sopra'] })).toEqual([]);
+  });
+
+  it('falsi positivi italiani esclusi', () => {
+    expect(formule({ prompt: 'Che cosa si verifica al momento della firma?' })).toEqual([]);
+    expect(formule({ prompt: 'Che cosa si verifica al momento dell\'assunzione?' })).toEqual([]);
+    expect(formule({ prompt: 'Quale ente decide al momento?' })).toEqual([['prompt', 'tempo_relativo']]);
+    expect(formule({ spiegazione: 'Decide il comune, come indicato dall\'articolo 5.' })).toEqual([]);
+    expect(formule({ prompt: 'Come mostrato dai dati Istat, quale ente decide?' })).toEqual([]);
+    expect(formule({ prompt: 'Come mostrato, quale ente decide?' })).toEqual([['prompt', 'contesto_non_viaggia']]);
+    expect(formule({ kind: 'scenario', prompt: 'Che cosa fa Marta in questa situazione?', situation: 'Marta arriva.' })).toEqual([]);
+    expect(formule({ prompt: 'Che cosa fa Marta in questa situazione?' })).toEqual([['prompt', 'contesto_non_viaggia']]);
+    expect(formule({ kind: 'correctStatement', prompt: 'Quale parola è sbagliata in questa frase?', sentence: 'Il comune decide.', wrong: 'comune' })).toEqual([]);
+    expect(formule({ prompt: 'Quale ente decide oggi? Che cosa fa il modulista?' })).toEqual([]);
+  });
+
+  it('apostrofo tipografico come quello dritto', () => {
+    expect(formule({ prompt: 'Che cosa mostra l’esempio sopra?' })).toEqual([['prompt', 'contesto_non_viaggia']]);
+    expect(formule({ prompt: 'Che cosa fa l’apparato?' })).toEqual([]);
+    expect(formule({ prompt: 'Che cosa ti suggerisce l’app consiglia?' })).toEqual([['prompt', 'autoreferenziale']]);
+  });
+
+  it('il messaggio cita la formula trovata', () => {
+    const [e] = erroriTipo({ kind: 'single', prompt: 'Quale ente decide attualmente?', correctOptionId: 'a', options: [{ id: 'a', text: 'Il comune' }, { id: 'b', text: 'La regione' }] });
+    expect(e.messaggio).toContain('«attualmente»');
   });
 });

@@ -61,7 +61,8 @@ class Question(_SenzaNulli):
     @model_validator(mode='after')
     def regole_del_tipo(self):
         errori = errori_tipo(self.kind, self.prompt, [(o.id, o.text) for o in self.options], self.correctOptionId,
-                             self.situation, self.sentence, self.wrong, self.correctOptionIds)
+                             self.situation, self.sentence, self.wrong, self.correctOptionIds, self.explanation,
+                             [o.rationale for o in self.options])
         if errori:
             raise ValueError('; '.join(f'{messaggio} ({self.id})' for _, messaggio in errori))
         return self
