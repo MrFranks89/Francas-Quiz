@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { CourseSchema, type Course } from '@formazione/contracts';
+import type { Course } from '@formazione/contracts';
 import {
   createProgress,
   submitExam,
@@ -7,7 +7,8 @@ import {
   type Progress,
 } from '@formazione/learning-engine';
 import sample from '../../../../packages/contracts/fixtures/sample-course.json';
-export const course = CourseSchema.parse(sample);
+import { corsoDaLeggere } from './lettura';
+export const course = corsoDaLeggere(sample);
 const key = (course: Course) => `formazione:progress:${course.id}:v${course.version}`;
 export async function loadProgress(current: Course = course): Promise<Progress> {
   const course = current;

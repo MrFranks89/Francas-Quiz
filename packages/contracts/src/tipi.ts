@@ -110,6 +110,15 @@ const FORMULE: [RegExp, (d: Campi, o: string, e: string | null | undefined) => C
  *   100 e 106; vedi FORMULE).
  */
 export function erroriTipo(q: DomandaDaControllare): ErroreDomanda[] {
+  return [...erroriStrutturaTipo(q), ...erroriQualitaTipo(q)];
+}
+
+/**
+ * Regole strutturali del tipo: senza di esse la domanda non si può mostrare né correggere (campi
+ * del tipo, giuste, opzioni del vero/falso, spazio unico, situazione, frase e parte sbagliata).
+ * Valgono sempre, anche in lettura (CorsoLeggibileSchema in course.ts).
+ */
+export function erroriStrutturaTipo(q: DomandaDaControllare): ErroreDomanda[] {
   const errori: ErroreDomanda[] = [];
   const err = (campo: string, messaggio: string) => errori.push({ campo, messaggio });
   for (const [campo, tipo] of Object.entries(CAMPI_DEL_TIPO)) {
@@ -146,6 +155,19 @@ export function erroriTipo(q: DomandaDaControllare): ErroreDomanda[] {
       err('wrong', 'Correggi l\'errore: la parte sbagliata deve comparire esattamente una volta nella frase');
     }
   }
+  return errori;
+}
+
+/**
+ * Regole di qualità di singola domanda, portate da Civis: opzioni duplicate, giusta troppo lunga,
+ * formule autoreferenziali, di contesto che non viaggia e di tempo relativo. Valgono quando si genera,
+ * si salva una bozza o si pubblica (CourseSchema), non in lettura: un corso salvato o pubblicato prima
+ * di queste regole resta leggibile. Decisione dell'utente del 9 novembre 2026. Sono i casi con
+ * `rule` in services/api/tests/fixtures/invalid-course-cases.json.
+ */
+export function erroriQualitaTipo(q: DomandaDaControllare): ErroreDomanda[] {
+  const errori: ErroreDomanda[] = [];
+  const err = (campo: string, messaggio: string) => errori.push({ campo, messaggio });
   // Opzioni duplicate, su tutti i tipi, dopo normalizzaOpzione (verifica-contenuti.mjs righe 290 e
   // 904 confronta i testi così come sono; qui « prima » e «Prima» sono la stessa risposta).
   const normalizzati = q.options.map(o => normalizzaOpzione(o.text));

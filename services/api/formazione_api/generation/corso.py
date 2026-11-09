@@ -1,4 +1,10 @@
-"""Formato del corso (contratto Course) con i suoi validatori strutturali."""
+"""Formato del corso (contratto Course) con i suoi validatori strutturali.
+
+Course applica anche le regole di qualità di singola domanda (errori_tipo): il server lo usa solo in
+scrittura (generazione, salvataggio della bozza, pubblicazione). In lettura GET /drafts e GET /courses
+restituiscono il record com'è, così un corso salvato prima di quelle regole si apre sempre (decisione
+dell'utente del 9 novembre 2026; vedi CODICI_DI_QUALITA in regole.py e CorsoLeggibileSchema nel contratto).
+"""
 from typing import ClassVar, Literal
 from pydantic import Field, StrictInt, model_serializer, model_validator
 from .bozze import SlideDraft

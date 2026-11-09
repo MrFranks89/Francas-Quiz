@@ -1,8 +1,19 @@
-import { CourseStructureSchema } from './structure';
+import { CourseStructureSchema, type Course } from './structure';
 import { erroreSogliaMinima } from './soglia';
-import { erroriTipo } from './tipi';
+import { erroriQualitaTipo, erroriStrutturaTipo } from './tipi';
+import type { RefinementCtx } from 'zod';
 
-export const CourseSchema = CourseStructureSchema.superRefine((course, ctx) => {
+/**
+ * Due livelli di validazione del corso (decisione dell'utente del 9 novembre 2026):
+ * - CorsoLeggibileSchema, in lettura: forma, riferimenti incrociati, soglia, regole strutturali del
+ *   tipo (erroriStrutturaTipo). Si usa per aprire un corso pubblicato, riprendere una bozza,
+ *   importare un JSON, mostrare il corso al lettore: un corso salvato prima delle regole di qualità
+ *   resta leggibile;
+ * - CourseSchema, in scrittura: in più le regole di qualità di singola domanda (erroriQualitaTipo).
+ *   Si usa quando si salva o si pubblica, e la pipeline del server le applica quando genera. Come
+ *   Course in services/api/formazione_api/generation/corso.py, che il server usa solo in scrittura.
+ */
+function controlliCorso(course: Course, ctx: RefinementCtx, conQualita: boolean) {
   const error = (message: string) => ctx.addIssue({ code: 'custom', message });
   const unique = (ids: string[], label: string) => {
     if (new Set(ids).size !== ids.length) error(`Duplicate ${label}`);
@@ -22,7 +33,8 @@ export const CourseSchema = CourseStructureSchema.superRefine((course, ctx) => {
   for (const q of course.questions) {
     unique(q.options.map(o => o.id), `option id in ${q.id}`);
     if (q.correctOptionId !== undefined && !q.options.some(o => o.id === q.correctOptionId)) error(`Invalid correct option ${q.id}`);
-    for (const e of erroriTipo(q)) error(`${e.messaggio} (${q.id})`);
+    const errori = conQualita ? [...erroriStrutturaTipo(q), ...erroriQualitaTipo(q)] : erroriStrutturaTipo(q);
+    for (const e of errori) error(`${e.messaggio} (${q.id})`);
     const module = course.modules.find(m => m.id === q.moduleId);
     const lesson = module?.lessons.find(l => l.id === q.lessonId);
     if (!lesson) error(`Invalid question owner ${q.id}`);
@@ -48,4 +60,7 @@ export const CourseSchema = CourseStructureSchema.superRefine((course, ctx) => {
       }
     }
   }
-});
+}
+
+export const CourseSchema = CourseStructureSchema.superRefine((course, ctx) => controlliCorso(course, ctx, true));
+export const CorsoLeggibileSchema = CourseStructureSchema.superRefine((course, ctx) => controlliCorso(course, ctx, false));

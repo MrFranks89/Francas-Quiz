@@ -1,0 +1,490 @@
+{
+  "schemaVersion": 1,
+  "id": "corso-prima-delle-regole",
+  "version": 1,
+  "title": "Corso salvato prima delle regole di qualità",
+  "description": "Bozza generata dal materiale selezionato. Revisione umana richiesta.",
+  "objectives": [
+    "Comprendere la procedura"
+  ],
+  "sources": [
+    {
+      "id": "page-201",
+      "documentId": "document-1",
+      "page": 201,
+      "label": "Pagina 201",
+      "excerpt": "Testo di formazione.\n\nSecondo paragrafo."
+    },
+    {
+      "id": "page-202",
+      "documentId": "document-1",
+      "page": 202,
+      "label": "Pagina 202",
+      "excerpt": "Testo di formazione.\n\nSecondo paragrafo."
+    }
+  ],
+  "modules": [
+    {
+      "id": "module-1",
+      "title": "Modulo di prova",
+      "lessons": [
+        {
+          "id": "lesson-1",
+          "title": "Modulo di prova",
+          "slides": [
+            {
+              "heading": "Procedura",
+              "body": "Contenuto di prova",
+              "highlight": "",
+              "sourceRefs": [
+                "page-201",
+                "page-202"
+              ],
+              "id": "slide-1-1"
+            }
+          ],
+          "questionIds": [
+            "question-1-1",
+            "question-1-2",
+            "question-1-3",
+            "question-1-4",
+            "question-1-5",
+            "question-1-6",
+            "question-1-7"
+          ]
+        }
+      ],
+      "exam": {
+        "id": "exam-1",
+        "questionIds": [
+          "question-1-1",
+          "question-1-2",
+          "question-1-3",
+          "question-1-4",
+          "question-1-5",
+          "question-1-6",
+          "question-1-7"
+        ],
+        "mode": "practice",
+        "passingScore": 5,
+        "maxAttempts": null
+      }
+    },
+    {
+      "id": "module-2",
+      "title": "Modulo di prova",
+      "lessons": [
+        {
+          "id": "lesson-2",
+          "title": "Modulo di prova",
+          "slides": [
+            {
+              "heading": "Procedura",
+              "body": "Contenuto di prova",
+              "highlight": "",
+              "sourceRefs": [
+                "page-202"
+              ],
+              "id": "slide-2-1"
+            }
+          ],
+          "questionIds": [
+            "question-2-1",
+            "question-2-2",
+            "question-2-3",
+            "question-2-4",
+            "question-2-5",
+            "question-2-6",
+            "question-2-7"
+          ]
+        }
+      ],
+      "exam": {
+        "id": "exam-2",
+        "questionIds": [
+          "question-2-1",
+          "question-2-2",
+          "question-2-3",
+          "question-2-4",
+          "question-2-5",
+          "question-2-6",
+          "question-2-7"
+        ],
+        "mode": "practice",
+        "passingScore": 5,
+        "maxAttempts": null
+      }
+    }
+  ],
+  "questions": [
+    {
+      "id": "question-1-1",
+      "moduleId": "module-1",
+      "lessonId": "lesson-1",
+      "kind": "single",
+      "prompt": "Che cosa spiega la differenza tra la crescita del Pil per occupato e quella del Pil per ora lavorata?",
+      "difficulty": "base",
+      "options": [
+        {
+          "id": "option-0",
+          "text": "La riduzione del tempo di lavoro per addetto del 6,5 per cento"
+        },
+        {
+          "id": "option-1",
+          "text": "La crescita dei servizi ICT"
+        }
+      ],
+      "correctOptionId": "option-0",
+      "explanation": "La dinamica del Pil per ora deriva da una riduzione del tempo di lavoro per addetto.",
+      "sourceRefs": [
+        "page-201",
+        "page-202"
+      ]
+    },
+    {
+      "id": "question-1-2",
+      "moduleId": "module-1",
+      "lessonId": "lesson-1",
+      "kind": "truefalse",
+      "prompt": "Il testo ha un secondo paragrafo.",
+      "difficulty": "base",
+      "options": [
+        {
+          "id": "option-0",
+          "text": "Vero"
+        },
+        {
+          "id": "option-1",
+          "text": "Falso"
+        }
+      ],
+      "correctOptionId": "option-0",
+      "explanation": "Spiegazione di prova",
+      "sourceRefs": [
+        "page-201",
+        "page-202"
+      ]
+    },
+    {
+      "id": "question-1-3",
+      "moduleId": "module-1",
+      "lessonId": "lesson-1",
+      "kind": "fillblank",
+      "prompt": "Il ___ paragrafo segue il testo di formazione.",
+      "difficulty": "base",
+      "options": [
+        {
+          "id": "option-0",
+          "text": "secondo"
+        },
+        {
+          "id": "option-1",
+          "text": "terzo"
+        }
+      ],
+      "correctOptionId": "option-0",
+      "explanation": "Spiegazione di prova",
+      "sourceRefs": [
+        "page-201",
+        "page-202"
+      ]
+    },
+    {
+      "id": "question-1-4",
+      "moduleId": "module-1",
+      "lessonId": "lesson-1",
+      "kind": "scenario",
+      "prompt": "Che cosa trova dopo il testo di formazione?",
+      "situation": "Un collega legge il materiale dall'inizio.",
+      "difficulty": "medio",
+      "options": [
+        {
+          "id": "option-0",
+          "text": "Il secondo paragrafo"
+        },
+        {
+          "id": "option-1",
+          "text": "Una tabella riassuntiva",
+          "rationale": "Il materiale non contiene tabelle."
+        }
+      ],
+      "correctOptionId": "option-0",
+      "explanation": "Spiegazione di prova",
+      "sourceRefs": [
+        "page-201",
+        "page-202"
+      ]
+    },
+    {
+      "id": "question-1-5",
+      "moduleId": "module-1",
+      "lessonId": "lesson-1",
+      "kind": "oddOneOut",
+      "prompt": "Quale elemento non compare nel materiale?",
+      "difficulty": "base",
+      "options": [
+        {
+          "id": "option-0",
+          "text": "Testo di formazione"
+        },
+        {
+          "id": "option-1",
+          "text": "Secondo paragrafo"
+        },
+        {
+          "id": "option-2",
+          "text": "Tabella"
+        }
+      ],
+      "correctOptionId": "option-2",
+      "explanation": "Spiegazione di prova",
+      "sourceRefs": [
+        "page-201",
+        "page-202"
+      ]
+    },
+    {
+      "id": "question-1-6",
+      "moduleId": "module-1",
+      "lessonId": "lesson-1",
+      "kind": "correctStatement",
+      "prompt": "Quale parola sostituisce quella sbagliata?",
+      "sentence": "Il terzo paragrafo segue il testo di formazione.",
+      "wrong": "terzo",
+      "difficulty": "avanzato",
+      "options": [
+        {
+          "id": "option-0",
+          "text": "secondo"
+        },
+        {
+          "id": "option-1",
+          "text": "quarto"
+        }
+      ],
+      "correctOptionId": "option-0",
+      "explanation": "Spiegazione di prova",
+      "sourceRefs": [
+        "page-201",
+        "page-202"
+      ]
+    },
+    {
+      "id": "question-1-7",
+      "moduleId": "module-1",
+      "lessonId": "lesson-1",
+      "kind": "multiple",
+      "prompt": "Che cosa contiene il materiale?",
+      "difficulty": "base",
+      "options": [
+        {
+          "id": "option-0",
+          "text": "Testo di formazione"
+        },
+        {
+          "id": "option-1",
+          "text": "Secondo paragrafo"
+        },
+        {
+          "id": "option-2",
+          "text": "Una tabella"
+        },
+        {
+          "id": "option-3",
+          "text": "Un grafico",
+          "rationale": "Il materiale è solo testo."
+        }
+      ],
+      "correctOptionIds": [
+        "option-0",
+        "option-1"
+      ],
+      "explanation": "Spiegazione di prova",
+      "sourceRefs": [
+        "page-201",
+        "page-202"
+      ]
+    },
+    {
+      "id": "question-2-1",
+      "moduleId": "module-2",
+      "lessonId": "lesson-2",
+      "kind": "single",
+      "prompt": "Di quanto sono cresciuti gli occupati in Italia dal 2011 al 2022, secondo il testo?",
+      "difficulty": "base",
+      "options": [
+        {
+          "id": "option-0",
+          "text": "Circa 700 mila unità"
+        },
+        {
+          "id": "option-1",
+          "text": "Circa 500 mila unità"
+        }
+      ],
+      "correctOptionId": "option-0",
+      "explanation": "Gli occupati sono cresciuti di circa 700 mila unità, come indicato nel testo sui gruppi territoriali.",
+      "sourceRefs": [
+        "page-202"
+      ]
+    },
+    {
+      "id": "question-2-2",
+      "moduleId": "module-2",
+      "lessonId": "lesson-2",
+      "kind": "truefalse",
+      "prompt": "Il testo ha un secondo paragrafo.",
+      "difficulty": "base",
+      "options": [
+        {
+          "id": "option-0",
+          "text": "Vero"
+        },
+        {
+          "id": "option-1",
+          "text": "Falso"
+        }
+      ],
+      "correctOptionId": "option-0",
+      "explanation": "Spiegazione di prova",
+      "sourceRefs": [
+        "page-202"
+      ]
+    },
+    {
+      "id": "question-2-3",
+      "moduleId": "module-2",
+      "lessonId": "lesson-2",
+      "kind": "fillblank",
+      "prompt": "Il ___ paragrafo segue il testo di formazione.",
+      "difficulty": "base",
+      "options": [
+        {
+          "id": "option-0",
+          "text": "secondo"
+        },
+        {
+          "id": "option-1",
+          "text": "terzo"
+        }
+      ],
+      "correctOptionId": "option-0",
+      "explanation": "Spiegazione di prova",
+      "sourceRefs": [
+        "page-202"
+      ]
+    },
+    {
+      "id": "question-2-4",
+      "moduleId": "module-2",
+      "lessonId": "lesson-2",
+      "kind": "scenario",
+      "prompt": "Che cosa trova dopo il testo di formazione?",
+      "situation": "Un collega legge il materiale dall'inizio.",
+      "difficulty": "medio",
+      "options": [
+        {
+          "id": "option-0",
+          "text": "Il secondo paragrafo"
+        },
+        {
+          "id": "option-1",
+          "text": "Una tabella riassuntiva",
+          "rationale": "Il materiale non contiene tabelle."
+        }
+      ],
+      "correctOptionId": "option-0",
+      "explanation": "Spiegazione di prova",
+      "sourceRefs": [
+        "page-202"
+      ]
+    },
+    {
+      "id": "question-2-5",
+      "moduleId": "module-2",
+      "lessonId": "lesson-2",
+      "kind": "oddOneOut",
+      "prompt": "Quale elemento non compare nel materiale?",
+      "difficulty": "base",
+      "options": [
+        {
+          "id": "option-0",
+          "text": "Testo di formazione"
+        },
+        {
+          "id": "option-1",
+          "text": "Secondo paragrafo"
+        },
+        {
+          "id": "option-2",
+          "text": "Tabella"
+        }
+      ],
+      "correctOptionId": "option-2",
+      "explanation": "Spiegazione di prova",
+      "sourceRefs": [
+        "page-202"
+      ]
+    },
+    {
+      "id": "question-2-6",
+      "moduleId": "module-2",
+      "lessonId": "lesson-2",
+      "kind": "correctStatement",
+      "prompt": "Quale parola sostituisce quella sbagliata?",
+      "sentence": "Il terzo paragrafo segue il testo di formazione.",
+      "wrong": "terzo",
+      "difficulty": "avanzato",
+      "options": [
+        {
+          "id": "option-0",
+          "text": "secondo"
+        },
+        {
+          "id": "option-1",
+          "text": "quarto"
+        }
+      ],
+      "correctOptionId": "option-0",
+      "explanation": "Spiegazione di prova",
+      "sourceRefs": [
+        "page-202"
+      ]
+    },
+    {
+      "id": "question-2-7",
+      "moduleId": "module-2",
+      "lessonId": "lesson-2",
+      "kind": "multiple",
+      "prompt": "Che cosa contiene il materiale?",
+      "difficulty": "base",
+      "options": [
+        {
+          "id": "option-0",
+          "text": "Testo di formazione"
+        },
+        {
+          "id": "option-1",
+          "text": "Secondo paragrafo"
+        },
+        {
+          "id": "option-2",
+          "text": "Una tabella"
+        },
+        {
+          "id": "option-3",
+          "text": "Un grafico",
+          "rationale": "Il materiale è solo testo."
+        }
+      ],
+      "correctOptionIds": [
+        "option-0",
+        "option-1"
+      ],
+      "explanation": "Spiegazione di prova",
+      "sourceRefs": [
+        "page-202"
+      ]
+    }
+  ]
+}

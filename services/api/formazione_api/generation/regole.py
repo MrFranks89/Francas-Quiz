@@ -6,6 +6,13 @@ from .comune import OPZIONI_VERO_FALSO, SPAZIO
 
 
 _CAMPI_DEL_TIPO = {'situation': 'scenario', 'sentence': 'correctStatement', 'wrong': 'correctStatement'}
+# Codici delle regole di qualità di singola domanda: valgono quando si genera, si salva o si pubblica,
+# non in lettura (decisione dell'utente del 9 novembre 2026). Il server non valida in lettura; il client
+# legge con CorsoLeggibileSchema, che applica solo erroriStrutturaTipo (packages/contracts/src/tipi.ts),
+# e scrive con CourseSchema, che aggiunge erroriQualitaTipo: sono le regole con questi codici. Nei casi
+# condivisi (tests/fixtures/invalid-course-cases.json) sono quelli con `rule`.
+CODICI_DI_QUALITA = frozenset({'opzioni_duplicate', 'giusta_troppo_lunga', 'autoreferenziale', 'contesto_non_viaggia',
+                               'tempo_relativo'})
 # Tipi su cui si controlla la lunghezza della giusta (vedi violazioni_tipo).
 _TIPI_CON_LUNGHEZZA = ('single', 'scenario', 'oddOneOut', 'correctStatement', 'multiple')
 

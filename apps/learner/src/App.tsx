@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 import * as Picker from 'expo-document-picker';
 import { File } from 'expo-file-system';
-import { CourseSchema } from '@formazione/contracts';
 import { StatusBar } from 'expo-status-bar';
 import { usePalette, useTheme } from '@formazione/civis-ui/src/ThemeProvider';
 import { TESTO } from '@formazione/civis-ui/src/tema';
@@ -24,6 +23,7 @@ import { SettingsScreen } from './screens/SettingsScreen';
 import { leggiImpostazioni } from './api/settings';
 import { apriImpostazioniAllAvvio } from './state/impostazioni';
 import { navigate, initialNavigation } from './state/navigation';
+import { corsoImportato } from './state/lettura';
 import { recoverDraft as fetchDraft } from './api/generation';
 
 export default function App() {
@@ -75,7 +75,7 @@ function Shell() {
       const asset = picked.assets[0];
       const text =
         Platform.OS === 'web' ? await asset.file!.text() : await new File(asset.uri).text();
-      dispatch({ type: 'imported', course: CourseSchema.parse(JSON.parse(text)) });
+      dispatch({ type: 'imported', course: corsoImportato(text) });
       setError('');
     } catch {
       setError(

@@ -1,4 +1,5 @@
 import { CourseSchema, type Course } from '@formazione/contracts';
+import { corsoDaLeggere } from '../state/lettura';
 import { apiUrl } from './documents';
 import { apiErrorMessage } from './errors';
 import { corpoGenerazione, percorsoPreventivo } from '../state/generazione';
@@ -64,6 +65,7 @@ export async function generateDraft(
   });
   const result = await response.json();
   if (!response.ok) throw new Error(apiErrorMessage(result, 'Generazione non riuscita.'));
+  // Generazione: la bozza appena scritta dalla pipeline deve rispettare anche le regole di qualità.
   return { ...result, course: CourseSchema.parse(result.course) };
 }
 export async function draftRequest(path: string, method = 'GET', body?: unknown): Promise<Draft> {
@@ -74,12 +76,12 @@ export async function draftRequest(path: string, method = 'GET', body?: unknown)
   });
   const result = await response.json();
   if (!response.ok) throw new Error(apiErrorMessage(result, 'Operazione non riuscita.'));
-  return { ...result, course: CourseSchema.parse(result.course) };
+  return { ...result, course: corsoDaLeggere(result.course) };
 }
 export async function recoverDraft(id: string): Promise<Draft> {
   const response = await fetch(`${apiUrl}/courses/${id}`);
   if (response.status === 404) return draftRequest(`/drafts/${id}`);
   const result = await response.json();
   if (!response.ok) throw new Error(apiErrorMessage(result, 'Corso non recuperabile.'));
-  return { ...result, course: CourseSchema.parse(result.course) };
+  return { ...result, course: corsoDaLeggere(result.course) };
 }

@@ -1,8 +1,11 @@
 # Contratti del corso v1
 
-`CourseSchema` valida forma e coerenza semantica. `courseJsonSchema` esporta
-solo la forma strutturale: i riferimenti incrociati devono sempre essere
-controllati anche con `CourseSchema` sul server.
+`CourseSchema` valida forma, coerenza semantica e regole di qualità di
+singola domanda: si usa in scrittura (salvataggio, pubblicazione, generazione).
+`CorsoLeggibileSchema` valida forma e coerenza senza le regole di qualità: si
+usa in lettura, così un corso salvato prima di quelle regole si apre sempre.
+`courseJsonSchema` esporta solo la forma strutturale: i riferimenti incrociati
+devono sempre essere controllati anche con `CourseSchema` sul server.
 
 Gli ID delle domande sono univoci nel corso; gli ID delle opzioni nella
 domanda. Le pagine delle fonti conservano il numero originale del PDF.
