@@ -6,6 +6,7 @@ export default defineConfig({
     environment: 'node',
     include: [
       'packages/**/__tests__/**/*.test.ts',
+      'packages/**/src/**/*.test.ts',
       'apps/**/src/**/*.test.ts',
       // Controlli sull'intero repository (codice compresso).
       'tests/**/*.test.ts',

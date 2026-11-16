@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Switch } from 'react-native';
 import type { Extraction } from '../api/documents';
 import { Button, colors } from './ui';
 
@@ -120,20 +120,96 @@ export function buildProposedSections(blocks: ExtractionBlock[]): ProposedSectio
   });
 }
 
-export type ProposedIndexPanelProps = {
-  extraction: Extraction;
+export type PageGroup = {
+  page: number | null;
+  label: string;
+  blocks: ExtractionBlock[];
+  charCount: number;
+  blockCount: number;
+  warnings: string[];
+  hasFigures: boolean;
 };
 
-export function ProposedIndexPanel({ extraction }: ProposedIndexPanelProps) {
+export function buildPageGroups(
+  blocks: ExtractionBlock[],
+  warnings: string[] = [],
+): PageGroup[] {
+  const map = new Map<number | null, ExtractionBlock[]>();
+  for (const block of blocks) {
+    const pageKey = block.page ?? null;
+    const existing = map.get(pageKey) ?? [];
+    existing.push(block);
+    map.set(pageKey, existing);
+  }
+
+  const sortedKeys = Array.from(map.keys()).sort((a, b) => {
+    if (a === null) return 1;
+    if (b === null) return -1;
+    return a - b;
+  });
+
+  return sortedKeys.map((pageKey) => {
+    const pageBlocks = map.get(pageKey) ?? [];
+    const charCount = pageBlocks.reduce((acc, b) => acc + (b.text?.length ?? 0), 0);
+    const blockCount = pageBlocks.length;
+    const label = pageKey !== null ? `Pagina ${pageKey}` : 'Senza pagina';
+
+    const pageWarnings = warnings.filter((w) => {
+      if (pageKey === null) return false;
+      const lower = w.toLowerCase();
+      return (
+        lower.includes(`pagina ${pageKey}`) ||
+        lower.includes(`p. ${pageKey}`) ||
+        lower.includes(`p.${pageKey}`)
+      );
+    });
+
+    const hasFigures =
+      pageWarnings.some((w) => w.toLowerCase().includes('figura')) ||
+      pageBlocks.some(
+        (b) =>
+          (b.label ?? '').toLowerCase().includes('picture') ||
+          (b.label ?? '').toLowerCase().includes('figura'),
+      );
+
+    return {
+      page: pageKey,
+      label,
+      blocks: pageBlocks,
+      charCount,
+      blockCount,
+      warnings: pageWarnings,
+      hasFigures,
+    };
+  });
+}
+
+export type ProposedIndexPanelProps = {
+  extraction: Extraction;
+  excludedPages?: number[];
+  onTogglePage?: (page: number) => void;
+};
+
+export function ProposedIndexPanel({
+  extraction,
+  excludedPages = [],
+  onTogglePage,
+}: ProposedIndexPanelProps) {
   const [viewMode, setViewMode] = useState<'index' | 'sources'>('index');
   const [visibleSources, setVisibleSources] = useState(20);
   const [expandedSections, setExpandedSections] = useState<
     Record<string, boolean>
   >({});
+  const [collapsedPages, setCollapsedPages] = useState<Record<string, boolean>>({});
 
   const sections = useMemo(
     () => buildProposedSections(extraction.blocks),
     [extraction.blocks],
+  );
+
+  const pageGroups = useMemo(
+    () => buildPageGroups(extraction.blocks, extraction.warnings),
+    [extraction.blocks, extraction.warnings],
   );
 
   const totalPages = useMemo(() => {
@@ -280,21 +356,128 @@ export function ProposedIndexPanel({ extraction }: ProposedIndexPanelProps) {
 
       {viewMode === 'sources' && (
         <View style={localStyles.sourcesList}>
-          {extraction.blocks.slice(0, visibleSources).map((block) => (
-            <View key={block.id} style={localStyles.rawBlockItem}>
-              <Text style={localStyles.rawBlockHeader}>
-                {block.page ? `${block.label} · pagina ${block.page}` : block.label}
-              </Text>
-              <Text style={localStyles.rawBlockText}>{block.text}</Text>
-            </View>
-          ))}
+          {pageGroups.length === 0 ? (
+            <Text style={localStyles.emptyText}>
+              Nessun blocco di testo rilevato nelle pagine selezionate.
+            </Text>
+          ) : (
+            pageGroups.map((group) => {
+              const isExcluded =
+                group.page !== null && (excludedPages?.includes(group.page) ?? false);
+              const isCollapsed = !!collapsedPages[String(group.page)];
 
-          {visibleSources < extraction.blocks.length && (
-            <Button
-              label={`Mostra altri blocchi (${visibleSources}/${extraction.blocks.length})`}
-              secondary
-              onPress={() => setVisibleSources((v) => v + 20)}
-            />
+              return (
+                <View
+                  key={String(group.page)}
+                  style={[
+                    localStyles.pageCard,
+                    isExcluded && localStyles.pageCardExcluded,
+                  ]}
+                >
+                  <View style={localStyles.pageCardHeader}>
+                    <View style={localStyles.pageCardHeaderLeft}>
+                      <View
+                        style={[
+                          localStyles.pageBadgeMain,
+                          isExcluded && localStyles.pageBadgeExcluded,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            localStyles.pageBadgeMainText,
+                            isExcluded && localStyles.pageBadgeExcludedText,
+                          ]}
+                        >
+                          {group.label}
+                        </Text>
+                      </View>
+                      <Text style={localStyles.pageMetaText}>
+                        {`${group.blockCount} ${group.blockCount === 1 ? 'blocco' : 'blocchi'} · ${group.charCount.toLocaleString('it-IT')} caratteri`}
+                      </Text>
+                    </View>
+
+                    {group.page !== null && onTogglePage && (
+                      <View style={localStyles.pageToggleRow}>
+                        <Text
+                          style={[
+                            localStyles.pageToggleLabel,
+                            isExcluded && localStyles.pageToggleLabelExcluded,
+                          ]}
+                        >
+                          {isExcluded ? 'Esclusa' : 'Includi'}
+                        </Text>
+                        <Switch
+                          accessibilityLabel={`Includi ${group.label} nella generazione didattica`}
+                          value={!isExcluded}
+                          onValueChange={() => onTogglePage(group.page!)}
+                        />
+                      </View>
+                    )}
+                  </View>
+
+                  {isExcluded && (
+                    <View style={localStyles.excludedNoticeBadge}>
+                      <Text style={localStyles.excludedNoticeText}>
+                        ⚠️ Pagina esclusa dalla generazione didattica
+                      </Text>
+                    </View>
+                  )}
+
+                  {group.hasFigures && (
+                    <View style={localStyles.figureNoticeBadge}>
+                      <Text style={localStyles.figureNoticeText}>
+                        🖼️ Contiene figure o elementi visivi
+                      </Text>
+                    </View>
+                  )}
+
+                  {group.warnings.length > 0 && (
+                    <View style={localStyles.pageWarningsBox}>
+                      {group.warnings.map((w, wi) => (
+                        <Text key={wi} style={localStyles.pageWarningItemText}>
+                          ⚠️ {w}
+                        </Text>
+                      ))}
+                    </View>
+                  )}
+
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      isCollapsed
+                        ? `Mostra blocchi ${group.label}`
+                        : `Nascondi blocchi ${group.label}`
+                    }
+                    onPress={() =>
+                      setCollapsedPages((prev) => ({
+                        ...prev,
+                        [String(group.page)]: !isCollapsed,
+                      }))
+                    }
+                    style={localStyles.toggleBlocksBtn}
+                  >
+                    <Text style={localStyles.toggleBlocksBtnText}>
+                      {isCollapsed
+                        ? `▼ Mostra testo estratto (${group.blockCount} ${group.blockCount === 1 ? 'blocco' : 'blocchi'})`
+                        : '▲ Nascondi testo estratto'}
+                    </Text>
+                  </Pressable>
+
+                  {!isCollapsed && (
+                    <View style={localStyles.pageBlocksList}>
+                      {group.blocks.map((block) => (
+                        <View key={block.id} style={localStyles.rawBlockItem}>
+                          <Text style={localStyles.rawBlockHeader}>
+                            {block.page ? `${block.label} · pagina ${block.page}` : block.label}
+                          </Text>
+                          <Text style={localStyles.rawBlockText}>{block.text}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              );
+            })
           )}
         </View>
       )}
@@ -382,6 +565,129 @@ const localStyles = StyleSheet.create({
   subBlockLabel: { fontSize: 12, fontWeight: '700', color: colors.navy },
   subBlockText: { fontSize: 13, lineHeight: 18, color: colors.ink },
   sourcesList: { gap: 12 },
+  pageCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: 14,
+    gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  pageCardExcluded: {
+    backgroundColor: '#fafbfc',
+    borderColor: '#e2e8f0',
+    opacity: 0.75,
+  },
+  pageCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  pageCardHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  pageBadgeMain: {
+    backgroundColor: colors.pale,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#cde4e0',
+  },
+  pageBadgeMainText: {
+    color: colors.teal,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  pageBadgeExcluded: {
+    backgroundColor: '#edf2f7',
+    borderColor: '#cbd5e0',
+  },
+  pageBadgeExcludedText: {
+    color: colors.muted,
+  },
+  pageMetaText: {
+    fontSize: 13,
+    color: colors.muted,
+    fontWeight: '500',
+  },
+  pageToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  pageToggleLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.teal,
+  },
+  pageToggleLabelExcluded: {
+    color: '#a0aec0',
+  },
+  excludedNoticeBadge: {
+    backgroundColor: '#fffaf0',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#feebc8',
+  },
+  excludedNoticeText: {
+    fontSize: 12,
+    color: '#c05621',
+    fontWeight: '600',
+  },
+  figureNoticeBadge: {
+    backgroundColor: '#ebf8ff',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#bee3f8',
+  },
+  figureNoticeText: {
+    fontSize: 12,
+    color: '#2b6cb0',
+    fontWeight: '600',
+  },
+  pageWarningsBox: {
+    backgroundColor: '#fff5f5',
+    padding: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#fed7d7',
+    gap: 4,
+  },
+  pageWarningItemText: {
+    fontSize: 12,
+    color: '#c53030',
+  },
+  toggleBlocksBtn: {
+    alignSelf: 'flex-start',
+    paddingVertical: 3,
+  },
+  toggleBlocksBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.teal,
+  },
+  pageBlocksList: {
+    gap: 10,
+    marginTop: 4,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#edf2f7',
+  },
   rawBlockItem: {
     gap: 6,
     paddingBottom: 10,

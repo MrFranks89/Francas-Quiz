@@ -46,6 +46,33 @@ def test_docling_invalid_artifact_directory(client, monkeypatch, tmp_path):
     assert extraction(client, doc, {'mode': 'all'}, 'docling').status_code == 503
 
 
+def test_docling_uses_default_cache_directory(monkeypatch, tmp_path):
+    pytest.importorskip('docling.datamodel.document')
+    from docling.datamodel.base_models import ConversionStatus
+    from formazione_api.docling_adapter import docling_extract
+    monkeypatch.delenv('DOCLING_ARTIFACTS_PATH', raising=False)
+    fake_default = tmp_path / 'default_docling'
+    fake_default.mkdir()
+    monkeypatch.setattr('formazione_api.docling_adapter.DEFAULT_DOCLING_PATH', fake_default)
+
+    converter_calls = []
+    class Converter:
+        def convert(self, source, **kwargs):
+            return SimpleNamespace(document=SimpleNamespace(iterate_items=lambda: []),
+                                   status=ConversionStatus.SUCCESS,
+                                   pages=[SimpleNamespace(page_no=1)], errors=[])
+
+    def fake_converter(artifacts, pages=1):
+        converter_calls.append(artifacts)
+        return Converter()
+
+    monkeypatch.setattr('formazione_api.docling_adapter._converter', fake_converter)
+    pdf = tmp_path / 'source.pdf'
+    pdf.write_bytes(pdf_bytes(1))
+    docling_extract(pdf, 'pdf', 1, 1)
+    assert converter_calls == [fake_default]
+
+
 # --- Estrazione OCR parziale: mai uno stato «pronto» ---------------------------------------
 
 def risultato(status, pagine, document):

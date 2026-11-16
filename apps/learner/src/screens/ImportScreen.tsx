@@ -22,11 +22,21 @@ export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
   const [showPreview, setShowPreview] = useState(false);
   const [activePageIndex, setActivePageIndex] = useState(0);
   const [lastValidPages, setLastValidPages] = useState<number[]>([]);
+  const [excludedPages, setExcludedPages] = useState<number[]>([]);
 
   const setRange = (value: boolean) => dispatch({ type: 'range', value });
   const setFrom = (value: string) => dispatch({ type: 'from', value });
   const setTo = (value: string) => dispatch({ type: 'to', value });
   const setEngine = (value: 'native' | 'docling') => dispatch({ type: 'engine', value });
+
+  function togglePageExclusion(pageNumber: number) {
+    setExcludedPages((prev) => {
+      if (prev.includes(pageNumber)) {
+        return prev.filter((p) => p !== pageNumber);
+      }
+      return [...prev, pageNumber].sort((a, b) => a - b);
+    });
+  }
 
   const selectionInfo = useMemo(() => {
     if (!document || document.kind !== 'pdf' || !document.pageCount) {
@@ -79,6 +89,7 @@ export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
         setShowPreview(false);
         setActivePageIndex(0);
         setLastValidPages([]);
+        setExcludedPages([]);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Caricamento non riuscito.');
@@ -96,6 +107,7 @@ export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
         ? parsePageSelection({ mode: 'range', fromPage: from, toPage: to }, document.pageCount!)
         : { mode: 'all' as const };
       dispatch({ type: 'result', value: await extractDocument(document.id, selection, engine) });
+      setExcludedPages([]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Estrazione non riuscita.');
     } finally {
@@ -156,20 +168,28 @@ export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
       {document && (
         <Card>
           <Text style={styles.subtitle}>02 · Scegli cosa studiare</Text>
-          <View style={styles.row}>
-            <Button
-              label="Tutto il volume"
-              disabled={busy}
-              secondary={range}
-              onPress={() => setRange(false)}
-            />
-            <Button
-              label="Da pagina… a pagina…"
-              secondary={!range}
-              disabled={busy || document.kind !== 'pdf'}
-              onPress={() => setRange(true)}
-            />
+          <Text style={styles.muted}>
+            Scegli se analizzare l'intero documento oppure delimitare un intervallo di pagine
+            specifico prima dell'estrazione didattica.
+          </Text>
+
+          <View style={localStyles.modeSelectorBox}>
+            <View style={styles.row}>
+              <Button
+                label="Tutto il volume"
+                disabled={busy}
+                secondary={range}
+                onPress={() => setRange(false)}
+              />
+              <Button
+                label="Da pagina… a pagina…"
+                secondary={!range}
+                disabled={busy || document.kind !== 'pdf'}
+                onPress={() => setRange(true)}
+              />
+            </View>
           </View>
+
           {document.kind !== 'pdf' && (
             <Text style={styles.muted}>
               La selezione per pagina richiede un PDF. Per gli altri formati si elabora tutto il
@@ -179,6 +199,10 @@ export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
 
           {document.kind === 'pdf' && range && (
             <View style={localStyles.rangeCard}>
+              <Text style={localStyles.rangeCardTitle}>🎯 Intervallo di studio personalizzato</Text>
+              <Text style={localStyles.rangeCardHint}>
+                Inserisci l'intervallo compreso tra 1 e {document.pageCount} pagine:
+              </Text>
               <View style={localStyles.rangeInputsRow}>
                 <View style={localStyles.inputGroup}>
                   <Text style={localStyles.inputLabel}>Da pagina</Text>
@@ -228,9 +252,14 @@ export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
           )}
 
           {document.kind === 'pdf' && !range && (
-            <View style={[localStyles.statusBadge, localStyles.statusBadgeValid]}>
-              <Text style={localStyles.statusTextValid}>
-                ✓ Tutte le {document.pageCount} pagine del volume selezionate
+            <View style={localStyles.allVolumeBox}>
+              <View style={[localStyles.statusBadge, localStyles.statusBadgeValid]}>
+                <Text style={localStyles.statusTextValid}>
+                  ✓ Tutte le {document.pageCount} pagine del volume selezionate per l'elaborazione
+                </Text>
+              </View>
+              <Text style={localStyles.allVolumeHint}>
+                Tocca "Da pagina… a pagina…" se vuoi estrarre solo un capitolo o una parte del documento.
               </Text>
             </View>
           )}
@@ -287,8 +316,27 @@ export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
           {result.warnings.map((w, i) => (
             <Notice key={i} text={w} error />
           ))}
-          <ProposedIndexPanel extraction={result} />
-          <GenerationPanel key={result.id} extraction={result} onDraft={onDraft} />
+
+          {excludedPages.length > 0 && (
+            <View style={localStyles.excludedPagesBanner}>
+              <Text style={localStyles.excludedPagesBannerText}>
+                {`📌 ${excludedPages.length} ${excludedPages.length === 1 ? 'pagina esclusa' : 'pagine escluse'} dalla generazione didattica: ${excludedPages.join(', ')}`}
+              </Text>
+            </View>
+          )}
+
+          <ProposedIndexPanel
+            extraction={result}
+            excludedPages={excludedPages}
+            onTogglePage={togglePageExclusion}
+          />
+          <GenerationPanel
+            key={result.id}
+            extraction={result}
+            onDraft={onDraft}
+            excludedPages={excludedPages}
+            onExcludedPagesChange={setExcludedPages}
+          />
         </Card>
       )}
       <Text style={styles.muted}>API di sviluppo locale · {apiUrl}</Text>
@@ -324,10 +372,44 @@ const localStyles = StyleSheet.create({
   rangeCard: {
     backgroundColor: '#f8fafc',
     borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.line,
-    padding: 14,
+    borderWidth: 1.5,
+    borderColor: '#cde4e0',
+    padding: 16,
     gap: 12,
+  },
+  modeSelectorBox: {
+    gap: 8,
+  },
+  rangeCardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.navy,
+  },
+  rangeCardHint: {
+    fontSize: 13,
+    color: colors.muted,
+  },
+  allVolumeBox: {
+    gap: 6,
+    paddingVertical: 2,
+  },
+  allVolumeHint: {
+    fontSize: 12,
+    color: colors.muted,
+    fontStyle: 'italic',
+  },
+  excludedPagesBanner: {
+    backgroundColor: '#fffaf0',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#feebc8',
+  },
+  excludedPagesBannerText: {
+    fontSize: 13,
+    color: '#9c4221',
+    fontWeight: '600',
   },
   rangeInputsRow: { flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
   inputGroup: { flexDirection: 'row', alignItems: 'center', gap: 8 },

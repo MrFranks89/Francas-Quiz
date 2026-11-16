@@ -16,7 +16,7 @@ class Chunk:
     pieces: tuple[SourcePiece, ...]
 
 
-def plan_chunks(blocks: list[dict], max_chars=12000, max_chunks=40) -> list[Chunk]:
+def plan_chunks(blocks: list[dict], max_chars=8000, max_chunks=40) -> list[Chunk]:
     """Bounded, lossless partition. Prefer paragraph boundaries; retain whitespace."""
     if max_chars < 1 or max_chunks < 1:
         raise GenerationError('invalid_budget', 'Limiti generazione non validi')

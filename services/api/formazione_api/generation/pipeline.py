@@ -44,7 +44,7 @@ def domanda_del_contratto(question, qid: str, module_id: str, lesson_id: str) ->
                 explanation=question.explanation, sourceRefs=question.sourceRefs)
 
 
-def generate(extraction: dict, provider=None, *, title='Corso dal documento', max_chars=12000, max_chunks=40, acknowledge_warnings: bool = False):
+def generate(extraction: dict, provider=None, *, title='Corso dal documento', max_chars=8000, max_chunks=40, acknowledge_warnings: bool = False):
     """Atomic draft generation. No partial course returned on any failed chunk."""
     status = extraction.get('status')
     if status not in ('ready', 'needs_review') or (status == 'needs_review' and acknowledge_warnings is not True):

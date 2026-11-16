@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, jest, test } from '@jest/globals';
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { TextInput, Image, Text } from 'react-native';
 import * as Picker from 'expo-document-picker';
-import { uploadDocument, type Document } from '../api/documents';
+import { uploadDocument, extractDocument, type Document } from '../api/documents';
 import { Button } from '../components/ui';
 import { ImportScreen } from './ImportScreen';
 
@@ -17,8 +17,28 @@ jest.mock('../api/documents', () => ({
   extractDocument: jest.fn(),
 }));
 
+jest.mock('../api/generation', () => ({
+  generationConfig: jest.fn(() =>
+    Promise.resolve({
+      configured: true,
+      provider: 'anthropic',
+      model: 'claude-3-5-sonnet',
+    })
+  ),
+  generationEstimate: jest.fn(() =>
+    Promise.resolve({
+      tokens: 1000,
+      costEur: 0.05,
+      estimatedMinutes: 2,
+      unreadPages: [],
+    })
+  ),
+  generateDraft: jest.fn(),
+}));
+
 const mockPicker = Picker.getDocumentAsync as jest.MockedFunction<typeof Picker.getDocumentAsync>;
 const mockUpload = uploadDocument as jest.MockedFunction<typeof uploadDocument>;
+const mockExtract = extractDocument as jest.MockedFunction<typeof extractDocument>;
 
 describe('ImportScreen anteprima persistente e navigazione', () => {
   beforeEach(() => {
@@ -205,5 +225,53 @@ describe('ImportScreen anteprima persistente e navigazione', () => {
     });
 
     expect(renderer.root.findAllByType(Image).length).toBe(0);
+  });
+
+  test('sincronizza l’esclusione delle pagine tra schede fonti e GenerationPanel', async () => {
+    const { renderer } = await renderScreen();
+    await loadPdfDocument(renderer, 5);
+
+    mockExtract.mockResolvedValueOnce({
+      id: 'ext-1',
+      status: 'ready',
+      engine: 'native',
+      warnings: [],
+      blocks: [
+        { id: 'b1', label: 'Blocco 1', page: 1, text: 'Contenuto pagina 1' },
+        { id: 'b2', label: 'Blocco 2', page: 2, text: 'Contenuto pagina 2 da escludere' },
+      ],
+    });
+
+    const extractBtn = renderer.root
+      .findAllByType(Button)
+      .find((b) => b.props.label === 'Estrai il contenuto');
+    expect(extractBtn).toBeDefined();
+
+    await act(async () => {
+      await extractBtn?.props.onPress();
+    });
+
+    // Passa alla vista "Testo fonti completo"
+    const sourcesTab = renderer.root
+      .findAllByProps({ accessibilityLabel: 'Vista testo integrale' })[0];
+    expect(sourcesTab).toBeDefined();
+
+    await act(async () => {
+      sourcesTab.props.onPress();
+    });
+
+    // Switch per escludere pagina 2
+    const switchPagina2 = renderer.root
+      .findAllByProps({ accessibilityLabel: 'Includi Pagina 2 nella generazione didattica' })[0];
+    expect(switchPagina2).toBeDefined();
+    expect(switchPagina2.props.value).toBe(true);
+
+    await act(async () => {
+      switchPagina2.props.onValueChange(false);
+    });
+
+    expect(switchPagina2.props.value).toBe(false);
+    const allTexts = renderer.root.findAllByType(Text).map((t) => t.props.children).flat().join(' ');
+    expect(allTexts).toContain('1 pagina esclusa dalla generazione didattica: 2');
   });
 });

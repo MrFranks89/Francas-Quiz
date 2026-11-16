@@ -114,7 +114,7 @@ def test_limite_conta_byte_di_istruzioni_materiale_e_schema_come_inviati():
 
 
 def test_pianificazione_identica_alla_pipeline():
-    blocks = estrazione(20)['blocks']
+    blocks = estrazione(15)['blocks']
     assert pv.pianifica(blocks) == plan_chunks(blocks)     # stessi parametri predefiniti di generate()
 
 

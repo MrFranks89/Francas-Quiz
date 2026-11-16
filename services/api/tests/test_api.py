@@ -1,4 +1,5 @@
 from io import BytesIO
+from pathlib import Path
 from zipfile import ZipFile
 
 import pytest
@@ -174,6 +175,7 @@ def test_upload_limit(client, monkeypatch):
 
 def test_docling_requires_explicit_local_artifacts(client, monkeypatch):
     monkeypatch.delenv('DOCLING_ARTIFACTS_PATH', raising=False)
+    monkeypatch.setattr('formazione_api.docling_adapter.DEFAULT_DOCLING_PATH', Path('/nonexistent_docling_artifacts'))
     doc = upload(client, 'manual.pdf', pdf_bytes())
     response = extraction(client, doc, {'mode': 'all'}, 'docling')
     assert response.status_code == 503

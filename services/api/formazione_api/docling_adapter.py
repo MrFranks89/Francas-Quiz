@@ -8,6 +8,15 @@ from pathlib import Path
 from .extractors import SOGLIA_PAGINA_BIANCA, scansioni
 from .pagine_non_lette import avviso_ocr_vuoto, avviso_pagina_bianca, pagine_bianche
 
+REPO_ROOT = Path(__file__).resolve().parents[3]
+DEFAULT_DOCLING_PATH = REPO_ROOT / '.cache' / 'docling'
+DEFAULT_HF_HOME = REPO_ROOT / '.cache' / 'huggingface'
+
+if 'HF_HOME' not in os.environ and DEFAULT_HF_HOME.is_dir():
+    os.environ['HF_HOME'] = str(DEFAULT_HF_HOME)
+os.environ.setdefault('HF_HUB_OFFLINE', '1')
+os.environ.setdefault('TRANSFORMERS_OFFLINE', '1')
+
 # Limite di tempo dell'OCR, proporzionale alle pagine selezionate. Misura reale sul corpus
 # (docs/MISURE.md): 5 pagine di 02-dpr-547-1955 in 134 s, circa 27 s per pagina su CPU. Con il
 # limite fisso di 120 s Docling consegnava 13 pagine su 50 (01, pp. 94-143) e 0 su 48 (02).
@@ -74,12 +83,18 @@ def docling_extract(path, kind, start, end):
     if kind != 'pdf':
         raise ValueError('Docling è disponibile in questa versione solo per PDF.')
     configured = os.environ.get('DOCLING_ARTIFACTS_PATH')
-    if not configured or not Path(configured).is_dir():
+    if configured:
+        if not Path(configured).is_dir():
+            raise RuntimeError('Configurare DOCLING_ARTIFACTS_PATH con i modelli Docling già scaricati localmente.')
+        artifacts_path = Path(configured)
+    elif DEFAULT_DOCLING_PATH.is_dir():
+        artifacts_path = DEFAULT_DOCLING_PATH
+    else:
         raise RuntimeError('Configurare DOCLING_ARTIFACTS_PATH con i modelli Docling già scaricati localmente.')
     try:
         from docling.datamodel.document import DocumentStream
         from docling.datamodel.base_models import ConversionStatus
-        converter = _converter(Path(configured), end - start + 1)
+        converter = _converter(artifacts_path, end - start + 1)
         # Source: installed Docling DocumentConverter.convert(page_range: PageRange).
         # DocumentStream supplies the real format; storage filenames deliberately have no extension.
         result = converter.convert(DocumentStream(name='source.pdf', stream=BytesIO(path.read_bytes())),

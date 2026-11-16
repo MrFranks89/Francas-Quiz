@@ -243,7 +243,7 @@ def test_registro_leggibile_come_json(client):
 # --- Importi regolati: la prenotazione di un blocco completato è sostituita da un maggiorante del costo reale.
 
 def tre_blocchi():
-    return '\n\n'.join(f'Paragrafo {i}: ' + 'leggere il manuale prima di iniziare. ' * 40 for i in range(18)).encode()
+    return '\n\n'.join(f'Paragrafo {i}: ' + 'leggere il manuale prima di iniziare. ' * 40 for i in range(12)).encode()
 
 
 def listino_haiku():

@@ -30,9 +30,13 @@ import { EstimateCard } from './EstimateCard';
 export function GenerationPanel({
   extraction,
   onDraft,
+  excludedPages,
+  onExcludedPagesChange,
 }: {
   extraction: Extraction;
   onDraft: (draft: Draft) => void;
+  excludedPages?: number[];
+  onExcludedPagesChange?: (pages: number[]) => void;
 }) {
   const [config, setConfig] = useState<GenerationConfig | null>(null);
   const [error, setError] = useState('');
@@ -40,20 +44,22 @@ export function GenerationPanel({
   const [ack, setAck] = useState(false);
   const [busy, setBusy] = useState(false);
   const [estimate, setEstimate] = useState<GenerationEstimate | null>(null);
-  const [escluse, setEscluse] = useState<number[]>([]);
+  const [internalEscluse, setInternalEscluse] = useState<number[]>([]);
 
-  // Pagine escluse su richiesta: le stesse per il preventivo e per «Crea bozza AI».
-  const escluseRef = useRef<number[]>([]);
+  // Pagine escluse: da prop se fornite, altrimenti fallback allo stato locale.
+  const escluse = excludedPages !== undefined ? excludedPages : internalEscluse;
+  const escluseRef = useRef<number[]>(escluse);
+  escluseRef.current = escluse;
+
   const nonLette = estimate?.unreadPages ?? [];
   const preventivo = testoPreventivo(estimate);
   const alive = useRef(true);
 
-  async function refresh() {
-    const pagine = escluseRef.current;
+  async function refresh(targetPages = escluseRef.current) {
     try {
       setConfig(await generationConfig());
-      const stima = await generationEstimate(extraction.id, pagine);
-      if (escluseRef.current === pagine) setEstimate(stima);
+      const stima = await generationEstimate(extraction.id, targetPages);
+      if (escluseRef.current === targetPages) setEstimate(stima);
       setError('');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'AI non raggiungibile.');
@@ -68,6 +74,13 @@ export function GenerationPanel({
     };
   }, []);
 
+  // Aggiornamento stima al variare delle pagine escluse
+  useEffect(() => {
+    escluseRef.current = escluse;
+    setEstimate(null);
+    void refresh(escluse);
+  }, [escluse]);
+
   // Dopo un salvataggio in Impostazioni: nuova configurazione e nuovo preventivo, senza ricaricare.
   useEffect(
     () =>
@@ -79,9 +92,13 @@ export function GenerationPanel({
 
   function cambiaEsclusione(pagine: number[]) {
     escluseRef.current = pagine;
-    setEscluse(pagine);
     setEstimate(null);
-    void refresh();
+    if (onExcludedPagesChange) {
+      onExcludedPagesChange(pagine);
+    } else {
+      setInternalEscluse(pagine);
+      void refresh(pagine);
+    }
   }
 
   async function generate() {

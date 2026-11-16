@@ -1,11 +1,12 @@
 import React from 'react';
-import { describe, expect, test } from '@jest/globals';
+import { describe, expect, jest, test } from '@jest/globals';
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { Text, Pressable } from 'react-native';
 import { extractDocument, type Extraction } from '../api/documents';
 import {
   ProposedIndexPanel,
   buildProposedSections,
+  buildPageGroups,
   extractTopic,
   formatPageRange,
 } from './ProposedIndexPanel';
@@ -168,5 +169,56 @@ describe('ProposedIndexPanel component', () => {
     const flattened = allTexts.flat().join(' ');
     expect(flattened).toContain('0 sezioni individuate');
     expect(flattened).toContain('Nessun blocco di testo rilevato nelle pagine selezionate.');
+  });
+
+  test('raggruppa blocchi per singola pagina reale con buildPageGroups', () => {
+    const groups = buildPageGroups(mockExtraction.blocks, ['Figura a pagina 4: contenuto visivo da verificare.']);
+    expect(groups).toHaveLength(2);
+    expect(groups[0].page).toBe(4);
+    expect(groups[0].label).toBe('Pagina 4');
+    expect(groups[0].blockCount).toBe(2);
+    expect(groups[0].hasFigures).toBe(true);
+    expect(groups[0].warnings).toHaveLength(1);
+
+    expect(groups[1].page).toBe(5);
+    expect(groups[1].label).toBe('Pagina 5');
+    expect(groups[1].blockCount).toBe(1);
+    expect(groups[1].hasFigures).toBe(false);
+  });
+
+  test('permette di escludere e includere pagine tramite switch nella vista fonti', () => {
+    const onToggle = jest.fn();
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    act(() => {
+      renderer = ReactTestRenderer.create(
+        <ProposedIndexPanel
+          extraction={mockExtraction}
+          excludedPages={[5]}
+          onTogglePage={onToggle}
+        />
+      );
+    });
+
+    const sourcesTab = renderer.root.findAllByProps({ accessibilityLabel: 'Vista testo integrale' })[0];
+    act(() => {
+      sourcesTab.props.onPress();
+    });
+
+    const switchPagina4 = renderer.root.findAllByProps({
+      accessibilityLabel: 'Includi Pagina 4 nella generazione didattica',
+    })[0];
+    expect(switchPagina4).toBeDefined();
+    expect(switchPagina4.props.value).toBe(true);
+
+    const switchPagina5 = renderer.root.findAllByProps({
+      accessibilityLabel: 'Includi Pagina 5 nella generazione didattica',
+    })[0];
+    expect(switchPagina5).toBeDefined();
+    expect(switchPagina5.props.value).toBe(false);
+
+    act(() => {
+      switchPagina4.props.onValueChange(false);
+    });
+    expect(onToggle).toHaveBeenCalledWith(4);
   });
 });

@@ -99,6 +99,14 @@ Come Algor, la piattaforma deve "vedere" grafici, schemi, formule complesse e di
 
 ## 5. Piano di Implementazione per Claude / Sviluppo
 
+### Fase 0: Fix Immediato OCR & Distinzione Pagine nell'Estrazione (In corso)
+- **Backend OCR (Docling):**
+  - In `services/api/formazione_api/docling_adapter.py`: default automatico di `DOCLING_ARTIFACTS_PATH` alla cartella locale `.cache/docling` se presente, impostando anche `HF_HOME`, `HF_HUB_OFFLINE='1'` e `TRANSFORMERS_OFFLINE='1'`.
+- **Frontend Estrazione Pagine (`apps/learner`):**
+  - Rendere prominente e intuitiva la selezione pagine pre-estrazione (evitando che rimanga nascosta).
+  - Raggruppare le fonti estratte in schede/card chiare per pagina (anziché un flusso continuo di testo).
+  - Aggiungere selettore / checkbox per includere/escludere le singole pagine estratte prima della generazione, collegato al parametro `excludedPages` di `GenerationPanel`.
+
 ### Fase 1: Fix Immediato di Stabilità
 - In `services/api/formazione_api/generation/instructions.py`:
   - Aggiungere vincoli espliciti di concisione: *"Genera al massimo 4 slide essenziali e al massimo 4 quiz per modulo"*.
