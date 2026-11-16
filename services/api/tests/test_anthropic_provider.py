@@ -237,3 +237,80 @@ def test_effort_is_low_so_thinking_leaves_room_for_the_module():
     provider, requests = sdk_provider((200, message(draft_json())))
     generate(extraction(), provider)
     assert requests[0]['output_config']['effort'] == 'low'
+
+
+# ANTHROPIC_THINKING: interruttore di misura, facoltativo. Forma {'type': 'disabled'} letta da
+# anthropic/types/thinking_config_disabled_param.py 1.15.0.
+
+def test_thinking_absent_or_empty_leaves_the_request_unchanged(monkeypatch):
+    from formazione_api.generation.anthropic_provider import _schema, richiesta
+    from formazione_api.generation.instructions import materiale
+    chunk = _chunk_di_prova()
+    attesa = dict(model=MODEL, max_tokens=16000, system=ISTRUZIONI_DIDATTICHE,
+                  messages=[{'role': 'user', 'content': materiale(chunk)}],
+                  output_config={'format': {'type': 'json_schema', 'schema': _schema()}, 'effort': 'low'})
+    for valore in (None, '', '   '):
+        if valore is None:
+            monkeypatch.delenv('ANTHROPIC_THINKING', raising=False)
+        else:
+            monkeypatch.setenv('ANTHROPIC_THINKING', valore)
+        assert richiesta(MODEL, chunk) == attesa
+        assert _richiesta_catturata(chunk) == attesa
+    # Facoltativa: non è fra le variabili mancanti e non rende «non configurato» il fornitore.
+    monkeypatch.delenv('ANTHROPIC_THINKING', raising=False)
+    monkeypatch.setenv('ANTHROPIC_API_KEY', 'test-key-not-real')
+    monkeypatch.setenv('ANTHROPIC_MODEL', 'modello-di-prova')
+    assert config_status() == {'configured': True, 'provider': 'anthropic', 'missing': []}
+
+
+@pytest.mark.parametrize('valore', ['disabled', '  disabled  '])
+def test_thinking_disabled_goes_on_the_wire_with_effort_low(monkeypatch, valore):
+    # Sul filo, non solo in richiesta(): vero SDK con trasporto finto, dentro la pipeline.
+    monkeypatch.setenv('ANTHROPIC_THINKING', valore)
+    provider, requests = sdk_provider((200, message(draft_json())))
+    generate(extraction(), provider)
+    assert requests[0]['thinking'] == {'type': 'disabled'}
+    assert requests[0]['output_config']['effort'] == 'low'
+    assert requests[0]['max_tokens'] == 16000
+
+
+@pytest.mark.parametrize('valore', ['enabled', 'off', 'Disabled', 'adaptive'])
+def test_thinking_unknown_value_is_not_configured_and_nothing_is_sent(monkeypatch, valore):
+    from formazione_api.generation.anthropic_provider import richiesta
+    monkeypatch.setenv('ANTHROPIC_THINKING', valore)
+    with pytest.raises(GenerationError) as error:
+        richiesta(MODEL, _chunk_di_prova())
+    assert error.value.code == 'not_configured'
+    assert 'ANTHROPIC_THINKING' in str(error.value) and 'disabled' in str(error.value)
+    # Il valore non è ripetuto nel messaggio: potrebbe contenere per errore un segreto.
+    assert valore == 'Disabled' or valore not in str(error.value)
+    # Alla costruzione del fornitore: prima di qualunque prenotazione di spesa.
+    with pytest.raises(GenerationError) as error:
+        sdk_provider()
+    assert error.value.code == 'not_configured'
+
+
+def test_thinking_made_invalid_after_construction_is_not_swallowed_as_provider_error(monkeypatch):
+    # module() avvolge la chiamata in `except Exception` → provider_error: l'errore di configurazione
+    # deve uscire com'è, e nessuna richiesta deve partire.
+    monkeypatch.delenv('ANTHROPIC_THINKING', raising=False)
+    provider, requests = sdk_provider((200, message(draft_json())))
+    monkeypatch.setenv('ANTHROPIC_THINKING', 'enabled')
+    with pytest.raises(GenerationError) as error:
+        generate(extraction(), provider)
+    assert error.value.code == 'not_configured'
+    assert requests == []
+
+
+def test_thinking_disabled_is_accepted_by_the_overhead_measurement(monkeypatch):
+    # tools/misura_sovraccarico_anthropic.py rifiuta i campi che count_tokens non accetta: `thinking`
+    # è nella firma di messages.count_tokens (anthropic/resources/messages/messages.py 1.15.0).
+    import importlib.util
+    from pathlib import Path
+    percorso = Path(__file__).resolve().parents[1] / 'tools' / 'misura_sovraccarico_anthropic.py'
+    spec = importlib.util.spec_from_file_location('misura_sovraccarico_anthropic', percorso)
+    ms = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(ms)
+    monkeypatch.setenv('ANTHROPIC_THINKING', 'disabled')
+    conteggio = ms.richiesta_conteggio(MODEL, _chunk_di_prova())
+    assert conteggio['thinking'] == {'type': 'disabled'} and 'max_tokens' not in conteggio

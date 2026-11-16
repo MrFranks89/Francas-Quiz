@@ -31,11 +31,38 @@ def _schema():
     return transform_schema(ModuleDraft)
 
 
+def _thinking() -> dict:
+    """Argomento `thinking` da ANTHROPIC_THINKING, letto a ogni richiesta: {} se assente o vuota.
+
+    Interruttore di misura, facoltativo (non è in VARIABILI: assente non rende «non configurato» il
+    fornitore): serve a misurare la stessa generazione a ragionamento spento. Misura del 16 novembre
+    2026 (var/api/registro-spesa-app.json), claude-haiku-5-5 con tetto a 16.000: uscita 10.461 token
+    di cui 7.801 di ragionamento, e 7.865 di cui 6.218.
+    Forma {'type': 'disabled'}: ThinkingConfigDisabledParam in
+    anthropic/types/thinking_config_disabled_param.py 1.15.0 (type: Required[Literal["disabled"]]),
+    membro di ThinkingConfigParam (thinking_config_param.py), parametro `thinking` di messages.create
+    e di messages.count_tokens (anthropic/resources/messages/messages.py).
+    Quando è accettato lo decide il modello (skill claude-api, shared/model-migration.md, § Migrating
+    to Claude Haiku 5.5 › «Turning thinking off is still accepted, with limits»): su Claude Haiku 5.5
+    `disabled` è accettato con effort low, medium e high; con xhigh o max dà 400. Altri modelli hanno
+    regole diverse (Claude Opus 5.5 e Sonnet 5.5 rispondono 400 a `disabled`): per questo è un
+    interruttore esplicito e non il predefinito. Un valore diverso è un errore di configurazione, non
+    un «acceso» silenzioso; il valore non è ripetuto nel messaggio (potrebbe contenere un segreto)."""
+    valore = os.getenv('ANTHROPIC_THINKING', '').strip()
+    if not valore:
+        return {}
+    if valore != 'disabled':
+        raise GenerationError('not_configured', "ANTHROPIC_THINKING ammette solo il valore 'disabled' (ragionamento "
+                                                'spento); assente o vuota lascia il predefinito del modello')
+    return {'thinking': {'type': 'disabled'}}
+
+
 def richiesta(model: str, chunk: Chunk) -> dict:
     """Argomenti di messages.create per un blocco: unica fonte, letta anche dalla misura del
     sovraccarico (tools/misura_sovraccarico_anthropic.py), che deve contare questa stessa richiesta."""
     # Forma {'type': 'json_schema', 'schema': ...} da anthropic/types/json_output_format_param.py.
-    # `thinking` non è impostato: si lascia il comportamento predefinito del modello configurato.
+    # `thinking` non è impostato, salvo ANTHROPIC_THINKING=disabled (_thinking(), con le fonti): si
+    # lascia il comportamento predefinito del modello configurato.
     # effort 'low' (campo di anthropic/types/output_config_param.py 1.15.0): Claude Haiku 5.5 ragiona per
     # impostazione predefinita a effort 'medium' e i token di ragionamento contano dentro max_tokens
     # (skill claude-api, shared/model-migration.md § Migrating to Claude Haiku 5.5 › Thinking is on by
@@ -49,6 +76,7 @@ def richiesta(model: str, chunk: Chunk) -> dict:
         system=ISTRUZIONI_DIDATTICHE,
         messages=[{'role': 'user', 'content': materiale(chunk)}],
         output_config={'format': {'type': 'json_schema', 'schema': _schema()}, 'effort': 'low'},
+        **_thinking(),
     )
 
 
@@ -68,6 +96,9 @@ class AnthropicProvider:
         self.model = model or os.getenv('ANTHROPIC_MODEL', '').strip()
         if not self.model:
             raise GenerationError('not_configured', 'Modello Anthropic non configurato')
+        # ANTHROPIC_THINKING non valida: si rifiuta qui, prima che la guardia prenoti la spesa di un
+        # blocco che non partirebbe (richiesta() la ricontrolla a ogni chiamata).
+        _thinking()
 
     def module(self, chunk: Chunk) -> ModuleDraft:
         self.last_usage = None
@@ -77,6 +108,10 @@ class AnthropicProvider:
         # stop_reason, e i codici provider_refusal / provider_incomplete andrebbero persi.
         try:
             response, ripetuti = chiama_con_tentativi(self.client.messages, 'create', **richiesta(self.model, chunk))
+        except GenerationError:
+            # Errore di configurazione sollevato da richiesta() (ANTHROPIC_THINKING): non è un guasto del
+            # fornitore e non deve diventare provider_error.
+            raise
         except Exception as error:
             raise errore_fornitore(self.provider_name, error) from error
         # Nomi letti da anthropic/types/usage.py 1.15.0. `input_tokens` è solo la parte non in cache:
