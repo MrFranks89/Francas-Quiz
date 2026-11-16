@@ -261,3 +261,56 @@ test('ogni campo che le regole possono segnalare ha il suo errore visibile', () 
     expect(avvisi.sort()).toEqual(campi.map((c) => `errore di ${c}`).sort());
   }
 });
+
+describe('accordion e badge', () => {
+  test('mostra il badge con il tipo di domanda', () => {
+    let albero!: ReactTestRenderer.ReactTestRenderer;
+    act(() => {
+      albero = ReactTestRenderer.create(
+        <DomandaEditor
+          question={domanda('truefalse')}
+          qi={0}
+          errori={undefined}
+          disabled={false}
+          change={jest.fn()}
+        />,
+      );
+    });
+    const badge = albero.root.find(
+      (n) => n.props.accessibilityLabel === 'Tipo: Vero o falso',
+    );
+    expect(badge).toBeDefined();
+  });
+
+  test('toccare l’header dell’accordion alterna espansione e compressione', () => {
+    let albero!: ReactTestRenderer.ReactTestRenderer;
+    act(() => {
+      albero = ReactTestRenderer.create(
+        <DomandaEditor
+          question={domanda('single')}
+          qi={2}
+          errori={undefined}
+          disabled={false}
+          change={jest.fn()}
+        />,
+      );
+    });
+    const header = albero.root.find(
+      (n) =>
+        n.props.accessibilityRole === 'button' &&
+        n.props.accessibilityLabel?.includes('Domanda 3'),
+    );
+    expect(header.props.accessibilityLabel).toBe('Domanda 3: tocca per comprimere');
+
+    act(() => {
+      header.props.onPress();
+    });
+    expect(header.props.accessibilityLabel).toBe('Domanda 3: tocca per espandere');
+
+    act(() => {
+      header.props.onPress();
+    });
+    expect(header.props.accessibilityLabel).toBe('Domanda 3: tocca per comprimere');
+  });
+});
+

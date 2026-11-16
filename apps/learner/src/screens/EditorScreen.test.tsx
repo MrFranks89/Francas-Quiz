@@ -180,3 +180,32 @@ describe('pubblicazione', () => {
     expect(s.albero.root.findAllByType(TextInput).some((c) => c.props.editable)).toBe(false);
   });
 });
+
+describe('navigazione a schede', () => {
+  test('mostra i tab previsti per panoramica moduli quiz e tutto', () => {
+    const s = disegna(bozza());
+    const tabs = s.albero.root.findAll(
+      (n) => n.props.accessibilityRole === 'tab' && typeof n.props.onPress === 'function',
+    );
+    const labels = tabs.map((t) => t.props.accessibilityLabel);
+    expect(labels).toContain('Scheda Panoramica');
+    expect(labels).toContain('Scheda Modulo 1');
+    expect(labels).toContain('Scheda Domande & Quiz');
+    expect(labels).toContain('Scheda Tutto');
+  });
+
+  test('permette di cambiare la scheda attiva selezionandola', () => {
+    const s = disegna(bozza());
+    const tabPanoramica = s.albero.root.find(
+      (n) =>
+        n.props.accessibilityRole === 'tab' &&
+        n.props.accessibilityLabel === 'Scheda Panoramica' &&
+        typeof n.props.onPress === 'function',
+    );
+    act(() => {
+      tabPanoramica.props.onPress();
+    });
+    expect(tabPanoramica.props.accessibilityState.selected).toBe(true);
+  });
+});
+

@@ -1,8 +1,14 @@
-import React from 'react';
-import { View, Text, TextInput } from 'react-native';
+import React, { useState } from 'react';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { DIFFICOLTA, type Question } from '@formazione/contracts';
-import { ETICHETTA_PROMPT, NOMI_TIPO, facoltativo } from '../state/editor';
-import { alternaGiusta, campiDelTipo, etichettaDifficolta, giusteDi } from '../state/editorDomanda';
+import { ETICHETTA_PROMPT, facoltativo } from '../state/editor';
+import {
+  alternaGiusta,
+  campiDelTipo,
+  etichettaDifficolta,
+  giusteDi,
+} from '../state/editorDomanda';
+import { QuizTypeBadge } from './QuizTypeBadge';
 import { Button, Notice, styles } from './ui';
 
 /**
@@ -25,9 +31,12 @@ export function DomandaEditor({
   disabled: boolean;
   change: (path: (string | number)[], value: unknown) => void;
 }) {
-  const n = qi + 1,
-    base = ['questions', qi];
+  const [expanded, setExpanded] = useState(true);
+  const n = qi + 1;
+  const base = ['questions', qi];
+  const hasErrors = !!errori && Object.values(errori).some((arr) => arr && arr.length > 0);
   const sotto = (campo: string) => errori?.[campo]?.map((m) => <Notice key={m} error text={m} />);
+
   function field(
     label: string,
     path: (string | number)[],
@@ -50,101 +59,181 @@ export function DomandaEditor({
       </View>
     );
   }
-  const kind = question.kind,
-    giuste = giusteDi(question),
-    campi = campiDelTipo(kind);
+
+  const kind = question.kind;
+  const giuste = giusteDi(question);
+  const campi = campiDelTipo(kind);
+
   return (
-    <View style={{ gap: 12 }}>
-      <Text style={styles.subtitle}>
-        Domanda {n} · {NOMI_TIPO[kind]}
-      </Text>
-      {campi.situazione && (
-        <>
-          {field(`Situazione ${n}`, ['situation'], question.situation ?? '', { multiline: true })}
-          {sotto('situation')}
-        </>
-      )}
-      {field(`${ETICHETTA_PROMPT[kind]} ${n}`, ['prompt'], question.prompt, { multiline: true })}
-      {sotto('prompt')}
-      {campi.fraseConErrore && (
-        <>
-          {field(`Frase con l'errore ${n}`, ['sentence'], question.sentence ?? '', {
-            multiline: true,
-          })}
-          {sotto('sentence')}
-          {field(`Parte sbagliata ${n}`, ['wrong'], question.wrong ?? '')}
-          {sotto('wrong')}
-        </>
-      )}
-      {question.options.map((option, oi) => (
-        <View key={option.id} style={{ gap: 8 }}>
-          {/* Vero/falso: le due opzioni sono fisse, si sceglie solo quale è giusta. */}
-          {field(`Risposta ${n}.${oi + 1}`, ['options', oi, 'text'], option.text, {
-            editable: campi.testoRisposteModificabile,
-          })}
-          {campi.motivazioni &&
-            field(
-              `Motivazione ${n}.${oi + 1} (facoltativa)`,
-              ['options', oi, 'rationale'],
-              option.rationale ?? '',
-              { optional: true },
+    <View style={editorStyles.container}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Domanda ${n}: tocca per ${expanded ? 'comprimere' : 'espandere'}`}
+        onPress={() => setExpanded((prev) => !prev)}
+        style={({ pressed }) => [
+          editorStyles.accordionHeader,
+          pressed && { opacity: 0.75 },
+        ]}
+      >
+        <View style={editorStyles.headerRow}>
+          <View style={editorStyles.titleGroup}>
+            <Text style={styles.subtitle}>Domanda {n}</Text>
+            <QuizTypeBadge kind={kind} />
+          </View>
+          <View style={editorStyles.chevronGroup}>
+            {hasErrors && (
+              <View style={editorStyles.errorPill}>
+                <Text style={editorStyles.errorPillText}>Errori</Text>
+              </View>
             )}
-          {campi.piuGiuste ? (
-            <Button
-              label={
-                giuste.includes(option.id)
-                  ? 'Giusta, tocca per togliere'
-                  : 'Segna anche questa come giusta'
-              }
-              disabled={disabled}
-              secondary={!giuste.includes(option.id)}
-              onPress={() =>
-                change([...base, 'correctOptionIds'], alternaGiusta(giuste, option.id))
-              }
-            />
-          ) : (
-            <Button
-              label={
-                question.correctOptionId === option.id
-                  ? 'Risposta corretta ✓'
-                  : 'Segna come corretta'
-              }
-              disabled={disabled}
-              secondary={question.correctOptionId !== option.id}
-              onPress={() => change([...base, 'correctOptionId'], option.id)}
-            />
-          )}
+            <Text style={editorStyles.chevron}>{expanded ? '▲' : '▼'}</Text>
+          </View>
         </View>
-      ))}
-      {/* Risposta multipla: l'insieme delle giuste, con l'errore sotto (almeno 2, almeno una sbagliata). */}
-      {campi.piuGiuste && (
-        <Text style={styles.muted}>
-          Risposte giuste: {giuste.length} su {question.options.length}
-        </Text>
-      )}
-      {sotto('correctOptionIds')}
-      {sotto('correctOptionId')}
-      {sotto('options')}
-      <Text style={styles.muted}>Difficoltà</Text>
-      <View style={styles.row}>
-        {DIFFICOLTA.map((d) => (
-          <Button
-            key={d}
-            label={etichettaDifficolta(d)}
-            disabled={disabled}
-            secondary={question.difficulty !== d}
-            onPress={() => change([...base, 'difficulty'], d)}
-          />
+        {!expanded && (
+          <Text numberOfLines={1} style={styles.muted}>
+            {question.prompt || '(Nessun prompt)'}
+          </Text>
+        )}
+      </Pressable>
+
+      <View style={{ display: expanded ? 'flex' : 'none', gap: 12 }}>
+        {campi.situazione && (
+          <>
+            {field(`Situazione ${n}`, ['situation'], question.situation ?? '', { multiline: true })}
+            {sotto('situation')}
+          </>
+        )}
+        {field(`${ETICHETTA_PROMPT[kind]} ${n}`, ['prompt'], question.prompt, { multiline: true })}
+        {sotto('prompt')}
+        {campi.fraseConErrore && (
+          <>
+            {field(`Frase con l'errore ${n}`, ['sentence'], question.sentence ?? '', {
+              multiline: true,
+            })}
+            {sotto('sentence')}
+            {field(`Parte sbagliata ${n}`, ['wrong'], question.wrong ?? '')}
+            {sotto('wrong')}
+          </>
+        )}
+        {question.options.map((option, oi) => (
+          <View key={option.id} style={{ gap: 8 }}>
+            {/* Vero/falso: le due opzioni sono fisse, si sceglie solo quale è giusta. */}
+            {field(`Risposta ${n}.${oi + 1}`, ['options', oi, 'text'], option.text, {
+              editable: campi.testoRisposteModificabile,
+            })}
+            {campi.motivazioni &&
+              field(
+                `Motivazione ${n}.${oi + 1} (facoltativa)`,
+                ['options', oi, 'rationale'],
+                option.rationale ?? '',
+                { optional: true },
+              )}
+            {campi.piuGiuste ? (
+              <Button
+                label={
+                  giuste.includes(option.id)
+                    ? 'Giusta, tocca per togliere'
+                    : 'Segna anche questa come giusta'
+                }
+                disabled={disabled}
+                secondary={!giuste.includes(option.id)}
+                onPress={() =>
+                  change([...base, 'correctOptionIds'], alternaGiusta(giuste, option.id))
+                }
+              />
+            ) : (
+              <Button
+                label={
+                  question.correctOptionId === option.id
+                    ? 'Risposta corretta ✓'
+                    : 'Segna come corretta'
+                }
+                disabled={disabled}
+                secondary={question.correctOptionId !== option.id}
+                onPress={() => change([...base, 'correctOptionId'], option.id)}
+              />
+            )}
+          </View>
         ))}
-        <Button
-          label="Nessuna"
-          disabled={disabled}
-          secondary={question.difficulty !== undefined}
-          onPress={() => change([...base, 'difficulty'], undefined)}
-        />
+        {/* Risposta multipla: l'insieme delle giuste, con l'errore sotto (almeno 2, almeno una sbagliata). */}
+        {campi.piuGiuste && (
+          <Text style={styles.muted}>
+            Risposte giuste: {giuste.length} su {question.options.length}
+          </Text>
+        )}
+        {sotto('correctOptionIds')}
+        {sotto('correctOptionId')}
+        {sotto('options')}
+        <Text style={styles.muted}>Difficoltà</Text>
+        <View style={styles.row}>
+          {DIFFICOLTA.map((d) => (
+            <Button
+              key={d}
+              label={etichettaDifficolta(d)}
+              disabled={disabled}
+              secondary={question.difficulty !== d}
+              onPress={() => change([...base, 'difficulty'], d)}
+            />
+          ))}
+          <Button
+            label="Nessuna"
+            disabled={disabled}
+            secondary={question.difficulty !== undefined}
+            onPress={() => change([...base, 'difficulty'], undefined)}
+          />
+        </View>
+        {field(`Spiegazione ${n}`, ['explanation'], question.explanation, { multiline: true })}
+        {sotto('explanation')}
       </View>
-      {field(`Spiegazione ${n}`, ['explanation'], question.explanation, { multiline: true })}
-      {sotto('explanation')}
     </View>
   );
 }
+
+const editorStyles = StyleSheet.create({
+  container: {
+    gap: 12,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#edf2f7',
+  },
+  accordionHeader: {
+    gap: 6,
+    paddingVertical: 6,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
+  },
+  titleGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  chevronGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  chevron: {
+    fontSize: 14,
+    color: '#637b88',
+    fontWeight: '700',
+    paddingHorizontal: 4,
+  },
+  errorPill: {
+    backgroundColor: '#fff0eb',
+    borderColor: '#fca5a5',
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  errorPillText: {
+    color: '#9d3a24',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+});
