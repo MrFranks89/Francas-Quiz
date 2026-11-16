@@ -9,6 +9,7 @@ import { importReducer, initialImport } from '../state/import';
 import { GenerationPanel } from '../components/GenerationPanel';
 import { PagePreviewPanel } from '../components/PagePreviewPanel';
 import { ReadingMethodSelector } from '../components/ReadingMethodSelector';
+import { ProposedIndexPanel } from '../components/ProposedIndexPanel';
 import type { Draft } from '../api/generation';
 
 export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
@@ -18,7 +19,6 @@ export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [visible, setVisible] = useState(20);
   const [showPreview, setShowPreview] = useState(false);
   const [activePageIndex, setActivePageIndex] = useState(0);
   const [lastValidPages, setLastValidPages] = useState<number[]>([]);
@@ -96,7 +96,6 @@ export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
         ? parsePageSelection({ mode: 'range', fromPage: from, toPage: to }, document.pageCount!)
         : { mode: 'all' as const };
       dispatch({ type: 'result', value: await extractDocument(document.id, selection, engine) });
-      setVisible(20);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Estrazione non riuscita.');
     } finally {
@@ -288,22 +287,7 @@ export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
           {result.warnings.map((w, i) => (
             <Notice key={i} text={w} error />
           ))}
-          {result.blocks.slice(0, visible).map((block) => (
-            <View key={block.id} style={{ gap: 6 }}>
-              <Text style={styles.subtitle}>
-                {block.label}
-                {block.page ? ` · pagina ${block.page}` : ''}
-              </Text>
-              <Text style={styles.body}>{block.text}</Text>
-            </View>
-          ))}
-          {visible < result.blocks.length && (
-            <Button
-              label={`Mostra altri blocchi (${visible}/${result.blocks.length})`}
-              secondary
-              onPress={() => setVisible((v) => v + 20)}
-            />
-          )}
+          <ProposedIndexPanel extraction={result} />
           <GenerationPanel key={result.id} extraction={result} onDraft={onDraft} />
         </Card>
       )}

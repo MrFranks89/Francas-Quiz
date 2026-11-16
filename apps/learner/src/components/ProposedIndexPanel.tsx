@@ -1,0 +1,393 @@
+import React, { useState, useMemo } from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import type { Extraction } from '../api/documents';
+import { Button, colors } from './ui';
+
+export type ExtractionBlock = Extraction['blocks'][number];
+
+export type ProposedSection = {
+  id: string;
+  index: number;
+  title: string;
+  topic: string;
+  pages: number[];
+  pageRangeLabel: string;
+  blocksCount: number;
+  charCount: number;
+  preview: string;
+  blocks: ExtractionBlock[];
+};
+
+export function extractTopic(text: string, defaultTopic: string): string {
+  if (!text) return defaultTopic;
+  const lines = text.split('\n');
+  for (const rawLine of lines) {
+    const cleaned = rawLine
+      .replace(/^[\s#*_\-–—=>0-9.)]+/, '')
+      .replace(/^[A-Za-z0-9]\)\s*/, '')
+      .trim();
+    if (cleaned.length >= 3) {
+      if (cleaned.length <= 80) return cleaned;
+      const sub = cleaned.slice(0, 77);
+      const lastSpace = sub.lastIndexOf(' ');
+      return (lastSpace > 30 ? sub.slice(0, lastSpace) : sub).trimEnd() + '…';
+    }
+  }
+  return defaultTopic;
+}
+
+export function formatPageRange(pages: number[]): string {
+  if (pages.length === 0) return 'Senza pagina';
+  if (pages.length === 1) return `Pagina ${pages[0]}`;
+  const min = Math.min(...pages);
+  const max = Math.max(...pages);
+  return min === max ? `Pagina ${min}` : `Pagine ${min}–${max}`;
+}
+
+export function buildProposedSections(blocks: ExtractionBlock[]): ProposedSection[] {
+  if (!blocks || blocks.length === 0) return [];
+
+  const groups: ExtractionBlock[][] = [];
+  let currentGroup: ExtractionBlock[] = [];
+  let currentPage: number | null | undefined = undefined;
+
+  for (const block of blocks) {
+    const bPage = block.page ?? null;
+    if (currentGroup.length === 0) {
+      currentGroup.push(block);
+      currentPage = bPage;
+    } else if (bPage !== null && currentPage !== null && bPage === currentPage) {
+      currentGroup.push(block);
+    } else if (bPage === null && currentPage === null && currentGroup.length < 4) {
+      currentGroup.push(block);
+    } else {
+      groups.push(currentGroup);
+      currentGroup = [block];
+      currentPage = bPage;
+    }
+  }
+  if (currentGroup.length > 0) {
+    groups.push(currentGroup);
+  }
+
+  return groups.map((grp, idx) => {
+    const index = idx + 1;
+    const pages = Array.from(
+      new Set(
+        grp
+          .map((b) => b.page)
+          .filter((p): p is number => p !== null && p !== undefined),
+      ),
+    ).sort((a, b) => a - b);
+    const pageRangeLabel = formatPageRange(pages);
+
+    const firstNonEmptyBlock =
+      grp.find((b) => b.text.trim().length > 0) ?? grp[0];
+    const defaultTopic =
+      firstNonEmptyBlock?.label?.trim() || `Argomento ${index}`;
+    const topic = extractTopic(firstNonEmptyBlock?.text ?? '', defaultTopic);
+
+    const title =
+      pages.length > 0
+        ? `Sezione ${index} · ${pageRangeLabel} — ${topic}`
+        : `Sezione ${index} — ${topic}`;
+
+    const blocksCount = grp.length;
+    const charCount = grp.reduce((acc, b) => acc + (b.text?.length ?? 0), 0);
+
+    const combinedText = grp
+      .map((b) => b.text?.trim() ?? '')
+      .filter(Boolean)
+      .join(' ')
+      .replace(/\s+/g, ' ');
+    const preview =
+      combinedText.length > 150
+        ? `${combinedText.slice(0, 147).trimEnd()}…`
+        : combinedText;
+
+    return {
+      id: `section-${index}`,
+      index,
+      title,
+      topic,
+      pages,
+      pageRangeLabel,
+      blocksCount,
+      charCount,
+      preview,
+      blocks: grp,
+    };
+  });
+}
+
+export type ProposedIndexPanelProps = {
+  extraction: Extraction;
+};
+
+export function ProposedIndexPanel({ extraction }: ProposedIndexPanelProps) {
+  const [viewMode, setViewMode] = useState<'index' | 'sources'>('index');
+  const [visibleSources, setVisibleSources] = useState(20);
+  const [expandedSections, setExpandedSections] = useState<
+    Record<string, boolean>
+  >({});
+
+  const sections = useMemo(
+    () => buildProposedSections(extraction.blocks),
+    [extraction.blocks],
+  );
+
+  const totalPages = useMemo(() => {
+    const set = new Set<number>();
+    extraction.blocks.forEach((b) => {
+      if (b.page !== null && b.page !== undefined) set.add(b.page);
+    });
+    return set.size;
+  }, [extraction.blocks]);
+
+  const totalChars = useMemo(
+    () => extraction.blocks.reduce((acc, b) => acc + (b.text?.length ?? 0), 0),
+    [extraction.blocks],
+  );
+
+  const toggleSection = (id: string) => {
+    setExpandedSections((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const sectionCountText = `${sections.length} ${
+    sections.length === 1 ? 'sezione individuata' : 'sezioni individuate'
+  }`;
+
+  return (
+    <View style={localStyles.container}>
+      <View style={localStyles.header}>
+        <View style={localStyles.headerTextCol}>
+          <Text style={localStyles.mainTitle}>
+            {`📚 Indice didattico proposto · ${sectionCountText}`}
+          </Text>
+          <Text style={localStyles.summarySubtitle}>
+            {totalPages > 0
+              ? `${totalPages} ${totalPages === 1 ? 'pagina coperta' : 'pagine coperte'} · `
+              : ''}
+            {`${extraction.blocks.length} blocchi totali · ${totalChars.toLocaleString('it-IT')} caratteri`}
+          </Text>
+        </View>
+
+        <View style={localStyles.tabSwitcher}>
+          <Pressable
+            accessibilityRole="tab"
+            accessibilityLabel="Vista indice strutturato"
+            onPress={() => setViewMode('index')}
+            style={[localStyles.tabButton, viewMode === 'index' && localStyles.tabButtonActive]}
+          >
+            <Text
+              style={[
+                localStyles.tabButtonText,
+                viewMode === 'index' && localStyles.tabButtonTextActive,
+              ]}
+            >
+              Indice strutturato
+            </Text>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="tab"
+            accessibilityLabel="Vista testo integrale"
+            onPress={() => setViewMode('sources')}
+            style={[localStyles.tabButton, viewMode === 'sources' && localStyles.tabButtonActive]}
+          >
+            <Text
+              style={[
+                localStyles.tabButtonText,
+                viewMode === 'sources' && localStyles.tabButtonTextActive,
+              ]}
+            >
+              Testo fonti completo
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+
+      {viewMode === 'index' && (
+        <View style={localStyles.sectionsList}>
+          {sections.length === 0 ? (
+            <Text style={localStyles.emptyText}>
+              Nessun blocco di testo rilevato nelle pagine selezionate.
+            </Text>
+          ) : (
+            sections.map((section) => {
+              const isExpanded = !!expandedSections[section.id];
+              return (
+                <View key={section.id} style={localStyles.sectionCard}>
+                  <View style={localStyles.sectionHeaderRow}>
+                    <Text style={localStyles.sectionTitle}>{section.title}</Text>
+                  </View>
+
+                  <View style={localStyles.pillRow}>
+                    {section.pages.length > 0 && (
+                      <View style={localStyles.pageBadge}>
+                        <Text style={localStyles.pageBadgeText}>{section.pageRangeLabel}</Text>
+                      </View>
+                    )}
+                    <View style={localStyles.infoPill}>
+                      <Text style={localStyles.infoPillText}>
+                        {`${section.blocksCount} ${section.blocksCount === 1 ? 'blocco' : 'blocchi'}`}
+                      </Text>
+                    </View>
+                    <View style={localStyles.infoPill}>
+                      <Text style={localStyles.infoPillText}>
+                        {`${section.charCount.toLocaleString('it-IT')} caratteri`}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <Text style={localStyles.sectionPreview}>{section.preview}</Text>
+
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      isExpanded
+                        ? `Nascondi blocchi sezione ${section.index}`
+                        : `Mostra blocchi sezione ${section.index}`
+                    }
+                    onPress={() => toggleSection(section.id)}
+                    style={localStyles.expandBtn}
+                  >
+                    <Text style={localStyles.expandBtnText}>
+                      {isExpanded
+                        ? '▲ Nascondi blocchi inclusi'
+                        : `▼ Mostra blocchi inclusi (${section.blocksCount})`}
+                    </Text>
+                  </Pressable>
+
+                  {isExpanded && (
+                    <View style={localStyles.expandedBlocksList}>
+                      {section.blocks.map((block) => (
+                        <View key={block.id} style={localStyles.subBlockItem}>
+                          <Text style={localStyles.subBlockLabel}>
+                            {block.page ? `${block.label} · p. ${block.page}` : block.label}
+                          </Text>
+                          <Text style={localStyles.subBlockText}>{block.text}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              );
+            })
+          )}
+        </View>
+      )}
+
+      {viewMode === 'sources' && (
+        <View style={localStyles.sourcesList}>
+          {extraction.blocks.slice(0, visibleSources).map((block) => (
+            <View key={block.id} style={localStyles.rawBlockItem}>
+              <Text style={localStyles.rawBlockHeader}>
+                {block.page ? `${block.label} · pagina ${block.page}` : block.label}
+              </Text>
+              <Text style={localStyles.rawBlockText}>{block.text}</Text>
+            </View>
+          ))}
+
+          {visibleSources < extraction.blocks.length && (
+            <Button
+              label={`Mostra altri blocchi (${visibleSources}/${extraction.blocks.length})`}
+              secondary
+              onPress={() => setVisibleSources((v) => v + 20)}
+            />
+          )}
+        </View>
+      )}
+    </View>
+  );
+}
+
+const localStyles = StyleSheet.create({
+  container: { gap: 16, marginVertical: 4 },
+  header: { gap: 12 },
+  headerTextCol: { gap: 4 },
+  mainTitle: { fontSize: 16, fontWeight: '700', color: colors.navy },
+  summarySubtitle: { fontSize: 13, color: colors.muted },
+  tabSwitcher: {
+    flexDirection: 'row',
+    backgroundColor: '#edf2f7',
+    borderRadius: 10,
+    padding: 3,
+    gap: 4,
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabButtonActive: {
+    backgroundColor: 'white',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  tabButtonText: { fontSize: 13, fontWeight: '600', color: colors.muted },
+  tabButtonTextActive: { color: colors.navy },
+  sectionsList: { gap: 12 },
+  emptyText: { fontSize: 14, color: colors.muted, fontStyle: 'italic', paddingVertical: 10 },
+  sectionCard: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: 14,
+    gap: 8,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: colors.navy, flex: 1 },
+  pillRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  pageBadge: {
+    backgroundColor: colors.pale,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#cde4e0',
+  },
+  pageBadgeText: { color: colors.teal, fontSize: 12, fontWeight: '700' },
+  infoPill: { backgroundColor: '#edf2f7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  infoPillText: { color: colors.navy, fontSize: 12, fontWeight: '500' },
+  sectionPreview: { fontSize: 14, lineHeight: 20, color: colors.ink },
+  expandBtn: { alignSelf: 'flex-start', paddingVertical: 4, marginTop: 2 },
+  expandBtnText: { fontSize: 12, fontWeight: '600', color: colors.teal },
+  expandedBlocksList: {
+    gap: 8,
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+  },
+  subBlockItem: {
+    backgroundColor: 'white',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: 10,
+    gap: 4,
+  },
+  subBlockLabel: { fontSize: 12, fontWeight: '700', color: colors.navy },
+  subBlockText: { fontSize: 13, lineHeight: 18, color: colors.ink },
+  sourcesList: { gap: 12 },
+  rawBlockItem: {
+    gap: 6,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#edf2f7',
+  },
+  rawBlockHeader: { fontSize: 14, fontWeight: '700', color: colors.navy },
+  rawBlockText: { fontSize: 14, lineHeight: 20, color: colors.ink },
+});
