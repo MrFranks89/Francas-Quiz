@@ -121,7 +121,8 @@ class OpenAICompatProvider:
             raise GenerationError('provider_refusal', 'Il fornitore AI ha rifiutato il contenuto')
         # Solo stop è una risposta conclusa: length è un troncamento, gli altri non sono attesi senza strumenti.
         if finish_reason != 'stop':
-            raise GenerationError('provider_incomplete', 'Risposta AI incompleta; nessun corso pubblicato')
+            raise GenerationError('provider_incomplete',
+                                  f'Risposta AI incompleta (finish_reason={finish_reason}); nessun corso pubblicato')
         text = getattr(message, 'content', None) or ''
         if not text.strip():
             raise GenerationError('provider_empty', 'Risposta AI priva di contenuti strutturati')

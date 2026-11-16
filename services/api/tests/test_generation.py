@@ -271,3 +271,15 @@ def test_shared_negative_contract_cases():
             target[change['path'][-1]] = change['value']
         with pytest.raises(ValidationError):
             Course.model_validate(invalid)
+
+
+@pytest.mark.parametrize('details,atteso', [
+    (SimpleNamespace(reason='max_output_tokens'), 'max_output_tokens'),
+    (None, 'incomplete'),
+])
+def test_incomplete_error_names_the_reason(details, atteso):
+    response = SimpleNamespace(output=[], status='incomplete', incomplete_details=details, output_parsed=None)
+    with pytest.raises(GenerationError) as error:
+        generate(extraction(), stub_provider(response))
+    assert error.value.code == 'provider_incomplete'
+    assert atteso in str(error.value)

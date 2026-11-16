@@ -60,7 +60,11 @@ class OpenAIProvider:
                 if getattr(content, 'type', None) == 'refusal':
                     raise GenerationError('provider_refusal', 'Il fornitore AI ha rifiutato il contenuto')
         if response.status != 'completed':
-            raise GenerationError('provider_incomplete', 'Risposta AI incompleta; nessun corso pubblicato')
+            # incomplete_details.reason: max_output_tokens | max_messages | content_filter | steered
+            # (openai/types/responses/response.py 3.31.0); se assente si riporta lo status.
+            motivo = getattr(getattr(response, 'incomplete_details', None), 'reason', None) or response.status
+            raise GenerationError('provider_incomplete',
+                                  f'Risposta AI incompleta ({motivo}); nessun corso pubblicato')
         if response.output_parsed is None:
             raise GenerationError('provider_empty', 'Risposta AI priva di contenuti strutturati')
         return ModuleDraft.model_validate(response.output_parsed)

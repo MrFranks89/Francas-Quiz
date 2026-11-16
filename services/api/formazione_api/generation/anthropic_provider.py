@@ -95,7 +95,9 @@ class AnthropicProvider:
         # Solo end_turn è una risposta conclusa: max_tokens e model_context_window_exceeded sono troncamenti;
         # gli altri non sono attesi senza strumenti né sequenze di arresto. Come status != 'completed' per OpenAI.
         if stop_reason != 'end_turn':
-            raise GenerationError('provider_incomplete', 'Risposta AI incompleta; nessun corso pubblicato')
+            # Il motivo va nel messaggio: max_tokens (tetto di uscita) e altro hanno rimedi diversi.
+            raise GenerationError('provider_incomplete',
+                                  f'Risposta AI incompleta (stop_reason={stop_reason}); nessun corso pubblicato')
         # Blocchi di contenuto: si considera solo type == 'text' (anthropic/types/text_block.py);
         # eventuali blocchi thinking precedono il testo e non sono contenuto del modulo.
         text = ''.join(getattr(block, 'text', '') for block in getattr(response, 'content', None) or []

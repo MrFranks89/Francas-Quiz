@@ -167,3 +167,11 @@ def test_nvidia_non_e_ammesso(env):
     with pytest.raises(GenerationError) as errore:
         create_provider()
     assert errore.value.code == 'not_configured'
+
+
+def test_incompleta_nomina_il_finish_reason():
+    provider, _ = fornitore((200, completamento('{"title": "Mod', finish_reason='length')))
+    with pytest.raises(GenerationError) as errore:
+        generate(extraction(), provider)
+    assert errore.value.code == 'provider_incomplete'
+    assert 'length' in str(errore.value)

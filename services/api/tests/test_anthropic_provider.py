@@ -196,3 +196,14 @@ def test_request_function_is_what_provider_sends():
     from formazione_api.generation.anthropic_provider import richiesta
     chunk = _chunk_di_prova()
     assert _richiesta_catturata(chunk) == richiesta(MODEL, chunk)
+
+
+@pytest.mark.parametrize('stop_reason', ['max_tokens', 'model_context_window_exceeded', 'pause_turn'])
+def test_incomplete_error_names_the_stop_reason(stop_reason):
+    # Senza il motivo nel messaggio, «incompleta» non dice se il tetto di uscita è troppo basso
+    # o se è successo altro: la causa va letta, non dedotta.
+    provider, _ = sdk_provider((200, message('{"title": "Mod', stop_reason=stop_reason)))
+    with pytest.raises(GenerationError) as error:
+        generate(extraction(), provider)
+    assert error.value.code == 'provider_incomplete'
+    assert stop_reason in str(error.value)
