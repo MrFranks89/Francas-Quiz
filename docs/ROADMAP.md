@@ -4,6 +4,35 @@ Data: 14 ottobre 2026. Documento di attività, dipendenze e criteri di completam
 Stato aggiornato al 15 ottobre 2026: prima versione locale implementata con motore Civis estratto, contratti, importazione e OCR, generazione di bozze configurabile, revisione, pubblicazione e lettore universale con sbarramenti. La generazione AI non è ancora collaudata con un provider a pagamento; account, aziende e classi non sono implementati. Questa roadmap comprende anche attività future; lo stato eseguibile è documentato nel README e le prove in VERIFICHE.md.
 Riscontri del codice e test: [ANALISI_CIVIS.md](ANALISI_CIVIS.md).
 
+## Aggiornamento del 16 novembre 2026
+
+Decisione di Federico: si prendono tre cose da Algor Education e si aggiunge l'esportazione SCORM.
+
+Fonte su Algor: le guide ufficiali, `guide.algoreducation.com/it` (pagine «Creare contenuti», «Lavorare con i Set», «Studiare e ripassare»), lette il 16 novembre 2026. Descrivono il comportamento del prodotto, non come è costruito: modelli, istruzioni e numero di chiamate di Algor non sono noti.
+
+1. **Indice proposto e corretto prima di generare.**
+   - Algor analizza il materiale, propone sezioni e pagine, l'utente le corregge a parole e solo dopo la conferma le pagine vengono scritte.
+   - Da noi è il primo passo del registro dei concetti (punto 3 delle priorità del 29 ottobre) e della fase 5 («Proporre programma e obiettivi prima di generare tutte le slide»): si anticipa.
+   - Ogni voce dell'indice diventa una chiamata piccola, con i passaggi originali della fonte e non con un riassunto.
+2. **Domande generate su richiesta e per ambito.**
+   - Algor non crea quiz e flashcard insieme al Set: si avviano dopo, su tutto il Set, una sezione o una pagina, scegliendo tipi e numero di domande.
+   - Da noi: la generazione delle slide e quella delle domande diventano due chiamate distinte. Resta la regola madre: ogni domanda riguarda solo fatti scritti nelle slide del suo ambito e cita i suoi `sourceRefs`.
+   - Toglie peso alla chiamata unica per blocco, che il 16 novembre 2026 si tronca al tetto dei token in uscita (vedi [GENERAZIONE.md](GENERAZIONE.md)).
+3. **Punteggio per pagina che decade nel tempo.**
+   - In Algor ogni pagina ha un punteggio che cala se non la si ripassa, le domande difficili pesano di più, e c'è un obiettivo con voto e data.
+   - Da noi va con «Studio come prodotto» (punto 8), sopra il ripasso di Civis già estratto. Soglie e pesi sono nostri: quelli di Algor (superato al 70%) non si copiano senza una misura.
+4. **Esportazione SCORM del corso pubblicato.**
+   - Suggerimento di Federico, visto in LearningStudioAI. Algor non esporta nemmeno un Set intero.
+   - Serve a chi ha già un LMS: va con la modalità Formazione ([decisione 003](decisions/003-due-modalita.md)); l'ordine rispetto a Studio lo decide Federico.
+   - Versione di SCORM, forma del pacchetto e modo di comunicare esiti e risposte all'LMS si leggono dalla specifica e si provano su un LMS vero prima di scrivere codice: non sono ancora stati letti.
+   - Da decidere: che cosa succede ai tipi di domanda e agli sbarramenti che il formato non sa esprimere.
+
+Dal documento `COORDINAMENTO.md` (analisi di un altro assistente, non committato) si tengono tre punti:
+
+- la mappa concettuale come schermata per lo studente, con i nodi collegati alla pagina della fonte: dopo il registro dei concetti;
+- una tabella non va spezzata fra due blocchi: oggi `plan_chunks` taglia su riga vuota o a metà (`generation/chunks.py`);
+- l'immagine ritagliata della figura mostrata nella slide, insieme alla lettura delle figure (punto 6).
+
 ## Aggiornamento del 4 novembre 2026
 
 Decisione di Federico: **prima le cose di base, l'editor dopo.** Il restyling dell'editor nello stile di Civis passa in fondo. Dallo stile di Civis si prendono adesso tre cose:
