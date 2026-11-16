@@ -39,8 +39,11 @@ def richiesta(model: str, chunk: Chunk) -> dict:
     # effort 'low' (campo di anthropic/types/output_config_param.py 1.15.0): Claude Haiku 5.5 ragiona per
     # impostazione predefinita a effort 'medium' e i token di ragionamento contano dentro max_tokens
     # (skill claude-api, shared/model-migration.md § Migrating to Claude Haiku 5.5 › Thinking is on by
-    # default); con MAX_OUTPUT_TOKENS il modulo veniva troncato. Effort è la leva indicata al posto di
-    # spegnere il ragionamento. Attenzione: Haiku 4.5 e Sonnet 4.5 rifiutano effort (400).
+    # default). Effort riduce il ragionamento ma da solo NON evita il troncamento: misura del 16 novembre
+    # 2026 (var/api/registro-spesa-app.json, analisi1.pdf pp. 4–10), con effort 'low' e tetto a 6.000:
+    # outputTokens 6000, thinkingTokens 6000, stop_reason=max_tokens. Lo spazio per il modulo lo dà il
+    # tetto di uscita (MAX_OUTPUT_TOKENS in instructions.py, con la fonte); effort resta 'low' per
+    # contenere la parte di ragionamento. Attenzione: Haiku 4.5 e Sonnet 4.5 rifiutano effort (400).
     return dict(
         model=model, max_tokens=MAX_OUTPUT_TOKENS,
         system=ISTRUZIONI_DIDATTICHE,

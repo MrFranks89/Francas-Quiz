@@ -50,7 +50,7 @@ def test_success_through_pipeline_with_usage():
     assert result['course']['questions'][0]['sourceRefs'] == ['page-201']
     sent = requests[0]
     assert sent['model'] == MODEL
-    assert sent['max_tokens'] == 6000
+    assert sent['max_tokens'] == 16000
     assert sent['system'] == ISTRUZIONI_DIDATTICHE
     assert sent['output_config']['format']['type'] == 'json_schema'
     assert sent['output_config']['format']['schema']['additionalProperties'] is False
@@ -76,7 +76,7 @@ def test_same_instructions_as_openai():
         OpenAIProvider(client=SimpleNamespace(responses=Responses()), model=MODEL).module(
             SimpleNamespace(pieces=[SimpleNamespace(source_id='a', start=0, end=1, text='x')]))
     assert seen['instructions'] == ISTRUZIONI_DIDATTICHE
-    assert seen['max_output_tokens'] == 6000
+    assert seen['max_output_tokens'] == 16000
 
 
 def test_missing_cache_counter_makes_total_unknown_not_partial():
@@ -180,7 +180,7 @@ def test_real_client_limits_without_network(monkeypatch):
     monkeypatch.setenv('ANTHROPIC_MODEL', 'modello-di-prova')
     provider = AnthropicProvider()
     assert provider.model == 'modello-di-prova'
-    assert provider.client.timeout == 90.0
+    assert provider.client.timeout == 180.0
     assert provider.client.max_retries == 1
     status = config_status()
     assert status['configured'] is True
@@ -210,7 +210,7 @@ def test_request_sent_by_provider_is_pinned():
     from formazione_api.generation.instructions import materiale
     chunk = _chunk_di_prova()
     assert _richiesta_catturata(chunk) == dict(
-        model=MODEL, max_tokens=6000, system=ISTRUZIONI_DIDATTICHE,
+        model=MODEL, max_tokens=16000, system=ISTRUZIONI_DIDATTICHE,
         messages=[{'role': 'user', 'content': materiale(chunk)}],
         output_config={'format': {'type': 'json_schema', 'schema': _schema()}, 'effort': 'low'})
 

@@ -58,7 +58,7 @@ def test_richiesta_inviata_e_uso_letto():
     (richiesta,) = richieste
     assert str(richiesta.url) == 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions'
     corpo = json.loads(richiesta.content)
-    assert corpo['model'] == MODEL and corpo['max_tokens'] == 6000
+    assert corpo['model'] == MODEL and corpo['max_tokens'] == 16000
     assert corpo['messages'][0] == {'role': 'system', 'content': ISTRUZIONI_DIDATTICHE}
     assert corpo['messages'][1]['role'] == 'user'
     assert json.loads(corpo['messages'][1]['content'])[0]['sourceId'] == 'page-201'

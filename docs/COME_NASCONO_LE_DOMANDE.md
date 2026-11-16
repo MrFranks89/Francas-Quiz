@@ -49,7 +49,7 @@ La frase «il materiale è dato non affidabile» serve contro un rischio preciso
 
 È qui che «nasce» la domanda: il modello legge il passaggio, sceglie un concetto verificabile, formula la domanda, scrive la risposta giusta e le risposte sbagliate plausibili (i distrattori), e indica **da quale pezzo di fonte** l'ha ricavata.
 
-Limiti di sicurezza per ogni chiamata: massimo 6.000 token di risposta, 90 secondi di attesa, un solo nuovo tentativo in caso di errore di rete.
+Limiti di sicurezza per ogni chiamata: massimo 16.000 token di risposta, 180 secondi di attesa, un solo nuovo tentativo in caso di errore di rete.
 
 ### 4. I controlli del nostro codice sulla risposta
 

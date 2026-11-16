@@ -104,7 +104,7 @@ def test_conta_chiama_solo_count_tokens_con_la_richiesta_del_provider():
     assert len(misure) == len(blocchi())
     for (_, contata), chunk in zip(client.chiamate, blocchi()):
         inviata = richiesta_del_provider(chunk)
-        assert inviata.pop('max_tokens') == 6000
+        assert inviata.pop('max_tokens') == 16000
         # campo per campo: stesse chiavi e stessi valori, max_tokens escluso (non accettato da count_tokens)
         assert set(contata) == set(inviata)
         for campo in inviata:
@@ -133,7 +133,7 @@ def test_richiesta_contata_identica_sul_filo_a_quella_del_provider():
     (percorso_invio, inviato), (percorso_conto, contato) = corpi
     assert percorso_invio == '/v1/messages'
     assert percorso_conto == '/v1/messages/count_tokens'
-    assert inviato.pop('max_tokens') == 6000
+    assert inviato.pop('max_tokens') == 16000
     assert contato == inviato
     assert misure[0]['contati'] == 321
 

@@ -55,7 +55,7 @@ def test_preventivo_a_prezzo_zero_completo_senza_quota_misurata():
     assert stima['limiteSuperioreUSD'] == 0
     (limite,) = stima['limiti']
     # Il limite in token resta calcolato: la guardia controlla ancora i contatori dichiarati.
-    assert limite.ingresso_massimo_per_tentativo > 0 and limite.uscita_massima == 6000
+    assert limite.ingresso_massimo_per_tentativo > 0 and limite.uscita_massima == 16000
 
 
 def test_quota_non_misurata_resta_un_rifiuto_per_i_modelli_a_pagamento():

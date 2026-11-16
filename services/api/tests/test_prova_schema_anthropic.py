@@ -54,7 +54,7 @@ def test_solo_count_tokens_con_la_richiesta_del_provider_e_lo_schema_storico(mon
     assert [(m, p) for m, p, _ in corpi] == [('POST', '/v1/messages/count_tokens')] * 2
     (_, _, vecchio), (_, _, nuovo) = corpi
     attesa = richiesta(MODELLO, ps.blocco_minimo())
-    assert attesa.pop('max_tokens') == 6000
+    assert attesa.pop('max_tokens') == 16000
     assert nuovo == json.loads(json.dumps(attesa))
     assert vecchio['output_config'] == STORICO
     assert {k: v for k, v in vecchio.items() if k != 'output_config'} == {k: v for k, v in nuovo.items() if k != 'output_config'}

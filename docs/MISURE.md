@@ -30,7 +30,7 @@ La cache delle estrazioni (`var/misure/estrazioni/<selezione>-<motore>-<sha>-<ve
 Per ogni blocco e ogni tentativo:
 
 - token in ingresso ≤ byte UTF-8 di istruzioni + materiale JSON + schema dell'output, calcolati con le stesse funzioni dei fornitori (`instructions.materiale`, `type_to_text_format_param` di OpenAI, `anthropic_provider._schema`) + `sovraccaricoIngressoPerChiamata`. Un token di testo non rappresenta mai meno di un byte, quindi N byte producono al più N token;
-- token in uscita ≤ `MAX_OUTPUT_TOKENS` (6000), ragionamento compreso;
+- token in uscita ≤ `MAX_OUTPUT_TOKENS` (16000 dal 16 novembre 2026, prima 6000: una chiamata vera a claude-haiku-5-5 aveva speso tutti i 6.000 token in ragionamento, `thinkingTokens` 6000, vedi [GENERAZIONE.md](GENERAZIONE.md), «Perché 16.000 e 180»), ragionamento compreso;
 - tentativi = 1 + `MAX_RETRIES`: ogni tentativo può essere fatturato.
 
 Costo = token × tariffa d'ingresso più alta del modello (comprese le scritture in cache) + uscita × tariffa d'uscita, × `moltiplicatoreMassimo` (residenza dei dati, 1.1). Una selezione con un blocco oltre la soglia del contesto lungo viene rifiutata.

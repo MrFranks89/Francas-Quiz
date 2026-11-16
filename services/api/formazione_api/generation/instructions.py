@@ -59,8 +59,18 @@ ISTRUZIONI_DIDATTICHE = ('Sei un autore didattico. Scrivi in italiano un modulo 
                          'difficulty: base, medio o avanzato.')
 
 # Limiti comuni a ogni fornitore (docs/GENERAZIONE.md).
-MAX_OUTPUT_TOKENS = 6000
-TIMEOUT_SECONDS = 90.0
+# 16.000, non più 6.000: misura del 16 novembre 2026 (var/api/registro-spesa-app.json, claude-haiku-5-5,
+# analisi1.pdf pp. 4–10): inputTokens 9874, outputTokens 6000, thinkingTokens 6000, stop_reason=max_tokens.
+# Il ragionamento ha consumato l'intero tetto anche con effort 'low' e il modulo non è stato iniziato.
+# Fonte: skill claude-api, shared/model-migration.md § Migrating to Claude Haiku 5.5 (letta il 16 novembre
+# 2026): uscita massima del modello 128K; «Thinking counts toward max_tokens ... Raise the cap to leave
+# room for thinking, or choose a lower effort level»; la stessa skill consiglia circa 16.000 come
+# max_tokens per le richieste non in streaming. Il preventivo (measurement/preventivo.py) è calcolato su
+# questo tetto: alzarlo alza il costo massimo per blocco.
+MAX_OUTPUT_TOKENS = 16000
+# 180 s, non più 90: nella stessa misura le chiamate da 6.000 token in uscita hanno richiesto 31–39 s;
+# in proporzione 16.000 token ne richiedono circa 85–105, oltre i 90 di prima.
+TIMEOUT_SECONDS = 180.0
 MAX_RETRIES = 1
 
 
