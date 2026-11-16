@@ -189,7 +189,7 @@ def test_request_sent_by_provider_is_pinned():
     assert _richiesta_catturata(chunk) == dict(
         model=MODEL, max_tokens=6000, system=ISTRUZIONI_DIDATTICHE,
         messages=[{'role': 'user', 'content': materiale(chunk)}],
-        output_config={'format': {'type': 'json_schema', 'schema': _schema()}})
+        output_config={'format': {'type': 'json_schema', 'schema': _schema()}, 'effort': 'low'})
 
 
 def test_request_function_is_what_provider_sends():
@@ -207,3 +207,10 @@ def test_incomplete_error_names_the_stop_reason(stop_reason):
         generate(extraction(), provider)
     assert error.value.code == 'provider_incomplete'
     assert stop_reason in str(error.value)
+
+
+def test_effort_is_low_so_thinking_leaves_room_for_the_module():
+    # Haiku 5.5 ragiona per impostazione predefinita e i token di ragionamento contano in max_tokens.
+    provider, requests = sdk_provider((200, message(draft_json())))
+    generate(extraction(), provider)
+    assert requests[0]['output_config']['effort'] == 'low'
