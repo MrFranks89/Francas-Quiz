@@ -1,5 +1,5 @@
 import React, { useState, useReducer, useMemo, useEffect } from 'react';
-import { Text, TextInput, View, StyleSheet } from 'react-native';
+import { Text, TextInput, View, StyleSheet, Platform } from 'react-native';
 import * as Picker from 'expo-document-picker';
 import { parsePageSelection, selectedPages } from '@formazione/contracts';
 import { apiUrl, uploadDocument, extractDocument } from '../api/documents';
@@ -8,6 +8,7 @@ import { Button, Card, Notice, styles, colors } from '../components/ui';
 import { importReducer, initialImport } from '../state/import';
 import { GenerationPanel } from '../components/GenerationPanel';
 import { PagePreviewPanel } from '../components/PagePreviewPanel';
+import { ReadingMethodSelector } from '../components/ReadingMethodSelector';
 import type { Draft } from '../api/generation';
 
 export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
@@ -68,7 +69,7 @@ export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
     setError('');
     try {
       const selected = await Picker.getDocumentAsync({
-        type: tipiSelettore(),
+        type: tipiSelettore(Platform.OS === 'web'),
         copyToCacheDirectory: true,
         multiple: false,
       });
@@ -259,24 +260,11 @@ export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
           )}
 
           <Text style={styles.subtitle}>03 · Metodo di lettura</Text>
-          <View style={styles.row}>
-            <Button
-              label="Testo nativo"
-              disabled={busy}
-              secondary={engine !== 'native'}
-              onPress={() => setEngine('native')}
-            />
-            <Button
-              label="Docling / OCR"
-              disabled={busy}
-              secondary={engine !== 'docling'}
-              onPress={() => setEngine('docling')}
-            />
-          </View>
-          <Text style={styles.muted}>
-            Docling richiede i modelli configurati sul server. Eventuali pagine senza testo saranno
-            segnalate.
-          </Text>
+          <ReadingMethodSelector
+            engine={engine}
+            onChange={setEngine}
+            disabled={busy}
+          />
           <Button
             label={busy ? 'Lettura in corso…' : 'Estrai il contenuto'}
             disabled={busy}
