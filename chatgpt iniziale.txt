@@ -1,0 +1,167 @@
+# Reverse engineering del progetto Base44
+
+Per capire quale linguaggio utilizza il progetto, come è strutturato il backend e come avviene la trasformazione da testo a corso e la generazione dei quiz, occorre distinguere tra tre livelli:
+
+1. Stack tecnologico: linguaggi, framework, database, servizi backend e API.
+2. Logica applicativa: pipeline che riceve il testo, lo elabora, crea le lezioni e genera i quiz.
+3. Implementazione effettiva: codice, funzioni server, prompt inviati ai modelli AI, strutture dati e regole di validazione.
+
+Il collegamento che hai fornito punta all'editor di un'applicazione Base44 e contiene un identificativo del progetto. La pagina di accesso, da sola, non permette di conoscere il codice sorgente né di verificare le funzioni backend. Perciò è importante separare ciò che possiamo accertare dalla struttura tipica della piattaforma e ciò che richiede l'accesso autorizzato al progetto.
+
+## 1. Quale linguaggio di programmazione utilizza Base44?
+
+La documentazione ufficiale di Base44 conferma che la piattaforma supporta diversi stack frontend e che le funzioni backend personalizzate possono essere eseguite come funzioni TypeScript su Deno. Questo descrive le capacità della piattaforma, non dimostra ancora lo stack effettivamente utilizzato dalla tua applicazione.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://base44.com\&sz=32)
+
+The fastest way to production
+
++1
+
+
+
+Frontend — interfaccia utente
+
+Tecnologie possibili: React, JavaScript/JSX, HTML e CSS. Altri framework sono supportati.
+
+Gestisce le schermate di caricamento dei documenti, creazione dei corsi, visualizzazione delle lezioni e compilazione dei quiz.
+
+Backend — logica applicativa
+
+Tecnologie documentate: TypeScript/JavaScript su Deno, per le funzioni backend personalizzate.
+
+Può gestire elaborazione dei testi, chiamate ai modelli AI, generazione dei quiz, validazione dei risultati e salvataggio dei dati.
+
+Database e persistenza
+
+Base44 fornisce un database gestito e un sistema di entità.
+
+È il livello che può conservare corsi, moduli, lezioni, domande, risposte, utenti e risultati. La struttura concreta va verificata nel progetto.
+
+Intelligenza artificiale
+
+Possibili integrazioni: modelli linguistici tramite servizi AI o API esterne.
+
+È il livello potenzialmente responsabile della trasformazione dei contenuti in materiale didattico e della produzione delle domande. Modello, prompt e pipeline usati dall'applicazione sono ancora da identificare.
+
+Riferimenti: [documentazione sviluppatori Base44](https://base44.com/developers?utm_source=chatgpt.com), [Backend Functions](https://doc-sdk.base44.app/FunctionsDocs?utm_source=chatgpt.com) e [SDK Base44](https://docs.base44.com/sdk-getting-started/client?utm_source=chatgpt.com).
+
+## 2. Reverse engineering del processo testo → corso
+
+Per ricostruire il funzionamento reale, partirei dal processo più importante: l'utente inserisce un testo o un documento e l'applicazione lo trasforma in un corso strutturato.
+
+Il seguente schema è una ricostruzione tecnica ipotetica da verificare, non una descrizione accertata del codice della tua app.
+
+1\. Acquisizione del materiale
+
+Testo incollato, PDF, DOCX o altro formato supportato
+
+2\. Estrazione e normalizzazione
+
+Estrazione del testo, pulizia, suddivisione in sezioni e controllo della lunghezza
+
+3\. Elaborazione AI
+
+Analisi degli argomenti, obiettivi didattici, struttura del corso e istruzioni al modello
+
+4\. Generazione del corso
+
+Corso → moduli → lezioni → contenuti didattici → eventuali esercizi
+
+5\. Validazione e salvataggio
+
+Controllo della struttura, registrazione nel database e visualizzazione nell'interfaccia
+
+### Cosa bisogna trovare nel codice per dimostrare ogni passaggio
+
+| Componente da ispezionare       | Cosa permette di scoprire                                                                  |
+| ------------------------------- | ------------------------------------------------------------------------------------------ |
+| Pagina di creazione del corso   | Quali dati inserisce l'utente e quali parametri vengono inviati                            |
+| Funzione di upload              | Come vengono gestiti file e testo                                                          |
+| Funzione backend di generazione | Quale procedura avvia la trasformazione                                                    |
+| Prompt AI                       | Come vengono impartite le istruzioni per produrre il corso                                 |
+| Schema delle entità             | Come sono organizzati corsi, moduli e lezioni                                              |
+| Log delle esecuzioni            | Errori, tempi, chiamate e passaggi effettivamente eseguiti, nei limiti dei log disponibili |
+
+Un punto particolarmente importante è capire se l'applicazione esegue una singola chiamata AI per l'intero corso oppure una sequenza di chiamate, ad esempio una per l'indice, una per ogni modulo e una per ogni lezione. Questa scelta influenza qualità, costi, tempi e possibilità di recuperare un'elaborazione interrotta.
+
+## 3. Reverse engineering della generazione dei quiz
+
+La generazione dei quiz merita un'analisi separata. Una pipeline ben progettata non si limita a chiedere all'AI di creare domande: deve anche verificare che le risposte siano coerenti con il materiale didattico.
+
+A. Selezione del materiale
+
+Corso, modulo, lezione o porzione di testo
+
+B. Generazione delle domande
+
+Prompt, numero di domande, difficoltà e tipologia
+
+C. Strutturazione delle risposte
+
+Testo della domanda, opzioni, risposta corretta, spiegazione
+
+D. Validazione
+
+Schema dei dati, numero di opzioni, presenza della soluzione e coerenza con la lezione
+
+E. Persistenza e somministrazione
+
+Salvataggio, visualizzazione, correzione automatica e calcolo del punteggio
+
+### Le verifiche tecniche essenziali
+
+Per stabilire come funziona realmente il motore dei quiz, esaminerei questi aspetti:
+
+- Origine delle domande: derivano esclusivamente dal corso oppure il modello utilizza anche conoscenze esterne?
+- Formato di output: l'AI restituisce JSON strutturato, testo libero oppure oggetti definiti da uno schema?
+- Risposta corretta: viene generata dal modello, calcolata dal backend o verificata da un secondo passaggio AI?
+- Distrattori: come vengono prodotte le risposte errate e come si evita che siano anch'esse corrette?
+- Difficoltà: esistono livelli espliciti o la difficoltà è lasciata alla valutazione del modello?
+- Deduplicazione: vengono individuate domande ripetute o quasi identiche?
+- Punteggio: è calcolato dal frontend oppure dal backend?
+- Tracciabilità: vengono conservati prompt, versione del modello, esito della generazione ed eventuali correzioni?
+
+Senza codice e dati di esecuzione, non sarebbe corretto attribuire all'applicazione una particolare strategia.
+
+## 4. Come ottenere gli elementi necessari per analizzare la tua app
+
+Il link fornito rimanda all'editor protetto da autenticazione. Non posso ricavare da quel solo URL il sorgente privato o ispezionare le funzioni server non pubbliche. La strada corretta è esaminare un'esportazione autorizzata del progetto.
+
+Ti propongo questa procedura.
+
+1. Apri il progetto in Base44. Accedi normalmente al tuo account e verifica di avere i permessi per visualizzare il codice o esportare l'applicazione.
+
+2. Recupera il codice sorgente. Se disponibile, usa la funzione di esportazione o sincronizzazione GitHub/CLI prevista dal tuo piano. La documentazione Base44 descrive il flusso di sviluppo tramite CLI e la gestione di entità e funzioni.&#x20;
+
+   [image](https://www.google.com/s2/favicons?domain=https://base44.com\&sz=32)
+
+   The fastest way to production
+
+   +1
+
+3. Individua i file chiave. In particolare, pagine frontend di creazione corso e quiz, funzioni backend, schemi delle entità e configurazioni delle integrazioni AI.
+
+4. Condividi qui il materiale. Puoi caricare lo ZIP del progetto oppure i file pertinenti. Prima della condivisione, elimina chiavi API, token, password, segreti e dati personali degli utenti.
+
+Non condividere credenziali di accesso: per l'analisi sono sufficienti il codice e, se necessario, log anonimizzati.
+
+## 5. Che cosa ti restituirò dopo aver esaminato il codice
+
+L'analisi sarà specifica per il tuo progetto, non una descrizione generica di Base44.
+
+A. Mappa dello stack tecnologico Linguaggi effettivi, framework, librerie, SDK, funzioni server e dipendenze individuate nei file.
+
+B. Architettura del backend Diagramma delle chiamate tra interfaccia, funzioni server, database, servizi AI e storage, con riferimenti ai file e alle funzioni coinvolte.
+
+C. Reverse engineering testo → corso Sequenza effettiva delle operazioni, prompt utilizzati, trasformazioni del testo, struttura dei dati e modalità di gestione degli errori.
+
+D. Reverse engineering dei quiz Generazione delle domande, formato delle risposte, validazione, correzione, punteggi e persistenza dei risultati.
+
+E. Valutazione tecnica Limiti, rischi di sicurezza, costi AI potenziali, prestazioni, qualità didattica e possibilità di replicare il sistema fuori da Base44.
+
+## Prossimo passo
+
+Puoi caricare qui il codice esportato del progetto Base44, preferibilmente in un file ZIP?
+
+È il materiale più utile per passare dalle ipotesi a una ricostruzione verificabile del linguaggio utilizzato, del backend e degli algoritmi applicativi di generazione dei corsi e dei quiz. Se non puoi esportarlo, possiamo iniziare da screenshot delle schermate di generazione e dai file o dalle funzioni accessibili nell'editor.

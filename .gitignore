@@ -16,3 +16,6 @@ var/
 artifacts/
 tests/corpus/files/
 API ANTHROPIC.txt
+
+# Archivi temporanei
+*.zip
