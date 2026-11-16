@@ -87,6 +87,29 @@ def test_missing_cache_counter_makes_total_unknown_not_partial():
     assert usage['outputTokens'] == 40
 
 
+def test_thinking_tokens_reported_even_when_the_answer_is_truncated():
+    # Forma di usage.output_tokens_details letta da anthropic/types/output_tokens_details.py 1.15.0.
+    # Il caso che serve è proprio la risposta troncata: 6.000 token su 6.000, quanti di ragionamento?
+    usage = {'input_tokens': 100, 'output_tokens': 6000, 'cache_creation_input_tokens': 0,
+             'cache_read_input_tokens': 0, 'output_tokens_details': {'thinking_tokens': 5400}}
+    provider, _ = sdk_provider((200, message('{"title": "Mod', stop_reason='max_tokens', usage=usage)))
+    with pytest.raises(GenerationError) as error:
+        generate(extraction(), provider)
+    assert error.value.code == 'provider_incomplete'
+    assert provider.last_usage['thinkingTokens'] == 5400
+    assert provider.last_usage['outputTokens'] == 6000
+
+
+@pytest.mark.parametrize('dettagli', [{}, {'output_tokens_details': None}])
+def test_missing_output_tokens_details_is_unknown_not_zero(dettagli):
+    usage = {'input_tokens': 100, 'output_tokens': 40, 'cache_creation_input_tokens': 5,
+             'cache_read_input_tokens': 20, **dettagli}
+    provider, _ = sdk_provider((200, message(draft_json(), usage=usage)))
+    generate(extraction(), provider)
+    assert 'thinkingTokens' in provider.last_usage
+    assert provider.last_usage['thinkingTokens'] is None
+
+
 @pytest.mark.parametrize('body,code', [
     (message('{"non": "conforme"', stop_reason='refusal'), 'provider_refusal'),
     (message('{"title": "Mod', stop_reason='max_tokens'), 'provider_incomplete'),

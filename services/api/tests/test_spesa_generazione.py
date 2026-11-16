@@ -304,6 +304,28 @@ def test_chiamata_fallita_o_senza_usage_mantiene_il_prenotato(client, classe):
     assert spesa.registro(client.app.state.store).speso() == prenotato
 
 
+def test_token_di_ragionamento_nel_registro_anche_se_la_risposta_e_troncata(client):
+    """Percorso vero: AnthropicProvider (SDK con trasporto finto) → FornitoreRegolato → file del registro.
+    Con 6.000 token su 6.000 il registro deve dire quanti erano ragionamento e quanti JSON del modulo."""
+    from test_anthropic_provider import message, sdk_provider
+    # Forma di usage.output_tokens_details letta da anthropic/types/output_tokens_details.py 1.15.0.
+    usage = {'input_tokens': 100, 'output_tokens': 6000, 'cache_creation_input_tokens': 0,
+             'cache_read_input_tokens': 0, 'output_tokens_details': {'thinking_tokens': 5400}}
+    fornitore, richieste = sdk_provider((200, message('{"title": "Mod', stop_reason='max_tokens', usage=usage)))
+    fornitore.model = 'claude-haiku-5-5'   # modello con prezzo in prezzi.json: senza, nessun preventivo
+    estratta, _ = prepara(client, fornitore=fornitore)
+    risposta = genera(client, estratta)
+    assert risposta.json()['detail']['code'] == 'provider_incomplete', risposta.text
+    assert len(richieste) == 1
+    # Letto dal file, non dalla corsa in memoria.
+    dati = json.loads((client.app.state.store.root / spesa.NOME_REGISTRO).read_text(encoding='utf-8'))
+    (corsa,) = dati['corse']
+    (chiamata,) = corsa['chiamate']
+    assert chiamata['errore'] == 'provider_incomplete'
+    assert chiamata['usage']['thinkingTokens'] == 5400
+    assert chiamata['usage']['outputTokens'] == 6000
+
+
 def test_token_oltre_il_limite_per_tentativo_mantengono_il_prenotato(client):
     class Oltre(Contato):
         def module(self, chunk):

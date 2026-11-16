@@ -86,10 +86,16 @@ class AnthropicProvider:
         written = getattr(usage, 'cache_creation_input_tokens', None)
         read = getattr(usage, 'cache_read_input_tokens', None)
         parts = (uncached, written, read)
+        # Parte di output_tokens spesa in ragionamento: `usage.output_tokens_details.thinking_tokens`, nomi
+        # letti da anthropic/types/usage.py (output_tokens_details: Optional) e
+        # anthropic/types/output_tokens_details.py (thinking_tokens: int) 1.15.0. È una scomposizione di
+        # output_tokens, già compresa nel totale: non si somma. Dettaglio assente → ignoto, non zero.
+        dettagli_uscita = getattr(usage, 'output_tokens_details', None)
         self.last_usage = dict(model=getattr(response, 'model', self.model),
                                inputTokens=sum(parts) if all(v is not None for v in parts) else None,
                                outputTokens=getattr(usage, 'output_tokens', None),
                                cachedInputTokens=read,
+                               thinkingTokens=getattr(dettagli_uscita, 'thinking_tokens', None),
                                # Tentativi ripetuti dallo SDK (telemetry.chiama_con_tentativi); None = ignoti.
                                retriesTaken=ripetuti)
         # Valori di stop_reason letti da anthropic/types/stop_reason.py 1.15.0:
