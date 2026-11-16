@@ -27,7 +27,7 @@ rem Expo con --web aprirebbe il browser da solo, prima che l'API sia pronta: lo 
 set "BROWSER=none"
 
 echo Avvio dell'API su http://127.0.0.1:8000 ...
-start "Studio Formazione - API (non chiudere)" cmd /k .venv\Scripts\python.exe -m uvicorn formazione_api.main:app --app-dir services/api --host 127.0.0.1 --port 8000
+start "Studio Formazione - API (non chiudere)" cmd /k .venv\Scripts\python.exe -m uvicorn formazione_api.main:app --app-dir services/api --host 127.0.0.1 --port 8000 --reload
 echo Avvio dell'app web su http://localhost:8081 ...
 start "Studio Formazione - App web (non chiudere)" cmd /k npm run web
 
