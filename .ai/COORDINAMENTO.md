@@ -1,9 +1,10 @@
 # COORDINAMENTO OPERATIVO: ARCHITETTURA, ALGOR BENCHMARK & ROADMAP
 
 > **Destinatario principale:** Claude / Team di Sviluppo  
-> **Data:** 16 novembre 2026  
-> **Stato:** In corso di implementazione  
-> **Oggetto:** Risoluzione errore `provider_incomplete`, pipeline concettuale gerarchica (ispirata ad Algor), potenziamento estrazione per Tabelle e Immagini (Vision Multimodale).
+> **Data ultimo aggiornamento:** 16 novembre 2026 (pomeriggio)  
+> **Stato:** Fase 1 (Stabilità token), Fase 2 (Contratti e Provider Mappa Concettuale) e Identificazione Capitoli/Paragrafi (Algor style) COMPLETATE.  
+> **Oggetto:** Risoluzione errore `provider_incomplete`, pipeline concettuale gerarchica a 2 stadi, identificazione semantica capitoli/paragrafi in Docling/Frontend, potenziamento estrazione per Tabelle e Immagini (Vision Multimodale).  
+> **Direttiva UI/UX Vincolante:** Adottare il design system e l'estetica visiva di `Socrate quizhand` (v. `PIANO_UNIFICAZIONE.md`).
 
 ---
 
@@ -97,35 +98,112 @@ Come Algor, la piattaforma deve "vedere" grafici, schemi, formule complesse e di
 
 ---
 
-## 5. Piano di Implementazione per Claude / Sviluppo
+## 5. Stato di Avanzamento e Registro Modifiche
 
-### Fase 0: Fix Immediato OCR & Distinzione Pagine nell'Estrazione (In corso)
+### Fase 0: Fix Immediato OCR & Distinzione Pagine nell'Estrazione (COMPLETATA)
 - **Backend OCR (Docling):**
   - In `services/api/formazione_api/docling_adapter.py`: default automatico di `DOCLING_ARTIFACTS_PATH` alla cartella locale `.cache/docling` se presente, impostando anche `HF_HOME`, `HF_HUB_OFFLINE='1'` e `TRANSFORMERS_OFFLINE='1'`.
 - **Frontend Estrazione Pagine (`apps/learner`):**
-  - Rendere prominente e intuitiva la selezione pagine pre-estrazione (evitando che rimanga nascosta).
-  - Raggruppare le fonti estratte in schede/card chiare per pagina (anziché un flusso continuo di testo).
-  - Aggiungere selettore / checkbox per includere/escludere le singole pagine estratte prima della generazione, collegato al parametro `excludedPages` di `GenerationPanel`.
+  - Selezione pagine pre-estrazione prominente.
+  - Fonti estratte raggruppate in card per pagina.
+  - Switch/checkbox per includere/escludere le singole pagine estratte prima della generazione (`excludedPages` in `GenerationPanel` e `ImportScreen`).
 
-### Fase 1: Fix Immediato di Stabilità
-- In `services/api/formazione_api/generation/instructions.py`:
-  - Aggiungere vincoli espliciti di concisione: *"Genera al massimo 4 slide essenziali e al massimo 4 quiz per modulo"*.
-- In `services/api/formazione_api/generation/chunks.py`:
-  - Ridurre `max_chars` predefinito da 12.000 a 8.000 per evitare blocchi eccessivamente densi.
+### Fase 1: Fix Immediato di Stabilità Token & Chunk Budget (COMPLETATA)
+- **Backend Chunking (`chunks.py` & `pipeline.py`):**
+  - Ridotto `max_chars` predefinito da 12.000 a **8.000 caratteri** in `plan_chunks()` e `generate()`.
+  - `measurement/preventivo.py`: eredita automaticamente `8000` dalla firma di `generate()`.
+  - Aggiornati test e helper in `test_measurement.py` e `test_spesa_generazione.py` (73 test passati).
+- **Backend Istruzioni Didattiche (`instructions.py`):**
+  - Inserito vincolo esplicito di misura controllata: *"Per ogni modulo genera al massimo 4 slide essenziali, focalizzate e ben spiegate, e al massimo 4 quiz mirati."* per prevenire overflow dell'output token cap (elimina l'errore `provider_incomplete`).
 
-### Fase 2: Schemi e Contratti della Mappa Concettuale
-- In `packages/contracts/src/`:
-  - Definire `ConceptMapSchema` (`ConceptTree`, `ConceptBranch`, `ConceptNode` con coordinate e `sourceRefs`).
-- In `services/api/formazione_api/generation/`:
-  - Aggiungere `concept_provider.py` per l'estrazione dell'albero concettuale.
+### Fase 2: Schemi, Contratti e Provider Mappa Concettuale (COMPLETATA)
+- **Frontend / Contratti Zod (`packages/contracts/src/concept.ts`):**
+  - Definiti `ConceptNodeSchema`, `ConceptBranchSchema`, `ConceptTreeSchema`.
+  - Esportati i tipi `ConceptNode`, `ConceptBranch`, `ConceptTree` e `conceptTreeJsonSchema`.
+  - Riesportati da `packages/contracts/src/index.ts`.
+  - Suite Vitest dedicata in `concept.test.ts` (8/8 passati).
+- **Backend Pydantic & Prompt (`services/api/formazione_api/generation/concept.py`):**
+  - Definiti i modelli Pydantic `ConceptNodeDraft`, `ConceptBranchDraft`, `ConceptTreeDraft` con validazione rigida (`extra='forbid'`, divieto titoli o fonti vuote).
+  - Definito `ISTRUZIONI_CONCEPT_TREE` per generazione rapida focalizzata (<1.000 token di output).
+- **Backend Concept Provider (`services/api/formazione_api/generation/concept_provider.py`):**
+  - Definito protocollo `ConceptProvider(Protocol)` con metodo `concept_tree(chunk: Chunk) -> ConceptTreeDraft`.
+  - Implementati `OpenAIConceptProvider`, `AnthropicConceptProvider`, `OpenAICompatConceptProvider`.
+  - Factory `create_concept_provider()` e funzione helper `extract_concept_tree(chunk, provider=None)`.
+  - Test unitari in `services/api/tests/test_concept_tree.py` (16/16 passati).
 
-### Fase 3: Pipeline Tabelle e Immagini
+### Identificazione Semantica Capitoli e Paragrafi stile Algor (COMPLETATA)
+- **Backend Docling Layout (`docling_adapter.py`):**
+  - In `_blocks(document, start, end)`: rilevamento attivo di intestazioni (`DocItemLabel.TITLE` / `SECTION_HEADER`).
+  - Tracciamento di `current_section` e `current_level`, propagati su tutti i blocchi del paragrafo/sezione.
+  - Ciascun blocco ora include: `kind` ('section_header', 'paragraph', 'table', 'list_item'), `level` e `section`.
+  - Aggiunto test `test_docling_extracts_sections_and_headings()` in `test_docling.py`.
+- **Backend Native Fallback (`extractors.py`):**
+  - In `native_extract`: rilevamento regex `HEADING_PATTERN` per capitoli e paragrafi numerati nel testo nativo.
+- **Frontend Indice Didattico (`apps/learner`):**
+  - `documents.ts`: esteso `Extraction.blocks` con `kind?: string`, `level?: number`, `section?: string`.
+  - `ProposedIndexPanel.tsx`: `buildProposedSections()` raggruppa ora i blocchi **per capitolo/sezione logica continua** (anche su più pagine contigue) invece di spezzare artificialmente ogni singola pagina.
+  - Aggiunto badge visivo `Capitolo` (livello 1) / `Paragrafo` (livello ≥ 2).
+  - Mantenuto il fallback trasparente per pagina se il documento non ha intestazioni.
+  - Test `ProposedIndexPanel.test.tsx` aggiornati e passati (11/11).
+
+---
+
+---
+
+## 7. Stato Avanzamento Unificazione Multi-AI (Quizz-app + Piattaforma Formazione)
+> **Data:** 18 novembre 2026  
+> **Status:** Fasi 1, 2, 3, 4 e 5 del Piano di Unificazione COMPLETATE con successo e collaudate.
+
+### Fasi Completate:
+1. **Fase 1 (Asset & Guscio Mobile Universale):**
+   - Importati asset grafici completi in `apps/learner/assets/` (`icon.png`, `splash-mark.png`, `genera_asset.py`).
+   - Integrato il `Guscio.tsx` per la gestione unificata di `KeyboardAvoidingView` e `SafeAreaProvider` (risolve conflitti tastiera su Android 15+ edge-to-edge e iOS).
+   - Componenti modulari estratti: `useIndietro.ts`, `RigheOpzione.tsx`, `stiliOpzione.ts`, `DomandaEsame.tsx`, `SezioneEsame.tsx`, `AccoppiamentoView.tsx`.
+   - Moduli di stato e test: `tastiera.ts` (3/3 test passati), `risposte.ts` (3/3 test passati).
+
+2. **Fase 2 (Refactoring Schermate Esame ed Esercizio):**
+   - `ExamView.tsx` sostituito con la versione spacchettata sotto le 300 righe (299 righe).
+   - `CourseScreen.tsx` sostituito con la versione modulare sotto le 300 righe (287 righe) e `CourseScreen.test.ts` (3/3 passati).
+   - `App.tsx` aggiornato con il wrapping di `Guscio` e `SafeAreaProvider`, preservando i componenti di Piattaforma Formazione.
+   - Test `struttura.test.ts`: 3/3 passati.
+
+3. **Fase 3 (Supporto Tipo di Quiz `matching` & Chiusura Typecheck):**
+   - **Contratti (`packages/contracts`):** aggiunto `'matching'`, `Coppia`, `MIN_COPPIE = 3`, `MAX_COPPIE = 6`, validazione biunivoca di `pairs` in `tipi.ts`, `pairs` in `structure.ts`, aggiornato `sample-course.json` (preservati `concept.ts` e `index.ts`).
+   - **Stato Frontend:** `riepilogo.ts` (`CoppiaRiepilogo`), `presentazione.ts` (`coppie`, label `'Accoppia'`), `editorDomanda.ts`, `editor.ts` (`Record<TipoDomanda, ...>`), `QuizTypeBadge.tsx`.
+   - **Learning Engine:** `adapter.ts`, `progress.ts` (ordine canonicalizzato preservato per matching), `grade.test.ts`.
+
+4. **Fase 4 (Riconciliazione File Condivisi e Backend):**
+   - `prezzi.json`, `openai_compat_provider.py`, `impostazioni.py` aggiornati con provider `groq` e `openrouter`.
+   - `spesa_generazione.py` allineato con `VALIDATION_PROVIDER` e stima combinata.
+   - `pipeline.py` aggiornato con parametro `validator=` e scarto domande, preservando il chunking a 8000 caratteri e il Concept Tree Algor.
+   - `instructions.py` e `bozze.py` estesi con regole e vincoli per il tipo `matching`.
+   - `DomandaEditor.tsx` aggiornato per la modifica interattiva delle coppie abbinate con accordion.
+   - Allineate fixture `generated-course.json`, `invalid-course-cases.json` e snapshot modelli.
+
+5. **Fase 5 (Design System ed Estetica Socrate Quizhand):**
+   - Estratto `apps/learner/src/components/SocrateCorso.tsx` mantenendo `CourseScreen.tsx` sotto il limite di 400 righe.
+   - `BarraSlideSegmentata`: avanzamento a pillole orizzontali segmentate interattive (stile Socrate `SlideViewer.jsx`).
+   - `BannerTipoSlide`: distinzione visiva immediata tra teoria (azzurro con `📖`) ed esempi pratici (ambra con `💡`).
+   - `RigaModulo`: lista moduli arricchita con indicatori di stato (completato `✓`, attivo, bloccato `🔒`) e indicazione esplicita della soglia percentuale di sbarramento dell'esame.
+   - `App.tsx`: testata `Shell` rifinita con badge a pillola traslucida `"Studio Formazione · EdTech Civis"` e pulsanti di navigazione pill con evidenziazione attiva blu/indaco.
+
+### Esito Collaudo Globale (TUTTO VERDE):
+- **TypeScript:** `npm run typecheck` **0 ERRORI (EXIT CODE 0)** su tutto il monorepo.
+- **Vitest Frontend:** **304/304 test passati (36 file)**.
+- **Jest UI:** **237/237 test passati** (182 `packages/civis-ui` + 55 `apps/learner`).
+- **Pytest Backend:** **560/560 test passati (0 fallimenti)**.
+
+### Task Attuale: Rilevamento Testo Digitale PDF e Indicatore di Avanzamento
+1. **Rilevamento Testo Digitale Automatico:** In `routes.py`, `documents.py` e `ReadingMethodSelector.tsx`, all'upload del PDF si verifica la presenza di testo nativo (`hasDigitalText`). Se presente, viene consigliato di default «Testo nativo» (~1-2s come Algor), evitando l'inutile e lento OCR CPU.
+2. **Indicatore di Avanzamento Dinamico (`ExtractionProgressCard.tsx`):** Cronometro in tempo reale, feedback dinamico sulle fasi di estrazione (preparazione, elaborazione, strutturazione blocchi), stima dei tempi e indicatore visivo attivo durante l'elaborazione.
+
+### Fase 3: Pipeline Tabelle Markdown e Figure Multimodali
 - In `services/api/formazione_api/extractors.py` e `docling_adapter.py`:
-  - Esportare tabelle in Markdown.
-  - Implementare l'estrazione dei ritagli immagine (`save_image_crops`).
-  - Aggiungere la pipeline asincrona di descrizione multimodale per le figure.
+  - Confermare che tutte le tabelle estratte da Docling esportino nativamente Markdown strutturato (`export_to_markdown`).
+  - Implementare il ritaglio delle figure (`save_image_crops` da `FPDF_PAGEOBJ_IMAGE` o item `picture` > 100x100 px) in `var/api/media/<doc_id>_<page>_<fig_id>.png`.
+  - Aggiungere interpretazione semantica Vision asincrona (prompt descrittivo) integrata con tag `[Figura: <descrizione>]` e `mediaRef`.
 
-### Fase 4: Frontend App Learner (`apps/learner`)
-- Aggiungere visualizzatore ad albero/grafo per la Mappa Concettuale.
-- Integrare l'anteprima immagini ritagliate nelle slide di lezione.
-- Collegare i nodi della mappa direttamente ai riferimenti del documento PDF.
+### Fase 4: Frontend Mappa Concettuale Interattiva (`apps/learner`)
+- Aggiungere nella schermata di studio/anteprima un visualizzatore ad albero/grafo per il `ConceptTree` (vista Mappa Mentale/Concettuale interattiva prima delle slide lineari).
+- Integrare l'anteprima delle immagini ritagliate nelle slide.
+- Collegare i nodi dell'albero e le slide direttamente alle coordinate e al visualizzatore PDF.
