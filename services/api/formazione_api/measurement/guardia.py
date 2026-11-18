@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 
+from ..generation.causa import LUNGHEZZA_MASSIMA, oscura
 from ..generation.errors import GenerationError
 from .preventivo import LimiteBlocco, costo_limite_blocco
 from .prezzi import MILIONE, Prezzo
@@ -77,6 +78,13 @@ class Registro:
         self._scrivi(dati)
 
 
+def dettaglio_errore(error: BaseException) -> str:
+    """Testo di un'eccezione per il registro: prima il filtro dei segreti (generation/causa.oscura), poi il
+    taglio a LUNGHEZZA_MASSIMA, così un taglio a metà di una chiave non sfugge al filtro (come causa._pulito)."""
+    testo = oscura(str(error))
+    return testo if len(testo) <= LUNGHEZZA_MASSIMA else testo[:LUNGHEZZA_MASSIMA - 1] + '…'
+
+
 def adesso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec='seconds')
 
@@ -129,6 +137,8 @@ class FornitoreSorvegliato:
         except Exception as error:
             chiamata['esito'] = 'errore'
             chiamata['errore'] = getattr(error, 'code', type(error).__name__)
+            # Testo dell'errore: per una bozza non valida dice quale campo (prima restava solo «ValidationError»).
+            chiamata['dettaglio'] = dettaglio_errore(error)
             # Causa dell'errore del fornitore, senza segreti (generation/causa.py): vale per il registro
             # delle misure e per quello dell'app (spesa_generazione.FornitoreRegolato eredita da qui).
             if getattr(error, 'causa', None):

@@ -92,3 +92,44 @@ def test_corsa_di_misura_con_generation_error_non_registra_la_chiave(tmp_path, m
     assert corsa['esito'] == 'fallita' and corsa['errore']['code'] == 'provider_error'
     _senza_chiavi(corsa['errore']['message'])
     _senza_chiavi((tmp_path / 'r.json').read_text(encoding='utf-8'))
+
+
+# Voce della singola chiamata: oltre al nome della classe (`errore`) conserva il testo dell'errore (`dettaglio`),
+# filtrato e troncato. Il 18/11/2026 un corso è fallito al blocco 6 e il registro diceva solo «ValidationError».
+
+def test_chiamata_fallita_registra_il_dettaglio_filtrato_e_troncato(client, monkeypatch):
+    monkeypatch.setenv('FINTO_API_KEY', CHIAVE_SENZA_PREFISSO)
+
+    class Esplode(Contato):
+        def module(self, chunk):
+            self.chiamate += 1
+            raise RuntimeError(_messaggio() + ' coda' * 300)
+
+    estratta, _ = prepara(client, fornitore=Esplode())
+    with pytest.raises(RuntimeError):
+        genera(client, estratta)
+    (corsa,) = registro(client).leggi()['corse']
+    (chiamata,) = corsa['chiamate']
+    assert chiamata['errore'] == 'RuntimeError'
+    assert chiamata['dettaglio'].startswith('connessione rifiutata con [oscurato]')
+    _senza_chiavi(chiamata['dettaglio'])
+    assert len(chiamata['dettaglio']) <= 500 and chiamata['dettaglio'].endswith('…')
+    _senza_chiavi(str(registro(client).leggi()))
+
+
+def test_bozza_non_valida_del_fornitore_registra_quale_campo(client):
+    """Come AnthropicProvider (ModuleDraft.model_validate_json dentro module()): la ValidationError nasce nella
+    chiamata sorvegliata. Il dettaglio dice quale campo; la pipeline ritenta una volta, due voci."""
+    from formazione_api.generation.models import ModuleDraft
+
+    class Malformata(Contato):
+        def module(self, chunk):
+            self.chiamate += 1
+            return ModuleDraft.model_validate_json('{"title": "Modulo", "objectives": [], "slides": [], "questions": []}')
+
+    estratta, _ = prepara(client, fornitore=Malformata())
+    assert genera(client, estratta).status_code >= 400
+    (corsa,) = registro(client).leggi()['corse']
+    assert [c['errore'] for c in corsa['chiamate']] == ['ValidationError', 'ValidationError']
+    for chiamata in corsa['chiamate']:
+        assert 'ModuleDraft' in chiamata['dettaglio'] and 'objectives' in chiamata['dettaglio']
