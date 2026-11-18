@@ -8,6 +8,7 @@ from .generation import GenerationError, config_status
 from .generation.chunks import plan_chunks
 from .generation.concept_provider import extract_concept_tree
 from .pagine_non_lette import messaggio_blocco
+from .ripresa_generazione import cancella as cancella_ripresa
 from .routes import read_record
 from .spesa_generazione import SpesaRifiuto, configurazione_spesa, genera_con_tetto, preventivo_pubblico
 
@@ -21,6 +22,9 @@ class GenerationRequest(BaseModel):
     # Pagine escluse su richiesta dell'utente (esclusione_pagine.py): validate nella rotta per
     # rispondere 422 con un messaggio leggibile.
     excludePages: list[StrictInt] = Field(default_factory=list, max_length=10000)
+    # Ricominciare da capo scartando i blocchi salvati da una generazione interrotta
+    # (ripresa_generazione.py); predefinito: si riprende dal primo blocco mancante.
+    restart: StrictBool = False
 
 
 class ConceptTreeRequest(BaseModel):
@@ -40,6 +44,10 @@ def _generation_http_error(error: GenerationError) -> HTTPException:
     dettaglio = {'code': error.code, 'message': str(error)}
     if error.causa:
         dettaglio['cause'] = error.causa
+    # Blocco fallito durante la generazione: quanti blocchi sono salvati per la ripresa e quanti in
+    # totale (`savedChunks`, `totalChunks`, ripresa_generazione.Ripresa.stato), per il pannello dell'app.
+    if error.ripresa:
+        dettaglio.update(error.ripresa)
     return HTTPException(status, dettaglio)
 
 
@@ -62,7 +70,7 @@ def generation_estimate(identifier: str, request: Request, excludePages: list[in
     store = request.app.state.store
     extraction = read_record(store, identifier, 'extraction.json')
     stima = preventivo_pubblico(_escludi(extraction, excludePages),
-                                getattr(request.app.state, 'generation_provider', None), store)
+                                getattr(request.app.state, 'generation_provider', None), store, excludePages)
     pagine = non_lette_rimaste(extraction, excludePages)
     stima = {**stima, 'unreadPages': pagine, 'excludedPages': sorted(excludePages)}
     if pagine and stima['allowed']:
@@ -87,7 +95,10 @@ def generate_course(identifier: str, body: GenerationRequest, request: Request):
     draft_id = store.new_id()
     try:
         # Preventivo, limiti del server e registro prima di qualunque chiamata (spesa_generazione.py).
+        # Blocchi salvati da una generazione interrotta: riusati se l'impronta coincide (stesse pagine
+        # escluse, stesso fornitore e modello...), scartati con `restart` (ripresa_generazione.py).
         result = genera_con_tetto(da_generare, getattr(request.app.state, 'generation_provider', None), store, draft_id,
+                                  escluse=body.excludePages, ricomincia=body.restart,
                                   title=body.title.strip(), acknowledge_warnings=body.acknowledgeWarnings)
     except SpesaRifiuto as rifiuto:
         raise HTTPException(rifiuto.status, {'code': rifiuto.code, 'message': str(rifiuto)}) from rifiuto
@@ -95,6 +106,8 @@ def generate_course(identifier: str, body: GenerationRequest, request: Request):
         raise _generation_http_error(error) from error
     result = {'id': draft_id, 'revision': 1, **registra_esclusione(result, body.excludePages)}
     store.save(draft_id, 'draft.json', result)
+    # Solo a bozza salvata: se il salvataggio fallisse, i blocchi resterebbero riusabili.
+    cancella_ripresa(store.root, identifier)
     return result
 
 

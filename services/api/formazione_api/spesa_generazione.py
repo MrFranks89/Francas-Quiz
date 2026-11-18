@@ -25,6 +25,7 @@ from .generation.validazione import create_validator
 from .measurement import preventivo as pv
 from .measurement.guardia import FornitoreSorvegliato, GuardiaRifiuto, Registro, adesso, verifica_avvio
 from .measurement.prezzi import PREZZI, Prezzo, PrezzoMancante, carica, prezzo
+from .ripresa_generazione import Ripresa, impronta_comune
 
 # Unico punto dei valori predefiniti, in USD; documentati in docs/GENERAZIONE.md e restituiti da
 # GET /generation/config (campo `spending`).
@@ -224,10 +225,16 @@ def _non_configurato() -> SpesaRifiuto:
     return SpesaRifiuto('not_configured', f"Configurare {' e '.join(variabili)} nel processo server", 503)
 
 
-def valuta(extraction: dict, provider, store) -> dict:
+def valuta(extraction: dict, provider, store, escluse=(), ricomincia: bool = False) -> dict:
     """Preventivo e decisione, senza chiamare fornitori. Restituisce la stima completa (con i
     limiti per blocco usati da FornitoreSorvegliato); solleva SpesaRifiuto se la generazione non
-    può partire. Ordine dei controlli come measurement.corsa.esegui_selezione."""
+    può partire. Ordine dei controlli come measurement.corsa.esegui_selezione.
+
+    Ripresa (ripresa_generazione.py): gli importi contano solo i blocchi da generare, cioè quelli
+    senza una voce salvata con la stessa impronta (`escluse`: pagine escluse, parte dell'impronta;
+    `ricomincia`: richiesta `restart`, nessun blocco riusato). I controlli di disponibilità del
+    preventivo restano su tutti i blocchi, come prima. Senza blocchi salvati la stima è quella di
+    sempre. La stima porta `blocchiSalvati`, `blocchiTotali` e la `ripresa` da passare a generate()."""
     if provider is None and not config_status()['configured']:
         raise _non_configurato()
     fornitore, modello = fornitore_e_modello(provider)
@@ -254,6 +261,7 @@ def valuta(extraction: dict, provider, store) -> dict:
     # tariffe del suo fornitore; il suo limite superiore si somma a quello della generazione,
     # così il tetto per corso e il pannello contano entrambe le chiamate.
     nome_validatore = os.getenv('VALIDATION_PROVIDER', '').strip().lower()
+    validatore = None
     if nome_validatore:
         if nome_validatore not in FORNITORI:
             raise SpesaRifiuto('not_configured', f"VALIDATION_PROVIDER deve essere {' oppure '.join(FORNITORI)}", 503)
@@ -273,6 +281,18 @@ def valuta(extraction: dict, provider, store) -> dict:
         if not stima_validatore['limiteCompleto']:
             raise SpesaRifiuto('estimate_unavailable', 'Preventivo non disponibile: quota per chiamata del fornitore '
                                                        'di validazione non misurata (sovraccaricoIngressoPerChiamata in prezzi.json).')
+        validatore = (nome_validatore, modello_validatore, listino_validatore)
+    ripresa = Ripresa(store.root, extraction.get('id'),
+                      impronta_comune(fornitore, modello, validatore and validatore[:2], escluse),
+                      chunks, ignora_salvati=ricomincia)
+    da_generare = ripresa.da_generare(chunks)
+    if len(da_generare) != len(chunks):
+        # Importi sui soli blocchi da generare; con tutti da generare restano quelli già calcolati.
+        stima = pv.preventivo_corsa(da_generare, listino)
+        if validatore:
+            stima_validatore = pv.preventivo_corsa(da_generare, validatore[2])
+    stima.update(blocchiTotali=len(chunks), blocchiSalvati=len(chunks) - len(da_generare), ripresa=ripresa)
+    if validatore:
         stima['limiteSuperioreUSD'] += stima_validatore['limiteSuperioreUSD']
         stima['tokenIngressoMassimi'] += stima_validatore['tokenIngressoMassimi']
         stima['tokenUscitaMassimi'] += stima_validatore['tokenUscitaMassimi']
@@ -302,13 +322,16 @@ def decidi(stima: dict, store) -> dict:
     return {'maxUsdPerCourse': massimo, 'budgetUsd': budget, 'spentUsd': speso}
 
 
-def preventivo_pubblico(extraction: dict, provider, store) -> dict:
-    """Risposta di GET /extractions/{id}/generation-estimate: ciò che il pannello mostra."""
+def preventivo_pubblico(extraction: dict, provider, store, escluse=()) -> dict:
+    """Risposta di GET /extractions/{id}/generation-estimate: ciò che il pannello mostra.
+    `chunks`: blocchi da generare (quelli che si pagano); `savedChunks`: blocchi salvati da una
+    generazione interrotta, riusati senza chiamare il fornitore; `totalChunks`: tutti."""
     try:
-        stima = valuta(extraction, provider, store)
+        stima = valuta(extraction, provider, store, escluse)
     except SpesaRifiuto as rifiuto:
         return {'available': False, 'allowed': False, 'refusal': {'code': rifiuto.code, 'message': str(rifiuto)}}
     voce = {'available': True, 'provider': stima['fornitore'], 'model': stima['modello'], 'chunks': stima['blocchi'],
+            'savedChunks': stima['blocchiSalvati'], 'totalChunks': stima['blocchiTotali'],
             'maxCalls': stima['chiamateMassime'], 'upperBoundUsd': _usd(stima['limiteSuperioreUSD']),
             'maxCostUsd': _usd(per_eccesso(stima['limiteSuperioreUSD']))}
     try:
@@ -318,20 +341,29 @@ def preventivo_pubblico(extraction: dict, provider, store) -> dict:
     return {**voce, 'allowed': True, 'limits': {k: _usd(v) for k, v in limiti.items()}}
 
 
-def genera_con_tetto(extraction: dict, provider, store, corsa_id: str, **opzioni) -> dict:
+def genera_con_tetto(extraction: dict, provider, store, corsa_id: str, escluse=(), ricomincia: bool = False,
+                     **opzioni) -> dict:
     """Generazione con preventivo, limiti e registro. Il fornitore reale si crea solo dopo che i
-    limiti hanno autorizzato la generazione, come in measurement.corsa.esegui_selezione."""
-    stima = valuta(extraction, provider, store)
+    limiti hanno autorizzato la generazione, come in measurement.corsa.esegui_selezione.
+
+    Ripresa: i blocchi salvati validi (valuta) non si pagano e non si chiamano; ogni blocco generato
+    si salva subito (generate(ripresa=...)). `ricomincia` scarta i blocchi salvati, dal disco solo
+    dopo che i limiti hanno autorizzato la generazione."""
+    stima = valuta(extraction, provider, store, escluse, ricomincia)
     decidi(stima, store)
     if not GENERAZIONE_IN_CORSO.acquire(blocking=False):
         raise SpesaRifiuto('generation_in_progress', "Un'altra generazione è in corso: attendere che finisca.", 409)
     try:
         # Ricontrollo sotto il lucchetto: la spesa registrata può essere cambiata nel frattempo.
         limiti = decidi(stima, store)
+        if ricomincia:
+            stima['ripresa'].ricomincia()
         reg = registro(store)
+        # `blocchi`: blocchi da generare, quelli prenotati; `blocchiRiusati`: salvati da una corsa precedente.
         corsa = dict(id=corsa_id, inizio=adesso(), documento=extraction.get('documentId'), fornitore=stima['fornitore'],
                      modello=stima['modello'], budgetUSD=limiti['budgetUsd'], limitePerCorsoUSD=limiti['maxUsdPerCourse'],
                      limiteSuperioreUSD=stima['limiteSuperioreUSD'], blocchi=stima['blocchi'],
+                     blocchiRiusati=stima['blocchiSalvati'], blocchiTotali=stima['blocchiTotali'],
                      addebitatoUSD=Decimal(0), chiamate=[], esito='in_corso')
         reg.aggiorna_corsa(corsa)
         try:
@@ -342,7 +374,7 @@ def genera_con_tetto(extraction: dict, provider, store, corsa_id: str, **opzioni
             if stima.get('validazione'):
                 validatore = ValidatoreRegolato(create_validator(), {l.chunk_id: l for l in stima['limiti']},
                                                 stima['listinoValidazione'], limiti['budgetUsd'], reg, corsa)
-            risultato = generate(extraction, sorvegliato, validator=validatore, **opzioni)
+            risultato = generate(extraction, sorvegliato, validator=validatore, ripresa=stima['ripresa'], **opzioni)
             corsa['esito'] = 'completata'
             return risultato
         except GenerationError as error:

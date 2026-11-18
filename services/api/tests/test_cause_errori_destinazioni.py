@@ -105,4 +105,6 @@ def test_errore_senza_causa_resta_come_prima(client):
     estratta = extraction(client, doc, {'mode': 'all'}).json()
     risposta = client.post(f"/extractions/{estratta['id']}/generate", json={'title': 'Corso'})
     assert risposta.status_code == 502
-    assert risposta.json()['detail'] == {'code': 'provider_error', 'message': 'Errore AI controllato'}
+    # Dal 18 novembre 2026 un blocco fallito porta anche i blocchi salvati per la ripresa (ripresa_generazione.py).
+    assert risposta.json()['detail'] == {'code': 'provider_error', 'message': 'Errore AI controllato',
+                                         'savedChunks': 0, 'totalChunks': 1}
