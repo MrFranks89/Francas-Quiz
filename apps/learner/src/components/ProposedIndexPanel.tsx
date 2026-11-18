@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, Pressable, StyleSheet, Switch } from 'react-native';
+import { usePalette, useTheme } from '@formazione/civis-ui/src/ThemeProvider';
 import type { Extraction } from '../api/documents';
-import { Button, colors } from './ui';
+import { colors } from './ui';
 
 export type ExtractionBlock = Extraction['blocks'][number];
 
@@ -220,6 +221,8 @@ export function ProposedIndexPanel({
   excludedPages = [],
   onTogglePage,
 }: ProposedIndexPanelProps) {
+  const C = usePalette(), { dark } = useTheme();
+  const localStyles = useMemo(() => buildStyles(C, dark), [C, dark]);
   const [viewMode, setViewMode] = useState<'index' | 'sources'>('index');
   const [visibleSources, setVisibleSources] = useState(20);
   const [expandedSections, setExpandedSections] = useState<
@@ -516,163 +519,118 @@ export function ProposedIndexPanel({
   );
 }
 
-const localStyles = StyleSheet.create({
-  container: { gap: 16, marginVertical: 4 },
-  header: { gap: 12 },
-  headerTextCol: { gap: 4 },
-  mainTitle: { fontSize: 16, fontWeight: '700', color: colors.navy },
-  summarySubtitle: { fontSize: 13, color: colors.muted },
-  tabSwitcher: {
-    flexDirection: 'row',
-    backgroundColor: '#edf2f7',
-    borderRadius: 10,
-    padding: 3,
-    gap: 4,
-  },
-  tabButton: {
-    flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tabButtonActive: {
-    backgroundColor: 'white',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  tabButtonText: { fontSize: 13, fontWeight: '600', color: colors.muted },
-  tabButtonTextActive: { color: colors.navy },
-  sectionsList: { gap: 12 },
-  emptyText: { fontSize: 14, color: colors.muted, fontStyle: 'italic', paddingVertical: 10 },
-  sectionCard: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.line,
-    padding: 14,
-    gap: 8,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-  },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: colors.navy, flex: 1 },
-  pillRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  structuralBadge: {
-    backgroundColor: '#e6fffa',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#b2f5ea',
-  },
-  structuralBadgeText: { color: '#234e52', fontSize: 12, fontWeight: '700' },
-  pageBadge: {
-    backgroundColor: colors.pale,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#cde4e0',
-  },
-  pageBadgeText: { color: colors.teal, fontSize: 12, fontWeight: '700' },
-  infoPill: { backgroundColor: '#edf2f7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-  infoPillText: { color: colors.navy, fontSize: 12, fontWeight: '500' },
-  sectionPreview: { fontSize: 14, lineHeight: 20, color: colors.ink },
-  expandBtn: { alignSelf: 'flex-start', paddingVertical: 4, marginTop: 2 },
-  expandBtnText: { fontSize: 12, fontWeight: '600', color: colors.teal },
-  expandedBlocksList: {
-    gap: 8,
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: colors.line,
-  },
-  subBlockItem: {
-    backgroundColor: 'white',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.line,
-    padding: 10,
-    gap: 4,
-  },
-  subBlockLabel: { fontSize: 12, fontWeight: '700', color: colors.navy },
-  subBlockText: { fontSize: 13, lineHeight: 18, color: colors.ink },
-  sourcesList: { gap: 12 },
-  pageCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.line,
-    padding: 14,
-    gap: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  pageCardExcluded: { backgroundColor: '#fafbfc', borderColor: '#e2e8f0', opacity: 0.75 },
-  pageCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  pageCardHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
-  pageBadgeMain: {
-    backgroundColor: colors.pale,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#cde4e0',
-  },
-  pageBadgeMainText: { color: colors.teal, fontSize: 13, fontWeight: '700' },
-  pageBadgeExcluded: { backgroundColor: '#edf2f7', borderColor: '#cbd5e0' },
-  pageBadgeExcludedText: { color: colors.muted },
-  pageMetaText: { fontSize: 13, color: colors.muted, fontWeight: '500' },
-  pageToggleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  pageToggleLabel: { fontSize: 12, fontWeight: '600', color: colors.teal },
-  pageToggleLabelExcluded: { color: '#a0aec0' },
-  excludedNoticeBadge: {
-    backgroundColor: '#fffaf0',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#feebc8',
-  },
-  excludedNoticeText: { fontSize: 12, color: '#c05621', fontWeight: '600' },
-  figureNoticeBadge: {
-    backgroundColor: '#ebf8ff',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#bee3f8',
-  },
-  figureNoticeText: { fontSize: 12, color: '#2b6cb0', fontWeight: '600' },
-  pageWarningsBox: {
-    backgroundColor: '#fff5f5',
-    padding: 8,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#fed7d7',
-    gap: 4,
-  },
-  pageWarningItemText: { fontSize: 12, color: '#c53030' },
-  toggleBlocksBtn: { alignSelf: 'flex-start', paddingVertical: 3 },
-  toggleBlocksBtnText: { fontSize: 12, fontWeight: '600', color: colors.teal },
-  pageBlocksList: { gap: 10, marginTop: 4, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#edf2f7' },
-  rawBlockItem: { gap: 6, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: '#edf2f7' },
-  rawBlockHeader: { fontSize: 14, fontWeight: '700', color: colors.navy },
-  rawBlockText: { fontSize: 14, lineHeight: 20, color: colors.ink },
-});
+function buildStyles(C: typeof import('@formazione/civis-ui/src/tema').C, dark: boolean) {
+  const txt = dark ? C.text : colors.navy;
+  const muted = dark ? C.textMuted : colors.muted;
+  const body = dark ? C.lightText : colors.ink;
+  const line = dark ? C.border : colors.line;
+  const teal = dark ? C.teal : colors.teal;
+  const pale = dark ? 'rgba(34,211,238,0.14)' : colors.pale;
+  const paleBorder = dark ? 'rgba(34,211,238,0.35)' : '#cde4e0';
+  return StyleSheet.create({
+    container: { gap: 16, marginVertical: 4 },
+    header: { gap: 12 },
+    headerTextCol: { gap: 4 },
+    mainTitle: { fontSize: 16, fontWeight: '700', color: txt },
+    summarySubtitle: { fontSize: 13, color: muted },
+    tabSwitcher: {
+      flexDirection: 'row', backgroundColor: dark ? C.surfaceDark : '#edf2f7',
+      borderRadius: 10, padding: 3, gap: 4,
+    },
+    tabButton: {
+      flex: 1, paddingVertical: 8, paddingHorizontal: 12,
+      borderRadius: 8, alignItems: 'center', justifyContent: 'center',
+    },
+    tabButtonActive: {
+      backgroundColor: dark ? C.surfaceHover : 'white', shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 2, elevation: 2,
+    },
+    tabButtonText: { fontSize: 13, fontWeight: '600', color: muted },
+    tabButtonTextActive: { color: txt },
+    sectionsList: { gap: 12 },
+    emptyText: { fontSize: 14, color: muted, fontStyle: 'italic', paddingVertical: 10 },
+    sectionCard: {
+      backgroundColor: dark ? C.surface : '#f8fafc', borderRadius: 12,
+      borderWidth: 1, borderColor: line, padding: 14, gap: 8,
+    },
+    sectionHeaderRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+    sectionTitle: { fontSize: 15, fontWeight: '700', color: txt, flex: 1 },
+    pillRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+    structuralBadge: {
+      backgroundColor: dark ? 'rgba(34,211,238,0.14)' : '#e6fffa',
+      paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6,
+      borderWidth: 1, borderColor: dark ? 'rgba(34,211,238,0.35)' : '#b2f5ea',
+    },
+    structuralBadgeText: { color: dark ? C.teal : '#234e52', fontSize: 12, fontWeight: '700' },
+    pageBadge: {
+      backgroundColor: pale, paddingHorizontal: 8, paddingVertical: 3,
+      borderRadius: 6, borderWidth: 1, borderColor: paleBorder,
+    },
+    pageBadgeText: { color: teal, fontSize: 12, fontWeight: '700' },
+    infoPill: { backgroundColor: dark ? C.surfaceHover : '#edf2f7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+    infoPillText: { color: dark ? C.textMuted : colors.navy, fontSize: 12, fontWeight: '500' },
+    sectionPreview: { fontSize: 14, lineHeight: 20, color: body },
+    expandBtn: { alignSelf: 'flex-start', paddingVertical: 4, marginTop: 2 },
+    expandBtnText: { fontSize: 12, fontWeight: '600', color: teal },
+    expandedBlocksList: { gap: 8, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: line },
+    subBlockItem: {
+      backgroundColor: dark ? C.surfaceDark : 'white', borderRadius: 8,
+      borderWidth: 1, borderColor: line, padding: 10, gap: 4,
+    },
+    subBlockLabel: { fontSize: 12, fontWeight: '700', color: txt },
+    subBlockText: { fontSize: 13, lineHeight: 18, color: body },
+    sourcesList: { gap: 12 },
+    pageCard: {
+      backgroundColor: dark ? C.surface : '#ffffff', borderRadius: 12, borderWidth: 1,
+      borderColor: line, padding: 14, gap: 10, shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 2, elevation: 1,
+    },
+    pageCardExcluded: {
+      backgroundColor: dark ? C.surfaceDark : '#fafbfc',
+      borderColor: dark ? C.borderSubtle : '#e2e8f0', opacity: 0.75,
+    },
+    pageCardHeader: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      gap: 8, flexWrap: 'wrap',
+    },
+    pageCardHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
+    pageBadgeMain: {
+      backgroundColor: pale, paddingHorizontal: 10, paddingVertical: 4,
+      borderRadius: 8, borderWidth: 1, borderColor: paleBorder,
+    },
+    pageBadgeMainText: { color: teal, fontSize: 13, fontWeight: '700' },
+    pageBadgeExcluded: { backgroundColor: dark ? C.surfaceHover : '#edf2f7', borderColor: dark ? C.border : '#cbd5e0' },
+    pageBadgeExcludedText: { color: muted },
+    pageMetaText: { fontSize: 13, color: muted, fontWeight: '500' },
+    pageToggleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    pageToggleLabel: { fontSize: 12, fontWeight: '600', color: teal },
+    pageToggleLabelExcluded: { color: dark ? C.textDim : '#a0aec0' },
+    excludedNoticeBadge: {
+      backgroundColor: dark ? C.yellowBg : '#fffaf0', paddingHorizontal: 10, paddingVertical: 5,
+      borderRadius: 6, borderWidth: 1, borderColor: dark ? C.yellow : '#feebc8',
+    },
+    excludedNoticeText: { fontSize: 12, color: dark ? C.yellow : '#c05621', fontWeight: '600' },
+    figureNoticeBadge: {
+      backgroundColor: dark ? 'rgba(59,130,246,0.16)' : '#ebf8ff', paddingHorizontal: 10,
+      paddingVertical: 5, borderRadius: 6, borderWidth: 1,
+      borderColor: dark ? 'rgba(96,165,250,0.35)' : '#bee3f8',
+    },
+    figureNoticeText: { fontSize: 12, color: dark ? '#93c5fd' : '#2b6cb0', fontWeight: '600' },
+    pageWarningsBox: {
+      backgroundColor: dark ? C.redBg : '#fff5f5', padding: 8, borderRadius: 6,
+      borderWidth: 1, borderColor: dark ? C.red : '#fed7d7', gap: 4,
+    },
+    pageWarningItemText: { fontSize: 12, color: dark ? C.redText : '#c53030' },
+    toggleBlocksBtn: { alignSelf: 'flex-start', paddingVertical: 3 },
+    toggleBlocksBtnText: { fontSize: 12, fontWeight: '600', color: teal },
+    pageBlocksList: {
+      gap: 10, marginTop: 4, paddingTop: 8,
+      borderTopWidth: 1, borderTopColor: dark ? C.border : '#edf2f7',
+    },
+    rawBlockItem: {
+      gap: 6, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: dark ? C.border : '#edf2f7',
+    },
+    rawBlockHeader: { fontSize: 14, fontWeight: '700', color: txt },
+    rawBlockText: { fontSize: 14, lineHeight: 20, color: body },
+  });
+}

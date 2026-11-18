@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { usePalette, useTheme } from '@formazione/civis-ui/src/ThemeProvider';
 import { colors } from './ui';
 
 export type ReadingEngine = 'native' | 'docling';
@@ -17,6 +18,7 @@ export function ReadingMethodSelector({
   disabled = false,
   hasDigitalText,
 }: ReadingMethodSelectorProps) {
+  const C = usePalette(), { dark } = useTheme();
   const nativeSubtitle =
     hasDigitalText === true
       ? 'Consigliato · Testo digitale già presente (< 2s)'
@@ -73,7 +75,13 @@ export function ReadingMethodSelector({
               onPress={() => onChange(opt.id)}
               style={({ pressed }) => [
                 selectorStyles.card,
-                selected ? selectorStyles.cardSelected : selectorStyles.cardUnselected,
+                selected
+                  ? dark
+                    ? { backgroundColor: 'rgba(34,211,238,0.12)', borderColor: C.teal }
+                    : selectorStyles.cardSelected
+                  : dark
+                    ? { backgroundColor: C.surface, borderColor: C.border }
+                    : selectorStyles.cardUnselected,
                 disabled && selectorStyles.cardDisabled,
                 pressed && !disabled && selectorStyles.cardPressed,
               ]}
@@ -82,7 +90,8 @@ export function ReadingMethodSelector({
                 <Text
                   style={[
                     selectorStyles.title,
-                    selected && selectorStyles.titleSelected,
+                    dark && { color: C.text },
+                    selected && { color: dark ? C.teal : colors.teal },
                   ]}
                 >
                   {opt.title}
@@ -90,25 +99,34 @@ export function ReadingMethodSelector({
                 <View
                   style={[
                     selectorStyles.badge,
-                    selected ? selectorStyles.badgeSelected : selectorStyles.badgeUnselected,
+                    selected
+                      ? dark
+                        ? { backgroundColor: 'rgba(34,211,238,0.2)', borderColor: C.teal }
+                        : selectorStyles.badgeSelected
+                      : dark
+                        ? { backgroundColor: C.surfaceDark, borderColor: C.border }
+                        : selectorStyles.badgeUnselected,
                   ]}
                 >
                   <Text
                     style={[
                       selectorStyles.badgeText,
-                      selected && selectorStyles.badgeTextSelected,
+                      dark && { color: C.textMuted },
+                      selected && { color: dark ? C.teal : colors.teal },
                     ]}
                   >
                     {selected ? '✓ Attivo' : opt.badge}
                   </Text>
                 </View>
               </View>
-              <Text style={selectorStyles.subtitle}>{opt.subtitle}</Text>
+              <Text style={[selectorStyles.subtitle, dark && { color: C.lightText }]}>
+                {opt.subtitle}
+              </Text>
             </Pressable>
           );
         })}
       </View>
-      <Text style={selectorStyles.note}>{noteText}</Text>
+      <Text style={[selectorStyles.note, dark && { color: C.textMuted }]}>{noteText}</Text>
     </View>
   );
 }

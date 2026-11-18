@@ -20,5 +20,8 @@ module.exports = {
   // Come in civis-ui: a freddo la prima prova che disegna un componente
   // trasforma i moduli di React Native e supera i 5 s predefiniti.
   testTimeout: 30000,
-  setupFiles: [require.resolve('@react-native/jest-preset/jest/setup.js')],
+  setupFiles: [
+    require.resolve('@react-native/jest-preset/jest/setup.js'),
+    '<rootDir>/jest.setup.js',
+  ],
 };

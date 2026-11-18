@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { usePalette, useTheme } from '@formazione/civis-ui/src/ThemeProvider';
 import { DIFFICOLTA, type Question } from '@formazione/contracts';
 import { ETICHETTA_PROMPT, facoltativo } from '../state/editor';
 import {
@@ -9,7 +10,7 @@ import {
   giusteDi,
 } from '../state/editorDomanda';
 import { QuizTypeBadge } from './QuizTypeBadge';
-import { Button, Notice, styles } from './ui';
+import { Button, Notice, useUiStyles } from './ui';
 
 /**
  * Una domanda nell'editor, con i campi del suo tipo. Chi rivede deve vedere
@@ -31,6 +32,7 @@ export function DomandaEditor({
   disabled: boolean;
   change: (path: (string | number)[], value: unknown) => void;
 }) {
+  const C = usePalette(), { dark } = useTheme(), styles = useUiStyles();
   const [expanded, setExpanded] = useState(true);
   const n = qi + 1;
   const base = ['questions', qi];
@@ -68,7 +70,7 @@ export function DomandaEditor({
     (question.pairs ?? []).findIndex((p) => p.rightOptionId === optionId);
 
   return (
-    <View style={editorStyles.container}>
+    <View style={[editorStyles.container, dark && { borderBottomColor: C.border }]}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`Domanda ${n}: tocca per ${expanded ? 'comprimere' : 'espandere'}`}
@@ -85,11 +87,13 @@ export function DomandaEditor({
           </View>
           <View style={editorStyles.chevronGroup}>
             {hasErrors && (
-              <View style={editorStyles.errorPill}>
-                <Text style={editorStyles.errorPillText}>Errori</Text>
+              <View style={[editorStyles.errorPill, dark && { backgroundColor: C.redBg, borderColor: C.red }]}>
+                <Text style={[editorStyles.errorPillText, dark && { color: C.redText }]}>Errori</Text>
               </View>
             )}
-            <Text style={editorStyles.chevron}>{expanded ? '▲' : '▼'}</Text>
+            <Text style={[editorStyles.chevron, dark && { color: C.textMuted }]}>
+              {expanded ? '▲' : '▼'}
+            </Text>
           </View>
         </View>
         {!expanded && (

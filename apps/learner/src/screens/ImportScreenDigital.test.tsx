@@ -48,6 +48,12 @@ describe('ImportScreen rilevamento testo digitale e avanzamento estrazione', () 
       await act(async () => {
         renderer = ReactTestRenderer.create(<ImportScreen onDraft={jest.fn()} />);
       });
+      const nextBtn = renderer.root
+        .findAllByType(Button)
+        .find((b) => b.props.label === 'Avanti: Seleziona Materiale e Capitoli →');
+      await act(async () => {
+        nextBtn?.props.onPress();
+      });
 
       mockPicker.mockResolvedValueOnce({
         canceled: false,
@@ -123,6 +129,12 @@ describe('ImportScreen rilevamento testo digitale e avanzamento estrazione', () 
       });
 
       expect(allText(renderer)).not.toContain('Tempo trascorso:');
+
+      const backToMaterialBtn = renderer.root
+        .findAllByProps({ accessibilityLabel: 'Torna al materiale e capitoli' })[0];
+      await act(async () => {
+        backToMaterialBtn.props.onPress();
+      });
 
       mockPicker.mockResolvedValueOnce({
         canceled: false,

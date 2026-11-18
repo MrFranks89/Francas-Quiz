@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { usePalette, useTheme } from '@formazione/civis-ui/src/ThemeProvider';
 import { colors } from './ui';
 
 export interface TabItem {
@@ -17,6 +18,7 @@ export function EditorTabs({
   activeTab: string;
   onSelectTab: (id: string) => void;
 }) {
+  const C = usePalette(), { dark } = useTheme();
   return (
     <View style={styles.container}>
       <ScrollView
@@ -35,19 +37,43 @@ export function EditorTabs({
               onPress={() => onSelectTab(tab.id)}
               style={({ pressed }) => [
                 styles.tab,
-                isActive ? styles.tabActive : styles.tabInactive,
+                isActive
+                  ? dark
+                    ? { backgroundColor: '#2563eb', borderColor: '#60a5fa' }
+                    : styles.tabActive
+                  : dark
+                    ? { backgroundColor: C.surface, borderColor: C.border }
+                    : styles.tabInactive,
                 pressed && { opacity: 0.8 },
               ]}
             >
-              <Text style={[styles.tabLabel, isActive ? styles.labelActive : styles.labelInactive]}>
+              <Text
+                style={[
+                  styles.tabLabel,
+                  isActive ? styles.labelActive : dark ? { color: C.textMuted } : styles.labelInactive,
+                ]}
+              >
                 {tab.label}
               </Text>
               {tab.badge !== undefined && (
-                <View style={[styles.badge, isActive ? styles.badgeActive : styles.badgeInactive]}>
+                <View
+                  style={[
+                    styles.badge,
+                    isActive
+                      ? styles.badgeActive
+                      : dark
+                        ? { backgroundColor: C.surfaceHover }
+                        : styles.badgeInactive,
+                  ]}
+                >
                   <Text
                     style={[
                       styles.badgeText,
-                      isActive ? styles.badgeTextActive : styles.badgeTextInactive,
+                      isActive
+                        ? styles.badgeTextActive
+                        : dark
+                          ? { color: C.teal }
+                          : styles.badgeTextInactive,
                     ]}
                   >
                     {tab.badge}

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { usePalette, useTheme } from '@formazione/civis-ui/src/ThemeProvider';
 import type { DocumentChapter } from '../api/documents';
 import { colors } from './ui';
 
@@ -18,11 +19,17 @@ export function ChaptersSelector({
   disabled?: boolean;
   onSelect: (chapter: DocumentChapter) => void;
 }) {
+  const C = usePalette(), { dark } = useTheme();
   if (!chapters.length) return null;
 
   return (
-    <View style={localStyles.chaptersBox}>
-      <Text style={localStyles.chaptersTitle}>
+    <View
+      style={[
+        localStyles.chaptersBox,
+        dark && { backgroundColor: C.surface, borderColor: C.border },
+      ]}
+    >
+      <Text style={[localStyles.chaptersTitle, dark && { color: C.text }]}>
         📖 Capitoli rilevati nel libro (tocca per selezionare)
       </Text>
       <View style={localStyles.chaptersPillsRow}>
@@ -42,14 +49,20 @@ export function ChaptersSelector({
               onPress={() => onSelect(chapter)}
               style={({ pressed }) => [
                 localStyles.chapterPill,
-                chapter.level > 1 && localStyles.chapterPillNested,
-                isSelected && localStyles.chapterPillActive,
+                dark && { backgroundColor: C.surfaceHover, borderColor: C.border },
+                chapter.level > 1 &&
+                  (dark ? { backgroundColor: C.surfaceDark } : localStyles.chapterPillNested),
+                isSelected &&
+                  (dark
+                    ? { backgroundColor: '#0e7490', borderColor: C.teal }
+                    : localStyles.chapterPillActive),
                 pressed && { opacity: 0.75 },
               ]}
             >
               <Text
                 style={[
                   localStyles.chapterPillText,
+                  dark && { color: C.text },
                   isSelected && localStyles.chapterPillTextActive,
                 ]}
               >

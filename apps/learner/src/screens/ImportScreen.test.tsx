@@ -54,6 +54,12 @@ describe('ImportScreen anteprima persistente e navigazione', () => {
     await act(async () => {
       renderer = ReactTestRenderer.create(<ImportScreen onDraft={onDraft} />);
     });
+    const nextBtn = renderer.root
+      .findAllByType(Button)
+      .find((b) => b.props.label === 'Avanti: Seleziona Materiale e Capitoli →');
+    await act(async () => {
+      nextBtn?.props.onPress();
+    });
     return { renderer, onDraft };
   }
 
@@ -329,7 +335,7 @@ describe('ImportScreen anteprima persistente e navigazione', () => {
     expect(toInput?.props.value).toBe('28');
   });
 
-  test('genera e visualizza la mappa concettuale stile Algor', async () => {
+  test('genera e visualizza la mappa concettuale con scheda dettaglio nodo', async () => {
     const { renderer } = await renderScreen();
     await loadPdfDocument(renderer, 5);
 
@@ -347,37 +353,28 @@ describe('ImportScreen anteprima persistente e navigazione', () => {
       schemaVersion: 1,
       id: 'tree-1',
       rootTitle: 'Sicurezza Sul Lavoro',
-      branches: [
-        {
-          id: 'branch-1',
-          title: 'Prevenzione',
-          nodes: [
-            {
-              id: 'node-1',
-              title: 'Valutazione dei rischi',
-              summary: 'Analisi preventiva dei pericoli in azienda.',
-              sourceRefs: ['p. 1'],
-            },
-          ],
-        },
-      ],
+      branches: [{
+        id: 'branch-1',
+        title: 'Prevenzione',
+        nodes: [{
+          id: 'node-1',
+          title: 'Valutazione dei rischi',
+          summary: 'Analisi preventiva dei pericoli in azienda.',
+          sourceRefs: ['p. 1'],
+        }],
+      }],
     });
 
     const extractBtn = renderer.root
       .findAllByType(Button)
       .find((b) => b.props.label === 'Estrai il contenuto');
-    await act(async () => {
-      await extractBtn?.props.onPress();
-    });
+    await act(async () => { await extractBtn?.props.onPress(); });
 
     const mapBtn = renderer.root
       .findAllByType(Button)
       .find((b) => b.props.label === "Genera Mappa Concettuale con l'AI");
     expect(mapBtn).toBeDefined();
-
-    await act(async () => {
-      await mapBtn?.props.onPress();
-    });
+    await act(async () => { await mapBtn?.props.onPress(); });
 
     expect(mockFetchConceptTree).toHaveBeenCalledWith('ext-map-1', []);
     let allTexts = renderer.root.findAllByType(Text).map((t) => t.props.children).flat().join(' ');
@@ -388,9 +385,7 @@ describe('ImportScreen anteprima persistente e navigazione', () => {
 
     const collapseBtn = renderer.root
       .findAllByProps({ accessibilityLabel: 'Comprimi ramo Prevenzione' })[0];
-    await act(async () => {
-      collapseBtn.props.onPress();
-    });
+    await act(async () => { collapseBtn.props.onPress(); });
 
     allTexts = renderer.root.findAllByType(Text).map((t) => t.props.children).flat().join(' ');
     expect(allTexts).not.toContain('Valutazione dei rischi');

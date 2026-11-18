@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { usePalette, useTheme } from '@formazione/civis-ui/src/ThemeProvider';
+
 export const colors = {
   navy: '#132c3e',
   teal: '#087e83',
@@ -19,6 +21,8 @@ export function Button({
   disabled?: boolean;
   secondary?: boolean;
 }) {
+  const C = usePalette();
+  const { dark } = useTheme();
   return (
     <Pressable
       accessibilityRole="button"
@@ -27,27 +31,78 @@ export function Button({
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
-        secondary && styles.secondary,
+        dark && { backgroundColor: '#0e7490' },
+        secondary && (dark ? { backgroundColor: C.surfaceHover, borderWidth: 1, borderColor: C.border } : styles.secondary),
         disabled && { opacity: 0.4 },
         pressed && { opacity: 0.75 },
       ]}
     >
-      <Text style={[styles.buttonText, secondary && { color: colors.teal }]}>{label}</Text>
+      <Text style={[styles.buttonText, secondary && { color: dark ? C.teal : colors.teal }]}>{label}</Text>
     </Pressable>
   );
 }
 export function Card({ children }: { children: React.ReactNode }) {
-  return <View style={styles.card}>{children}</View>;
+  const C = usePalette();
+  const { dark } = useTheme();
+  return (
+    <View
+      style={[
+        styles.card,
+        dark && { backgroundColor: C.surface, borderColor: C.border },
+      ]}
+    >
+      {children}
+    </View>
+  );
 }
 export function Notice({ text, error = false }: { text: string; error?: boolean }) {
+  const C = usePalette();
+  const { dark } = useTheme();
+  const bg = dark
+    ? error
+      ? C.redBg
+      : C.surfaceHover
+    : error
+      ? '#fff0eb'
+      : colors.pale;
+  const fg = dark ? (error ? C.redText : C.text) : error ? '#9d3a24' : colors.ink;
   return (
     <View
       accessibilityRole="alert"
-      style={[styles.notice, error && { backgroundColor: '#fff0eb' }]}
+      style={[
+        styles.notice,
+        { backgroundColor: bg },
+        dark && { borderWidth: 1, borderColor: error ? C.red : C.border },
+      ]}
     >
-      <Text style={{ color: error ? '#9d3a24' : colors.ink, lineHeight: 22 }}>{text}</Text>
+      <Text style={{ color: fg, lineHeight: 22 }}>{text}</Text>
     </View>
   );
+}
+export function useUiStyles() {
+  const C = usePalette();
+  const { dark } = useTheme();
+  return useMemo(() => {
+    if (!dark) return styles;
+    return StyleSheet.create({
+      card: { ...styles.card, backgroundColor: C.surface, borderColor: C.border },
+      button: { ...styles.button, backgroundColor: '#0e7490' },
+      secondary: { backgroundColor: C.surfaceHover },
+      buttonText: styles.buttonText,
+      notice: { ...styles.notice, backgroundColor: C.surfaceHover },
+      title: { ...styles.title, color: C.text },
+      subtitle: { ...styles.subtitle, color: C.text },
+      body: { ...styles.body, color: C.lightText },
+      muted: { ...styles.muted, color: C.textMuted },
+      row: styles.row,
+      input: {
+        ...styles.input,
+        borderColor: C.border,
+        color: C.text,
+        backgroundColor: C.inputBg,
+      },
+    });
+  }, [C, dark]);
 }
 export const styles = StyleSheet.create({
   card: {

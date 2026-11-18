@@ -6,7 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { usePalette, useTheme } from '@formazione/civis-ui/src/ThemeProvider';
 import { TESTO } from '@formazione/civis-ui/src/tema';
-import { Button, Card, styles } from './components/ui';
+import { Button, Card, colors, useUiStyles } from './components/ui';
 import { Avviso, InterruttoreTema } from './components/lettore';
 import { TemaIniziale } from './components/TemaIniziale';
 import { Guscio, Pannello } from './components/Guscio';
@@ -93,7 +93,8 @@ function NavPillola({
 
 function Shell() {
   const C = usePalette(),
-    { dark } = useTheme();
+    { dark } = useTheme(),
+    ui = useUiStyles();
   const [{ screen, selected, draft }, dispatch] = useReducer(navigate, initialNavigation);
   const { width } = useWindowDimensions();
   const [error, setError] = useState(''),
@@ -197,7 +198,7 @@ function Shell() {
                   fontWeight: '700',
                 }}
               >
-                Studio Formazione · EdTech Civis
+                Studio Formazione
               </Text>
             </View>
             <Text
@@ -252,7 +253,7 @@ function Shell() {
   );
   // Cornice chiara degli strumenti fino al TASK-08.
   const corniceStrumenti = {
-    backgroundColor: FONDO_STRUMENTI,
+    backgroundColor: dark ? C.bg : FONDO_STRUMENTI,
     borderRadius: 20,
     padding: width < 600 ? 12 : 24,
     gap: 28,
@@ -267,14 +268,15 @@ function Shell() {
           <View style={corniceStrumenti}>
             <ImportScreen onDraft={(draft) => dispatch({ type: 'draft', draft })} />
             <Card>
-              <Text style={styles.subtitle}>Riprendi una bozza salvata</Text>
-              <Text style={styles.muted}>
+              <Text style={ui.subtitle}>Riprendi una bozza salvata</Text>
+              <Text style={ui.muted}>
                 Inserisci l’ID restituito dal server. Un corso JSON importato rimane una sola
                 anteprima locale.
               </Text>
               <TextInput
                 accessibilityLabel="ID bozza salvata"
-                style={styles.input}
+                style={ui.input}
+                placeholderTextColor={dark ? C.textVeryDim : colors.muted}
                 value={draftId}
                 onChangeText={setDraftId}
                 autoCapitalize="none"

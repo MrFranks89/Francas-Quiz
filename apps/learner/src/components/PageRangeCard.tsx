@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { usePalette, useTheme } from '@formazione/civis-ui/src/ThemeProvider';
 import { colors } from './ui';
 
 export function PageRangeCard({
@@ -27,15 +28,20 @@ export function PageRangeCard({
   onChangeFrom: (value: string) => void;
   onChangeTo: (value: string) => void;
 }) {
+  const C = usePalette(), { dark } = useTheme();
+  const validBg = dark ? C.surfaceHover : colors.pale;
+  const invalidBg = dark ? C.redBg : '#fff0eb';
+  const validFg = dark ? C.teal : colors.teal;
+  const invalidFg = dark ? C.redText : '#9d3a24';
   if (!range) {
     return (
       <View style={localStyles.allVolumeBox}>
-        <View style={[localStyles.statusBadge, localStyles.statusBadgeValid]}>
-          <Text style={localStyles.statusTextValid}>
+        <View style={[localStyles.statusBadge, { backgroundColor: validBg }]}>
+          <Text style={[localStyles.statusTextValid, { color: validFg }]}>
             ✓ Tutte le {pageCount} pagine del volume selezionate per l'elaborazione
           </Text>
         </View>
-        <Text style={localStyles.allVolumeHint}>
+        <Text style={[localStyles.allVolumeHint, dark && { color: C.textMuted }]}>
           Tocca "Da pagina… a pagina…" se vuoi estrarre solo un capitolo o una parte del documento.
         </Text>
       </View>
@@ -43,29 +49,46 @@ export function PageRangeCard({
   }
 
   return (
-    <View style={[localStyles.rangeCard, highlighted && localStyles.rangeCardHighlighted]}>
-      <Text style={localStyles.rangeCardTitle}>🎯 Intervallo di studio personalizzato</Text>
-      <Text style={localStyles.rangeCardHint}>
+    <View
+      style={[
+        localStyles.rangeCard,
+        dark && { backgroundColor: C.surface, borderColor: C.border },
+        highlighted &&
+          (dark
+            ? { borderColor: C.teal, backgroundColor: 'rgba(34,211,238,0.1)' }
+            : localStyles.rangeCardHighlighted),
+      ]}
+    >
+      <Text style={[localStyles.rangeCardTitle, dark && { color: C.text }]}>
+        🎯 Intervallo di studio personalizzato
+      </Text>
+      <Text style={[localStyles.rangeCardHint, dark && { color: C.textMuted }]}>
         Inserisci l'intervallo compreso tra 1 e {pageCount} pagine:
       </Text>
       <View style={localStyles.rangeInputsRow}>
         <View style={localStyles.inputGroup}>
-          <Text style={localStyles.inputLabel}>Da pagina</Text>
+          <Text style={[localStyles.inputLabel, dark && { color: C.text }]}>Da pagina</Text>
           <TextInput
             accessibilityLabel="Pagina iniziale"
             editable={!busy}
-            style={localStyles.rangeInput}
+            style={[
+              localStyles.rangeInput,
+              dark && { backgroundColor: C.inputBg, borderColor: C.border, color: C.text },
+            ]}
             keyboardType="number-pad"
             value={from}
             onChangeText={onChangeFrom}
           />
         </View>
         <View style={localStyles.inputGroup}>
-          <Text style={localStyles.inputLabel}>a pagina</Text>
+          <Text style={[localStyles.inputLabel, dark && { color: C.text }]}>a pagina</Text>
           <TextInput
             accessibilityLabel="Pagina finale"
             editable={!busy}
-            style={localStyles.rangeInput}
+            style={[
+              localStyles.rangeInput,
+              dark && { backgroundColor: C.inputBg, borderColor: C.border, color: C.text },
+            ]}
             keyboardType="number-pad"
             value={to}
             onChangeText={onChangeTo}
@@ -76,10 +99,10 @@ export function PageRangeCard({
       <View
         style={[
           localStyles.statusBadge,
-          valid ? localStyles.statusBadgeValid : localStyles.statusBadgeInvalid,
+          { backgroundColor: valid ? validBg : invalidBg },
         ]}
       >
-        <Text style={valid ? localStyles.statusTextValid : localStyles.statusTextInvalid}>
+        <Text style={[valid ? localStyles.statusTextValid : localStyles.statusTextInvalid, { color: valid ? validFg : invalidFg }]}>
           {valid
             ? `✓ ${selectedCount} ${selectedCount === 1 ? 'pagina selezionata' : 'pagine selezionate'} (su ${pageCount} totali)`
             : `⚠️ ${error ?? 'Intervallo non valido'}`}

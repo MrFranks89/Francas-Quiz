@@ -8,6 +8,7 @@ import {
   ScrollView,
   StyleSheet,
 } from 'react-native';
+import { usePalette, useTheme } from '@formazione/civis-ui/src/ThemeProvider';
 import { apiUrl } from '../api/documents';
 import { colors } from './ui';
 
@@ -30,18 +31,19 @@ export function PagePreviewPanel({
   onSelectIndex,
   onClose,
 }: PagePreviewPanelProps) {
+  const C = usePalette(), { dark } = useTheme();
   const total = pages.length;
   const isFirst = safeIndex <= 0;
   const isLast = safeIndex >= total - 1;
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, dark && { backgroundColor: C.surface, borderColor: C.border }]}>
       {/* Intestazione anteprima */}
       <View style={styles.header}>
         <View style={styles.titleRow}>
-          <Text style={styles.title}>Anteprima documento</Text>
-          <View style={styles.counterBadge}>
-            <Text style={styles.counterText}>
+          <Text style={[styles.title, dark && { color: C.text }]}>Anteprima documento</Text>
+          <View style={[styles.counterBadge, dark && { backgroundColor: C.surfaceHover }]}>
+            <Text style={[styles.counterText, dark && { color: C.teal }]}>
               {safeIndex + 1} di {total}
             </Text>
           </View>
@@ -50,14 +52,18 @@ export function PagePreviewPanel({
           accessibilityRole="button"
           accessibilityLabel="Chiudi anteprima"
           onPress={onClose}
-          style={({ pressed }) => [styles.closeBtn, pressed && { opacity: 0.7 }]}
+          style={({ pressed }) => [
+            styles.closeBtn,
+            dark && { backgroundColor: C.surfaceHover },
+            pressed && { opacity: 0.7 },
+          ]}
         >
-          <Text style={styles.closeBtnText}>✕ Chiudi</Text>
+          <Text style={[styles.closeBtnText, dark && { color: C.textMuted }]}>✕ Chiudi</Text>
         </Pressable>
       </View>
 
       {!isValidRange && (
-        <Text style={styles.editingNotice}>
+        <Text style={[styles.editingNotice, dark && { color: C.orange }]}>
           Intervallo in modifica: visualizzazione dell’ultimo intervallo valido
         </Text>
       )}
@@ -78,11 +84,21 @@ export function PagePreviewPanel({
               onPress={() => onSelectIndex(idx)}
               style={({ pressed }) => [
                 styles.stripPill,
-                isActive && styles.stripPillActive,
+                dark && { backgroundColor: C.surfaceDark, borderColor: C.border },
+                isActive &&
+                  (dark
+                    ? { backgroundColor: '#0e7490', borderColor: C.teal }
+                    : styles.stripPillActive),
                 pressed && { opacity: 0.75 },
               ]}
             >
-              <Text style={[styles.stripPillText, isActive && styles.stripPillTextActive]}>
+              <Text
+                style={[
+                  styles.stripPillText,
+                  dark && { color: C.text },
+                  isActive && styles.stripPillTextActive,
+                ]}
+              >
                 p. {page}
               </Text>
             </Pressable>
@@ -91,7 +107,12 @@ export function PagePreviewPanel({
       </ScrollView>
 
       {/* Cornice elegante dell'immagine */}
-      <View style={styles.imageViewer}>
+      <View
+        style={[
+          styles.imageViewer,
+          dark && { backgroundColor: C.surfaceDark, borderColor: C.border },
+        ]}
+      >
         <View style={styles.imagePageBadge}>
           <Text style={styles.imagePageBadgeText}>Pagina originale {currentPage}</Text>
         </View>
@@ -112,14 +133,15 @@ export function PagePreviewPanel({
           onPress={() => onSelectIndex(Math.max(0, safeIndex - 1))}
           style={({ pressed }) => [
             styles.navBtn,
+            dark && { backgroundColor: C.surfaceHover },
             isFirst && styles.navBtnDisabled,
             pressed && !isFirst && { opacity: 0.7 },
           ]}
         >
-          <Text style={styles.navBtnText}>← Precedente</Text>
+          <Text style={[styles.navBtnText, dark && { color: C.teal }]}>← Precedente</Text>
         </Pressable>
 
-        <Text style={styles.navCenterText}>
+        <Text style={[styles.navCenterText, dark && { color: C.textMuted }]}>
           Pagina {safeIndex + 1} di {total} (originale {currentPage})
         </Text>
 
@@ -130,11 +152,12 @@ export function PagePreviewPanel({
           onPress={() => onSelectIndex(Math.min(total - 1, safeIndex + 1))}
           style={({ pressed }) => [
             styles.navBtn,
+            dark && { backgroundColor: C.surfaceHover },
             isLast && styles.navBtnDisabled,
             pressed && !isLast && { opacity: 0.7 },
           ]}
         >
-          <Text style={styles.navBtnText}>Successiva →</Text>
+          <Text style={[styles.navBtnText, dark && { color: C.teal }]}>Successiva →</Text>
         </Pressable>
       </View>
     </View>

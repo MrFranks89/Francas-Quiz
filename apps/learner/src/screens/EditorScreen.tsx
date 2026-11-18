@@ -17,7 +17,7 @@ import {
 } from '../state/bozza';
 import { DomandaEditor } from '../components/DomandaEditor';
 import { EditorTabs, type TabItem } from '../components/EditorTabs';
-import { Button, Card, Notice, styles } from '../components/ui';
+import { Button, Card, Notice, useUiStyles } from '../components/ui';
 
 export function EditorScreen({
   draft,
@@ -30,6 +30,7 @@ export function EditorScreen({
   onPreview: () => void;
   initialTab?: string;
 }) {
+  const styles = useUiStyles();
   const [{ course, dirty, reviewed, busy, error }, dispatch] = useReducer(
     editorReducer,
     draft.course,

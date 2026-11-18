@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { usePalette, useTheme } from '@formazione/civis-ui/src/ThemeProvider';
 import { Card, colors } from './ui';
 
 interface ExtractionProgressCardProps {
@@ -25,6 +26,7 @@ export function ExtractionProgressCard({
   pageCount,
   selectedPagesCount,
 }: ExtractionProgressCardProps) {
+  const C = usePalette(), { dark } = useTheme();
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
@@ -50,27 +52,41 @@ export function ExtractionProgressCard({
       <View style={progressStyles.header}>
         <ActivityIndicator
           size="small"
-          color={colors.teal}
+          color={dark ? C.teal : colors.teal}
           accessibilityLabel="Estrazione in corso"
         />
         <View style={progressStyles.headerBody}>
-          <Text style={progressStyles.engineText}>{engineMessage}</Text>
-          <Text style={progressStyles.pagesText}>{pagesSummary}</Text>
+          <Text style={[progressStyles.engineText, dark && { color: C.text }]}>
+            {engineMessage}
+          </Text>
+          <Text style={[progressStyles.pagesText, dark && { color: C.textMuted }]}>
+            {pagesSummary}
+          </Text>
         </View>
-        <View style={progressStyles.timerBadge}>
-          <Text style={progressStyles.timerText}>
+        <View
+          style={[
+            progressStyles.timerBadge,
+            dark && { backgroundColor: C.surfaceHover, borderColor: C.border },
+          ]}
+        >
+          <Text style={[progressStyles.timerText, dark && { color: C.teal }]}>
             {`Tempo trascorso: ${formatElapsed(elapsed)}`}
           </Text>
         </View>
       </View>
 
-      <View style={progressStyles.phaseRow}>
-        <Text style={progressStyles.phaseText}>
+      <View
+        style={[
+          progressStyles.phaseRow,
+          dark && { backgroundColor: C.surfaceDark, borderColor: C.border },
+        ]}
+      >
+        <Text style={[progressStyles.phaseText, dark && { color: C.lightText }]}>
           {`Fase attuale: ${getPhaseLabel(engine, elapsed)}`}
         </Text>
       </View>
 
-      <Text style={progressStyles.reassurance}>
+      <Text style={[progressStyles.reassurance, dark && { color: C.textMuted }]}>
         Processo attivo in background sul tuo computer. Non chiudere la finestra.
       </Text>
     </Card>

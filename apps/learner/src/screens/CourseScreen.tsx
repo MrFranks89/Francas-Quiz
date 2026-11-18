@@ -107,7 +107,7 @@ export function CourseScreen({
   }
   const notice =
     kind === 'demo'
-      ? 'Corso dimostrativo sintetico · contenuti e fonti di esempio. Serve a provare lezioni, valutazione Civis e sbarramento; non deriva dai tuoi documenti.'
+      ? 'Corso dimostrativo sintetico · contenuti e fonti di esempio. Serve a provare lezioni, autovalutazione e sbarramento; non deriva dai tuoi documenti.'
       : kind === 'published'
         ? 'Corso pubblicato sul server locale · contenuto revisionato.'
         : kind === 'draft'
