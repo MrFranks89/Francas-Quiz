@@ -102,6 +102,6 @@ def test_bozza_multipla_non_piu_di_meta_giuste():
     assert violazioni() == []
     assert violazioni(correctIndexes=[0, 1, 2]) == ['multipla_oltre_meta_giuste']
     assert violazioni(correctIndexes=[0]) == ['multipla_meno_di_due_giuste']
-    # Indice fuori dalle opzioni: errore strutturale, la bozza resta rifiutata.
-    with pytest.raises(ValidationError):
-        QuestionDraft.model_validate({**base, 'correctIndexes': [0, 9]})
+    # Indice fuori dalle opzioni: forma del campo, la pipeline scarta la sola domanda (bozze.errore_forma).
+    from formazione_api.generation.bozze import errore_forma
+    assert 'correctIndexes [9]' in errore_forma(QuestionDraft.model_validate({**base, 'correctIndexes': [0, 9]}))

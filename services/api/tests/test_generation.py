@@ -126,9 +126,10 @@ def test_bad_answer_and_modified_excerpt_rejected():
             draft = super().module(chunk).model_dump()
             draft['questions'][6]['correctIndexes'] = [0, 9]
             return draft
-    with pytest.raises(GenerationError) as error:
-        generate(extraction(), Bad())
-    assert error.value.code == 'invalid_generated_content'
+    # Giusta fuori dalle opzioni: la sola domanda si scarta (forma_non_valida), non tutto il modulo.
+    result = generate(extraction(), Bad())
+    assert [(s['position'], s['kind'], s['rule']) for s in result['scarti']] == [(7, 'multiple', 'forma_non_valida')]
+    assert 'multiple' not in [q['kind'] for q in result['course']['questions']]
     class Extra(FakeProvider):
         def module(self, chunk):
             return {**super().module(chunk).model_dump(), 'excerpt': 'Alterato'}

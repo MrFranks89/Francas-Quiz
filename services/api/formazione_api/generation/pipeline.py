@@ -3,6 +3,7 @@ from uuid import uuid4
 from time import perf_counter
 from pydantic import ValidationError
 from .chunks import plan_chunks
+from .bozze import errore_forma
 from .errors import GenerationError
 from .models import OPZIONI_VERO_FALSO, Course, ModuleDraft, Source, violazioni_domanda
 from .selection import create_provider
@@ -97,6 +98,12 @@ def generate(extraction: dict, provider=None, *, title='Corso dal documento', ma
         module_id, lesson_id = f'module-{i}', f'lesson-{i}'
         ids, scarti_blocco, accettate = [], [], []
         for position, question in enumerate(draft.questions, 1):
+            # Forma del campo (bozze.errore_forma): una domanda malformata si scarta da sola, prima di
+            # costruirla nel contratto; nessun nuovo tentativo, il resto del modulo resta.
+            if errore := errore_forma(question):
+                scarti_blocco.append(dict(moduleId=module_id, chunkId=chunk.id, position=position, kind=question.kind,
+                                          prompt=question.prompt, rule='forma_non_valida', message=errore, otherRules=[]))
+                continue
             # L'id definitivo si assegna dopo il validatore: gli scarti non consumano numerazione.
             domanda = domanda_del_contratto(question, '', module_id, lesson_id)
             if violazioni := violazioni_domanda(domanda):

@@ -127,10 +127,10 @@ def test_fonte_inventata_resta_fatale_anche_su_una_domanda_da_scartare():
         assert error.value.code == 'invented_source'
 
 
+# Meno di due opzioni e opzione vuota non sono più qui: sono forma del campo, e la sola domanda si scarta
+# con forma_non_valida (bozze.errore_forma, test_forma_piatta.py).
 @pytest.mark.parametrize('rompi', [
-    lambda q: q.update(options=['Sola']),                    # meno di due opzioni
     lambda q: q.update(prompt=''),                           # testo della domanda vuoto
-    lambda q: q.update(options=['Prima', '  ']),           # opzione vuota
     lambda q: q.update(colore='rosso'),                    # campo estraneo allo schema
     lambda q: q.pop('explanation'),                        # campo obbligatorio assente
 ])

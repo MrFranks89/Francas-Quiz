@@ -67,7 +67,7 @@ Quello che torna dall'AI **non viene creduto sulla parola**. Prima di diventare 
    - le regole di forma dei tipi: frase da completare con un solo spazio, parte sbagliata presente una sola volta, situazione obbligatoria, non più di metà risposte giuste in una multipla.
 
    Lo scarto non è mai silenzioso: compare negli avvisi della bozza («2 domande scartate dai controlli di qualità») con la regola violata, e nel registro della misura. La soglia del test si calcola sulle domande rimaste.
-5. **Tutto o niente per gli errori gravi**: schema non rispettato, fonte inventata, risposta rifiutata o troncata, oppure un modulo rimasto senza domande dopo gli scarti, fermano l'intera generazione e non esce nessun corso. Le chiamate già fatte però costano comunque.
+5. **Tutto o niente per gli errori gravi**: schema non rispettato (una domanda di forma sbagliata, per esempio con l'indice della giusta fuori dalle opzioni, si scarta da sola con `forma_non_valida`), fonte inventata, risposta rifiutata o troncata, oppure un modulo rimasto senza domande dopo gli scarti, fermano l'intera generazione e non esce nessun corso. Le chiamate già fatte però costano comunque.
 
 ### 5. L'assemblaggio, fatto dal codice
 

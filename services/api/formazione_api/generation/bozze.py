@@ -31,9 +31,11 @@ class SlideDraft(Model):
 #
 # Il prezzo: la grammatica non vincola più quali campi sono pieni per quale tipo. Lo controlla il nostro
 # codice dopo la risposta, in due livelli che seguono la classificazione già esistente:
-# - forma del campo (opzioni 2–6, 4–6 per multiple; indice della giusta dentro le opzioni; opzione vuota;
-#   `rationales` lunga quanto le opzioni): validatore qui sotto, ValidationError → invalid_generated_content
-#   del modulo, come prima con le varianti;
+# - forma del campo (opzioni almeno 2, 4 per multiple; indice della giusta dentro le opzioni; opzione vuota;
+#   `rationales` lunga quanto le opzioni; matching con un termine per opzione): errore_forma qui sotto, e la
+#   pipeline scarta la sola domanda con la regola forma_non_valida. Mai una riparazione che può cambiare
+#   quale risposta è giusta. Il massimo di 6 opzioni e i min_length restano nello schema: un loro errore
+#   è una ValidationError del modulo (invalid_generated_content);
 # - coerenza col tipo (campo pieno che il tipo non usa, campo del tipo lasciato vuoto): la pipeline porta
 #   il campo pieno nella domanda del contratto (domanda_del_contratto) e violazioni_domanda la scarta con
 #   i codici di regole.py: campo_di_altro_tipo, giuste_multiple_fuori_tipo, vero_falso_opzioni,
@@ -82,46 +84,46 @@ class QuestionDraft(Model):
 
     @model_validator(mode='after')
     def forma(self):
-        """Vincoli di forma che la grammatica non porta più (vedi sopra): tollera piccole discrepanze dell'LLM."""
-        if self.options:
-            pulite = [o.strip() for o in self.options if o.strip()]
-            minimo = MINIMO_OPZIONI.get(self.kind, 0)
-            if len(pulite) >= minimo and (self.kind != 'truefalse' or len(pulite) == len(self.options)):
-                self.options = pulite
-        if any(not item.strip() for item in self.options):
-            raise ValueError('Opzione vuota')
-        if self.kind in MINIMO_OPZIONI and len(self.options) < MINIMO_OPZIONI[self.kind]:
-            raise ValueError(f'{self.kind}: servono almeno {MINIMO_OPZIONI[self.kind]} opzioni')
-        if self.kind == 'matching':
-            minimo_matching = MINIMO_OPZIONI['matching']
-            if (
-                len(self.pairTerms) >= minimo_matching
-                and len(self.options) >= minimo_matching
-                and len(self.pairTerms) != len(self.options)
-            ):
-                comune = min(len(self.pairTerms), len(self.options))
-                self.pairTerms = self.pairTerms[:comune]
-                self.options = self.options[:comune]
-                self.rationales = self.rationales[:comune]
-            # La corrispondenza giusta è per indice: un termine per opzione, nessuno vuoto.
-            if not self.pairTerms or len(self.pairTerms) != len(self.options):
-                raise ValueError('matching: pairTerms deve avere un elemento per opzione')
-            if any(not item.strip() for item in self.pairTerms):
-                raise ValueError('matching: termine vuoto')
+        """Solo normalizzazioni che non toccano indici né abbinamenti; i vincoli di forma sono in errore_forma.
+
+        Qui nulla solleva: questo validatore gira anche dentro lo SDK del fornitore, e un errore farebbe
+        fallire il modulo intero invece della sola domanda (vedi sopra).
+        - spazi attorno a ogni opzione: tolti, la posizione resta (un'opzione di soli spazi diventa vuota
+          e errore_forma la scarta, non la si toglie: gli indici scorrerebbero);
+        - vero/falso senza opzioni: le opzioni le aggiunge il server, le motivazioni del modello non
+          hanno a cosa riferirsi e si ignorano.
+        """
+        self.options = [o.strip() for o in self.options]
         if self.kind == 'truefalse' and not self.options:
             self.rationales = []
-        elif len(self.rationales) < len(self.options):
-            self.rationales = [*self.rationales, *([''] * (len(self.options) - len(self.rationales)))]
-        elif len(self.rationales) > len(self.options):
-            self.rationales = self.rationales[:len(self.options)]
-        if self.kind in TIPI_CON_GIUSTA_SINGOLA and self.options:
-            if self.correctIndex == len(self.options):
-                self.correctIndex = len(self.options) - 1
-            elif not 0 <= self.correctIndex < len(self.options):
-                self.correctIndex = max(0, min(self.correctIndex, len(self.options) - 1))
-        if self.kind == 'multiple' and any(not 0 <= i < len(self.options) for i in self.correctIndexes):
-            raise ValueError('correctIndexes fuori intervallo')
         return self
+
+
+def errore_forma(question: QuestionDraft) -> str | None:
+    """Vincoli di forma che la grammatica non porta più (vedi sopra); None se la domanda li rispetta.
+
+    La pipeline scarta la sola domanda con la regola forma_non_valida e questo messaggio. Mai riparare:
+    togliere un'opzione vuota, portare correctIndex dentro l'intervallo, troncare il matching o
+    completare le motivazioni può cambiare quale risposta è giusta senza che nessuno lo veda.
+    """
+    kind, options, n = question.kind, question.options, len(question.options)
+    if vuote := [k for k, o in enumerate(options) if not o.strip()]:
+        return f'{kind}: opzione vuota in posizione {vuote[0]}'
+    if kind in MINIMO_OPZIONI and n < MINIMO_OPZIONI[kind]:
+        return f'{kind}: servono almeno {MINIMO_OPZIONI[kind]} opzioni, ricevute {n}'
+    if kind == 'matching':
+        # La corrispondenza giusta è per indice: un termine per opzione, nessuno vuoto.
+        if len(question.pairTerms) != n:
+            return f'matching: pairTerms ha {len(question.pairTerms)} termini per {n} opzioni, ne serve uno per opzione'
+        if any(not item.strip() for item in question.pairTerms):
+            return 'matching: termine vuoto in pairTerms'
+    if not (kind == 'truefalse' and not options) and len(question.rationales) != n:
+        return f'{kind}: rationales ha {len(question.rationales)} motivazioni per {n} opzioni, ne serve una per opzione'
+    if kind in TIPI_CON_GIUSTA_SINGOLA and not 0 <= question.correctIndex < n:
+        return f'{kind}: correctIndex {question.correctIndex} fuori dalle {n} opzioni (da 0 a {n - 1})'
+    if kind == 'multiple' and (fuori := [i for i in question.correctIndexes if not 0 <= i < n]):
+        return f'multiple: correctIndexes {fuori} fuori dalle {n} opzioni (da 0 a {n - 1})'
+    return None
 
 
 class ModuleDraft(Model):
