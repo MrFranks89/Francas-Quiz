@@ -19,8 +19,9 @@ from formazione_api.spesa_generazione import PREZZI
 TOOLS = Path(__file__).resolve().parents[1] / 'tools'
 
 # Contenuto del file: nessun valore può cambiare senza aggiornare qui (spostamento: 05ff2707…;
-# 2026-11-03: aggiunti i modelli Gemini a prezzo 0 del piano gratuito).
-SHA256_LISTINO = '372d38b917a9def78fe3b2103e23655b22c76b4ea020aa2720ec6b239132551b'
+# 2026-11-03: aggiunti i modelli Gemini a prezzo 0 del piano gratuito;
+# 2026-11-16: aggiunti Groq e OpenRouter, solo modelli gratuiti).
+SHA256_LISTINO = '949f9f7326aaa2b05ff6c8929edd039779652cf5e602a7c965d6c5121f073431'
 
 # (fornitore, modello, ingresso, uscita, ingressoCache, altriIngressi, moltiplicatore, soglia, quota per chiamata)
 ATTESI = [
@@ -34,6 +35,10 @@ ATTESI = [
     ('gemini', 'gemini-3.8-flash', '0', '0', '0', (), '1', None, None),
     ('gemini', 'gemini-3.5-flash-lite', '0', '0', '0', (), '1', None, None),
     ('gemini', 'gemini-2.5-pro', '0', '0', '0', (), '1', None, None),
+    ('groq', 'openai/gpt-oss-120b', '0', '0', '0', (), '1', None, None),
+    ('groq', 'openai/gpt-oss-20b', '0', '0', '0', (), '1', None, None),
+    ('openrouter', 'nvidia/nemotron-3-super-120b-a12b:free', '0', '0', '0', (), '1', None, None),
+    ('openrouter', 'google/gemma-4-26b-a4b-it:free', '0', '0', '0', (), '1', None, None),
 ]
 
 
@@ -73,8 +78,11 @@ def test_impostazioni_elencano_gli_stessi_modelli():
         'openai': ['gpt-6-astra', 'gpt-6.1-sol', 'gpt-5.4-mini', 'gpt-6-luna'],
         'anthropic': ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'],
         'gemini': ['gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-2.5-pro'],
+        'groq': ['openai/gpt-oss-120b', 'openai/gpt-oss-20b'],
+        'openrouter': ['nvidia/nemotron-3-super-120b-a12b:free', 'google/gemma-4-26b-a4b-it:free'],
     }
-    assert {n: v['misurata'] for n, v in voci.items()} == {'openai': False, 'anthropic': True, 'gemini': False}
+    assert {n: v['misurata'] for n, v in voci.items()} == {'openai': False, 'anthropic': True, 'gemini': False,
+                                                           'groq': False, 'openrouter': False}
 
 
 @pytest.fixture

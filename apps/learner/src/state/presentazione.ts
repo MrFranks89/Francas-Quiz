@@ -1,4 +1,4 @@
-import { SPAZIO, type Question } from '@formazione/contracts';
+import { SPAZIO, type Coppia, type Question } from '@formazione/contracts';
 
 /**
  * Come si presenta una domanda nel test e nel riepilogo, per tipo.
@@ -19,6 +19,8 @@ export type Presentazione = {
   frase?: { prima: string; dopo: string };
   /** Correggi l'errore: la frase divisa attorno alla parte sbagliata (una sola, garantita dal contratto). */
   correggi?: { prima: string; sbagliata: string; dopo: string };
+  /** Accoppiamento: le coppie termine → opzione della colonna destra. */
+  coppie?: Coppia[];
 };
 
 const ETICHETTE: Record<Question['kind'], string | null> = {
@@ -30,6 +32,7 @@ const ETICHETTE: Record<Question['kind'], string | null> = {
   correctStatement: "Correggi l'errore",
   // Risposta multipla: l'indicazione che le giuste sono più d'una (decisione dell'utente).
   multiple: 'Più risposte corrette',
+  matching: 'Accoppia',
 };
 
 function dividi(testo: string, parte: string) {
@@ -47,6 +50,7 @@ export function presentazione(q: Question): Presentazione {
     difficulty: q.difficulty,
   };
   if (q.kind === 'scenario') p.situazione = q.situation;
+  if (q.kind === 'matching') p.coppie = q.pairs ?? [];
   if (q.kind === 'fillblank') p.frase = dividi(q.prompt, SPAZIO);
   if (q.kind === 'correctStatement' && q.sentence && q.wrong) {
     const d = dividi(q.sentence, q.wrong);

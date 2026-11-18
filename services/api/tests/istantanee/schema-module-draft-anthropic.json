@@ -16,7 +16,8 @@
                 "scenario",
                 "oddOneOut",
                 "correctStatement",
-                "multiple"
+                "multiple",
+                "matching"
               ],
               "title": "Kind"
             },
@@ -66,6 +67,14 @@
               "description": "Solo truefalse: true se l'affermazione di `prompt` è vera. false negli altri tipi.",
               "title": "Correct"
             },
+            "pairTerms": {
+              "type": "array",
+              "description": "Solo matching: i termini della colonna sinistra, allineati per indice a `options` (la colonna destra): l'abbinamento giusto è pairTerms[i] con options[i]. Lista vuota negli altri tipi.",
+              "title": "Pairterms",
+              "items": {
+                "type": "string"
+              }
+            },
             "rationales": {
               "type": "array",
               "title": "Rationales",
@@ -107,6 +116,7 @@
             "correctIndex",
             "correctIndexes",
             "correct",
+            "pairTerms",
             "rationales",
             "explanation",
             "sourceRefs",

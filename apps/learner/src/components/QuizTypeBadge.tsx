@@ -17,6 +17,7 @@ const TYPE_THEMES: Record<TipoDomanda, TypeTheme> = {
   multiple: { bg: '#dcfce7', text: '#166534', border: '#bbf7d0' },
   scenario: { bg: '#ccfbf1', text: '#115e59', border: '#99f6e4' },
   correctStatement: { bg: '#fee2e2', text: '#991b1b', border: '#fecaca' },
+  matching: { bg: '#e0e7ff', text: '#3730a3', border: '#c7d2fe' },
 };
 
 export function QuizTypeBadge({

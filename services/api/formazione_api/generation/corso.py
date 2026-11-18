@@ -44,9 +44,17 @@ class Option(_SenzaNulli):
     rationale: str | None = None
 
 
+class Pair(Model):
+    """Una coppia dell'accoppiamento (kind 'matching'): termine della colonna sinistra e opzione
+    giusta della colonna destra (che si mostra mescolata)."""
+    id: str = Field(min_length=1)
+    left: str = Field(min_length=1)
+    rightOptionId: str = Field(min_length=1)
+
+
 class Question(_SenzaNulli):
     _FACOLTATIVI: ClassVar[frozenset[str]] = frozenset({'situation', 'sentence', 'wrong', 'difficulty',
-                                                        'correctOptionId', 'correctOptionIds'})
+                                                        'correctOptionId', 'correctOptionIds', 'pairs'})
     id: str
     moduleId: str
     lessonId: str
@@ -56,6 +64,7 @@ class Question(_SenzaNulli):
     situation: str | None = None
     sentence: str | None = None
     wrong: str | None = None
+    pairs: list[Pair] | None = None
     difficulty: Difficolta | None = None
     options: list[Option] = Field(min_length=2)
     # Una sola giusta in correctOptionId; per `multiple` più giuste in correctOptionIds (errori_tipo).
@@ -68,7 +77,8 @@ class Question(_SenzaNulli):
     def regole_del_tipo(self):
         errori = errori_tipo(self.kind, self.prompt, [(o.id, o.text) for o in self.options], self.correctOptionId,
                              self.situation, self.sentence, self.wrong, self.correctOptionIds, self.explanation,
-                             [o.rationale for o in self.options])
+                             [o.rationale for o in self.options],
+                             [p.model_dump() for p in self.pairs] if self.pairs is not None else None)
         if errori:
             raise ValueError('; '.join(f'{messaggio} ({self.id})' for _, messaggio in errori))
         return self
@@ -164,6 +174,8 @@ class Course(Model):
                     raise ValueError('Domanda esame non valida')
         for question in self.questions:
             unique([o.id for o in question.options])
+            if question.pairs is not None:
+                unique([p.id for p in question.pairs])
             if question.correctOptionId is not None and question.correctOptionId not in {o.id for o in question.options}:
                 raise ValueError('Risposta corretta inesistente')
             lesson = owners.get((question.moduleId, question.lessonId))

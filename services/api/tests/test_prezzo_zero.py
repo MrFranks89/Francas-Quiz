@@ -126,8 +126,12 @@ def test_impostazioni_elencano_i_modelli_gemini_selezionabili():
     assert 'materiale pubblico' in voce['dataNotice'] and 'revisori' in voce['dataNotice']
     assert 'fatturazione' in voce['dataNotice']
     for altro in stato['providers']:
-        if altro['id'] != 'gemini':
+        if altro['id'] not in impostazioni.AVVISI_DATI:
             assert altro['dataNotice'] is None
+        else:
+            # Ogni fornitore gratuito ha il suo avviso sui dati (vedi
+            # test_ogni_fornitore_con_modelli_gratuiti_ha_l_avviso_sui_dati).
+            assert altro['dataNotice'] == impostazioni.AVVISI_DATI[altro['id']]
 
 
 def test_salvataggio_impostazioni_gemini(monkeypatch, tmp_path):

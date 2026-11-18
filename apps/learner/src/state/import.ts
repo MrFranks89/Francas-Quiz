@@ -26,7 +26,7 @@ export function importReducer(state: ImportState, action: ImportAction): ImportS
     case 'document':
       return {
         ...initialImport,
-        engine: state.engine,
+        engine: action.value.hasDigitalText === false ? 'docling' : 'native',
         document: action.value,
         to: String(action.value.pageCount || 1),
       };

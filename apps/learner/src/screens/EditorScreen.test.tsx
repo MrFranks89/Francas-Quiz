@@ -122,7 +122,7 @@ describe('salvataggio', () => {
     const s = disegna(bozza());
     s.scrivi('Soglia modulo 2', '1');
     expect(s.pulsante('Salva modifiche')!.props.disabled).toBe(true);
-    expect(s.errori()).toEqual(['La soglia minima è 5 risposte su 7 (60%)']);
+    expect(s.errori()).toEqual(['La soglia minima è 5 risposte su 8 (60%)']);
   });
 
   test('un errore di tipo di domanda blocca il salvataggio', () => {

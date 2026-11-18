@@ -5,7 +5,11 @@ import unicodedata
 from .comune import OPZIONI_VERO_FALSO, SPAZIO
 
 
-_CAMPI_DEL_TIPO = {'situation': 'scenario', 'sentence': 'correctStatement', 'wrong': 'correctStatement'}
+_CAMPI_DEL_TIPO = {'situation': 'scenario', 'sentence': 'correctStatement', 'wrong': 'correctStatement',
+                   'pairs': 'matching'}
+# Numero di coppie di un accoppiamento: poche non distinguono, troppe non entrano in una schermata
+# (MIN_COPPIE e MAX_COPPIE in packages/contracts/src/tipi.ts).
+MIN_COPPIE, MAX_COPPIE = 3, 6
 # Codici delle regole di qualità di singola domanda: valgono quando si genera, si salva o si pubblica,
 # non in lettura (decisione dell'utente del 9 novembre 2026). Il server non valida in lettura; il client
 # legge con CorsoLeggibileSchema, che applica solo erroriStrutturaTipo (packages/contracts/src/tipi.ts),
@@ -86,7 +90,7 @@ def formula_trovata(regola: re.Pattern, testo: str | None, kind: str | None = No
 
 
 def errori_tipo(kind, prompt, options, correct_id, situation=None, sentence=None, wrong=None,
-                correct_ids=None, explanation=None, rationales=None) -> list[tuple[str, str]]:
+                correct_ids=None, explanation=None, rationales=None, pairs=None) -> list[tuple[str, str]]:
     """Regole per tipo, (campo, messaggio). `options`: elenco di (id, testo).
 
     Riscritte, non copiate, da C:\\Civica\\CivicaApp\\scripts\\verifica-contenuti.mjs (righe 281–331);
@@ -94,11 +98,13 @@ def errori_tipo(kind, prompt, options, correct_id, situation=None, sentence=None
     è garantita dalla forma (un correctOptionId); che sia fra le opzioni lo controlla il corso.
     """
     return [(campo, messaggio) for campo, _, messaggio in
-            violazioni_tipo(kind, prompt, options, correct_id, situation, sentence, wrong, correct_ids, explanation, rationales)]
+            violazioni_tipo(kind, prompt, options, correct_id, situation, sentence, wrong, correct_ids,
+                            explanation, rationales, pairs)]
 
 
 def violazioni_tipo(kind, prompt, options, correct_id, situation=None, sentence=None, wrong=None,
-                    correct_ids=None, explanation=None, rationales=None) -> list[tuple[str, str, str]]:
+                    correct_ids=None, explanation=None, rationales=None,
+                    pairs=None) -> list[tuple[str, str, str]]:
     """Le regole di errori_tipo con il loro codice stabile: (campo, codice, messaggio).
 
     Il codice identifica la regola negli scarti della generazione e nel rapporto della misura, e non
@@ -106,13 +112,14 @@ def violazioni_tipo(kind, prompt, options, correct_id, situation=None, sentence=
     TypeScript espone campo e messaggio.
     """
     errori = []
-    campi = dict(situation=situation, sentence=sentence, wrong=wrong)
+    campi = dict(situation=situation, sentence=sentence, wrong=wrong, pairs=pairs)
     for campo, tipo in _CAMPI_DEL_TIPO.items():
         if kind != tipo and campi[campo] is not None:
             errori.append((campo, 'campo_di_altro_tipo', f'Il campo {campo} vale solo per il tipo {tipo}'))
     testi = [t.strip() for _, t in options]
     # Risposta multipla: più giuste in correctOptionIds (almeno 2, almeno una sbagliata), mai correctOptionId;
-    # tutti gli altri tipi l'opposto. Decisione dell'utente del 28 ottobre 2026.
+    # tutti gli altri tipi l'opposto, tranne matching, la cui corrispondenza sta in pairs.
+    # Decisione dell'utente del 28 ottobre 2026; matching aggiunto il 16 novembre 2026.
     if kind == 'multiple':
         giuste = correct_ids or []
         ids = {i for i, _ in options}
@@ -127,8 +134,34 @@ def violazioni_tipo(kind, prompt, options, correct_id, situation=None, sentence=
     else:
         if correct_ids is not None:
             errori.append(('correctOptionIds', 'giuste_multiple_fuori_tipo', 'Il campo correctOptionIds vale solo per il tipo multiple'))
-        if not correct_id:
+        if kind == 'matching':
+            if correct_id is not None:
+                errori.append(('correctOptionId', 'giusta_singola_fuori_tipo',
+                               'Accoppiamento: la corrispondenza sta in pairs, non in correctOptionId'))
+        elif not correct_id:
             errori.append(('correctOptionId', 'giusta_mancante', 'Manca la risposta giusta'))
+    if kind == 'matching':
+        coppie = pairs or []
+        if pairs is None or not coppie:
+            errori.append(('pairs', 'matching_senza_coppie', 'Accoppiamento: servono le coppie da abbinare'))
+        else:
+            if not MIN_COPPIE <= len(coppie) <= MAX_COPPIE:
+                errori.append(('pairs', 'matching_numero_coppie', f'Accoppiamento: da {MIN_COPPIE} a {MAX_COPPIE} coppie'))
+            if any(not (c.get('left') or '').strip() for c in coppie):
+                errori.append(('pairs', 'matching_termine_vuoto',
+                               'Accoppiamento: ogni termine della colonna sinistra deve avere un testo'))
+            sinistri = [normalizza_opzione(c.get('left') or '') for c in coppie]
+            if len(set(sinistri)) != len(sinistri):
+                errori.append(('pairs', 'matching_termini_duplicati',
+                               'Accoppiamento: termini della colonna sinistra duplicati'))
+            ids_opzioni = [i for i, _ in options]
+            usati = [c.get('rightOptionId') for c in coppie]
+            # Corrispondenza biunivoca fra coppie e opzioni: la colonna destra si mostra mescolata.
+            biunivoca = (len(set(ids_opzioni)) == len(ids_opzioni) and len(set(usati)) == len(usati)
+                         and len(usati) == len(ids_opzioni) and all(u in ids_opzioni for u in usati))
+            if not biunivoca:
+                errori.append(('pairs', 'matching_non_biunivoco',
+                               'Accoppiamento: ogni coppia deve puntare a un\'opzione diversa e tutte le opzioni devono essere abbinate'))
     if kind == 'truefalse' and tuple(testi) != OPZIONI_VERO_FALSO:
         errori.append(('options', 'vero_falso_opzioni', 'Vero o falso: le opzioni sono esattamente «Vero» e «Falso», in quest\'ordine'))
     if kind == 'fillblank' and prompt.count(SPAZIO) != 1:
@@ -169,7 +202,8 @@ def violazioni_tipo(kind, prompt, options, correct_id, situation=None, sentence=
     # in tutta la domanda (righe 280, 905, 959: JSON.stringify della domanda intera), quindi anche
     # opzioni, motivazioni (`rationales`, parallele a options) e spiegazione; contesto e tempo solo nel
     # testo della domanda (righe 906 e 908: q.q), che qui è spezzato fra prompt, situation e sentence.
-    domanda = [('prompt', prompt), ('situation', situation), ('sentence', sentence)]
+    domanda = [('prompt', prompt), ('situation', situation), ('sentence', sentence),
+               ('pairs', '\n'.join((c.get('left') or '') for c in pairs) if pairs else None)]
     opzioni = '\n'.join([t for _, t in options] + [r for r in (rationales or []) if r])
     for regola, codice, campi, testo in _FORMULE:
         for campo, valore in campi(domanda, opzioni, explanation):
@@ -200,7 +234,7 @@ def violazioni_domanda(domanda: dict) -> list[tuple[str, str]]:
     violazioni = [(codice, messaggio) for _, codice, messaggio in violazioni_tipo(
         domanda['kind'], domanda['prompt'], [(o['id'], o['text']) for o in domanda['options']],
         domanda.get('correctOptionId'), domanda.get('situation'), domanda.get('sentence'), domanda.get('wrong'), giuste,
-        domanda.get('explanation'), [o.get('rationale') for o in domanda['options']])]
+        domanda.get('explanation'), [o.get('rationale') for o in domanda['options']], domanda.get('pairs'))]
     # Regola della generazione, più stretta del contratto (che chiede solo almeno una sbagliata):
     # con più giuste che sbagliate la domanda si indovina scegliendo quasi tutto.
     if domanda['kind'] == 'multiple' and giuste is not None and 2 * len(giuste) > len(domanda['options']):

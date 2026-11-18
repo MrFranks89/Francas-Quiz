@@ -36,8 +36,7 @@ const ECCEZIONI_MEDIA: Record<string, number> = {};
 const ECCEZIONI_RIGHE: Record<string, number> = {
   // Lettore del corso e vista d'esame: tutti i tipi di domanda in un file.
   // Da dividere come l'editor (stato in state/, un componente per parte).
-  'apps/learner/src/components/ExamView.tsx': 478,
-  'apps/learner/src/screens/CourseScreen.tsx': 442,
+  'apps/learner/src/components/ProposedIndexPanel.tsx': 699,
 };
 
 const ESTENSIONI = /\.(tsx?|jsx?|py)$/;

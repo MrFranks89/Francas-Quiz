@@ -91,7 +91,8 @@ def test_schema_inviato_uguale_all_istantanea_chat_completions():
     (completamento('{"non": "conforme"}'), 'invalid_generated_content'),
 ])
 def test_errori_distinti_attraverso_la_pipeline(corpo, codice):
-    provider, _ = fornitore((200, corpo))
+    risposte = [(200, corpo), (200, corpo)] if codice == 'invalid_generated_content' else [(200, corpo)]
+    provider, _ = fornitore(*risposte)
     with pytest.raises(GenerationError) as errore:
         generate(extraction(), provider)
     assert errore.value.code == codice
@@ -155,6 +156,51 @@ def test_selezione_gemini_dall_ambiente(env):
     assert argomenti['max_retries'] == MAX_RETRIES
     assert json.loads(richieste[0].content)['model'] == 'modello-gemini'
     assert isinstance(create_provider(), OpenAICompatProvider)
+
+
+def test_selezione_groq_dall_ambiente(env):
+    """GENERATION_PROVIDER=groq: generate() crea il client con il base_url di GroqCloud."""
+    richieste = []
+    creati = []
+
+    def openai_finto(**argomenti):
+        creati.append(argomenti)
+        return client_finto((200, completamento(draft_json())), richieste=richieste, url=argomenti['base_url'])
+    env.setattr(openai, 'OpenAI', openai_finto)
+    env.setenv('GENERATION_PROVIDER', 'groq')
+    assert config_status() == {'configured': False, 'provider': 'groq', 'missing': ['GROQ_API_KEY', 'GROQ_MODEL']}
+    env.setenv('GROQ_API_KEY', 'groq-key-not-real')
+    env.setenv('GROQ_MODEL', 'openai/gpt-oss-120b')
+    assert config_status() == {'configured': True, 'provider': 'groq', 'missing': []}
+    risultato = generate(extraction())
+    assert risultato['usage']['provider'] == 'groq'
+    (argomenti,) = creati
+    assert argomenti['api_key'] == 'groq-key-not-real'
+    assert argomenti['base_url'] == 'https://api.groq.com/openai/v1'
+    assert json.loads(richieste[0].content)['model'] == 'openai/gpt-oss-120b'
+
+
+def test_selezione_openrouter_dall_ambiente(env):
+    """GENERATION_PROVIDER=openrouter: generate() crea il client con il base_url di OpenRouter."""
+    richieste = []
+    creati = []
+
+    def openai_finto(**argomenti):
+        creati.append(argomenti)
+        return client_finto((200, completamento(draft_json())), richieste=richieste, url=argomenti['base_url'])
+    env.setattr(openai, 'OpenAI', openai_finto)
+    env.setenv('GENERATION_PROVIDER', 'openrouter')
+    assert config_status() == {'configured': False, 'provider': 'openrouter',
+                             'missing': ['OPENROUTER_API_KEY', 'OPENROUTER_MODEL']}
+    env.setenv('OPENROUTER_API_KEY', 'openrouter-key-not-real')
+    env.setenv('OPENROUTER_MODEL', 'nvidia/nemotron-3-super-120b-a12b:free')
+    assert config_status() == {'configured': True, 'provider': 'openrouter', 'missing': []}
+    risultato = generate(extraction())
+    assert risultato['usage']['provider'] == 'openrouter'
+    (argomenti,) = creati
+    assert argomenti['api_key'] == 'openrouter-key-not-real'
+    assert argomenti['base_url'] == 'https://openrouter.ai/api/v1'
+    assert json.loads(richieste[0].content)['model'] == 'nvidia/nemotron-3-super-120b-a12b:free'
 
 
 def test_nvidia_non_e_ammesso(env):

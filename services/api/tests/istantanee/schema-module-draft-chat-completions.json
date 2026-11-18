@@ -14,7 +14,8 @@
                 "scenario",
                 "oddOneOut",
                 "correctStatement",
-                "multiple"
+                "multiple",
+                "matching"
               ],
               "title": "Kind",
               "type": "string"
@@ -66,6 +67,14 @@
               "title": "Correct",
               "type": "boolean"
             },
+            "pairTerms": {
+              "description": "Solo matching: i termini della colonna sinistra, allineati per indice a `options` (la colonna destra): l'abbinamento giusto è pairTerms[i] con options[i]. Lista vuota negli altri tipi.",
+              "items": {
+                "type": "string"
+              },
+              "title": "Pairterms",
+              "type": "array"
+            },
             "rationales": {
               "items": {
                 "type": "string"
@@ -106,6 +115,7 @@
             "correctIndex",
             "correctIndexes",
             "correct",
+            "pairTerms",
             "rationales",
             "explanation",
             "sourceRefs",

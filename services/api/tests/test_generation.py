@@ -46,6 +46,10 @@ def domande_di_prova(refs):
         bozza(kind='multiple', prompt='Che cosa contiene il materiale?',
              options=['Testo di formazione', 'Secondo paragrafo', 'Una tabella', 'Un grafico'], correctIndexes=[0, 1],
              rationales=['', '', '', 'Il materiale è solo testo.'], **comuni),
+        bozza(kind='matching', prompt='Accoppia ogni elemento alla sua descrizione.',
+              pairTerms=['Testo di formazione', 'Secondo paragrafo', 'Glossario'],
+              options=['Il contenuto principale', 'La parte che segue il testo', 'L\'elenco dei termini'],
+              rationales=['', '', ''], **comuni),
     ]
 
 
@@ -120,7 +124,7 @@ def test_bad_answer_and_modified_excerpt_rejected():
     class Bad(FakeProvider):
         def module(self, chunk):
             draft = super().module(chunk).model_dump()
-            draft['questions'][0]['correctIndex'] = 4
+            draft['questions'][6]['correctIndexes'] = [0, 9]
             return draft
     with pytest.raises(GenerationError) as error:
         generate(extraction(), Bad())
@@ -130,6 +134,50 @@ def test_bad_answer_and_modified_excerpt_rejected():
             return {**super().module(chunk).model_dump(), 'excerpt': 'Alterato'}
     with pytest.raises(GenerationError):
         generate(extraction(), Extra())
+
+
+def test_validation_error_retries_once_and_recovers(caplog):
+    class Flaky(FakeProvider):
+        def __init__(self):
+            super().__init__()
+            self.chunk2_attempts = 0
+
+        def module(self, chunk):
+            draft = super().module(chunk)
+            if chunk.id == 'chunk-2':
+                self.chunk2_attempts += 1
+                if self.chunk2_attempts == 1:
+                    raw = draft.model_dump()
+                    raw['title'] = ''
+                    return raw
+            return draft
+
+    provider = Flaky()
+    with caplog.at_level('WARNING'):
+        result = generate(extraction(2), provider, max_chars=45)
+    assert result['status'] == 'draft'
+    assert provider.chunk2_attempts == 2
+    assert len(result['course']['modules']) == 2
+    assert any('chunk-2' in rec.message for rec in caplog.records)
+
+
+def test_validation_error_after_retry_names_chunk_and_reason(caplog):
+    class AlwaysInvalidChunk2(FakeProvider):
+        def module(self, chunk):
+            draft = super().module(chunk)
+            if chunk.id == 'chunk-2':
+                raw = draft.model_dump()
+                raw['title'] = ''
+                return raw
+            return draft
+
+    provider = AlwaysInvalidChunk2()
+    with caplog.at_level('WARNING'):
+        with pytest.raises(GenerationError) as error:
+            generate(extraction(2), provider, max_chars=45)
+    assert error.value.code == 'invalid_generated_content'
+    assert 'Contenuto AI non valido nel blocco chunk-2:' in str(error.value)
+    assert [c.id for c in provider.calls] == ['chunk-1', 'chunk-2', 'chunk-2']
 
 
 def stub_provider(response):

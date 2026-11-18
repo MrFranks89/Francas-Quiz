@@ -37,8 +37,10 @@ export function submitExam(course: Course, progress: Progress, examId: string, a
   const previous = progress.attempts.find(a => a.id === attemptId);
   if (previous) {
     // L'ordine delle opzioni di una risposta multipla non conta: si confrontano ordinate.
+    // Nell'accoppiamento invece l'ordine È la risposta (optionIds[k] è la coppia k): non si ordina.
+    const multipleIds = new Set(course.questions.filter(q => q.kind === 'multiple').map(q => q.id));
     const canonical = (items: Answer[]) => JSON.stringify([...items].sort((a, b) => a.questionId.localeCompare(b.questionId))
-      .map(a => 'optionIds' in a ? { ...a, optionIds: [...a.optionIds].sort() } : a));
+      .map(a => 'optionIds' in a && multipleIds.has(a.questionId) ? { ...a, optionIds: [...a.optionIds].sort() } : a));
     if (previous.examId !== examId || canonical(previous.answers) !== canonical(answers)) throw new Error('Attempt id conflict');
     return progress;
   }

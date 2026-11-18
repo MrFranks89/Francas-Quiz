@@ -75,7 +75,8 @@
             "question-2-sc",
             "question-2-in",
             "question-2-ce",
-            "question-2-mu"
+            "question-2-mu",
+            "question-2-ma"
           ]
         }
       ],
@@ -88,7 +89,8 @@
           "question-2-sc",
           "question-2-in",
           "question-2-ce",
-          "question-2-mu"
+          "question-2-mu",
+          "question-2-ma"
         ],
         "mode": "practice",
         "passingScore": 5,
@@ -305,6 +307,49 @@
       "correctOptionIds": [
         "option-2-mu-0",
         "option-2-mu-1"
+      ],
+      "explanation": "Il manuale affida al referente l’accoglienza e la presentazione del team.",
+      "sourceRefs": [
+        "source-1"
+      ]
+    },
+    {
+      "id": "question-2-ma",
+      "moduleId": "module-2",
+      "lessonId": "lesson-2",
+      "kind": "matching",
+      "prompt": "Abbina ogni azione a chi la compie secondo il manuale.",
+      "difficulty": "medio",
+      "options": [
+        {
+          "id": "option-2-ma-0",
+          "text": "Il referente"
+        },
+        {
+          "id": "option-2-ma-1",
+          "text": "Il cliente"
+        },
+        {
+          "id": "option-2-ma-2",
+          "text": "Il nuovo collega"
+        }
+      ],
+      "pairs": [
+        {
+          "id": "pair-2-ma-0",
+          "left": "Accoglie il collega e presenta il team",
+          "rightOptionId": "option-2-ma-0"
+        },
+        {
+          "id": "pair-2-ma-1",
+          "left": "Viene accolto e conosce il team",
+          "rightOptionId": "option-2-ma-2"
+        },
+        {
+          "id": "pair-2-ma-2",
+          "left": "Non ha un ruolo nell’accoglienza",
+          "rightOptionId": "option-2-ma-1"
+        }
       ],
       "explanation": "Il manuale affida al referente l’accoglienza e la presentazione del team.",
       "sourceRefs": [

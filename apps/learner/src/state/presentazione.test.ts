@@ -49,6 +49,12 @@ describe('presentazione per tipo', () => {
       dopo: ' accoglie il nuovo collega e presenta il team.',
     });
   });
+  it('accoppia: etichetta e coppie termine → opzione', () => {
+    const q = per('matching');
+    const p = presentazione(q);
+    expect(p.etichetta).toBe('Accoppia');
+    expect(p.coppie).toEqual(q.pairs);
+  });
 });
 
 describe('riepilogo con i tipi', () => {
@@ -139,5 +145,61 @@ describe('riepilogo della risposta multipla', () => {
   });
   it("l'insieme esatto è giusto", () => {
     expect(riga(['option-2-mu-1', 'option-2-mu-0']).giusta).toBe(true);
+  });
+});
+
+describe("riepilogo dell'accoppiamento", () => {
+  const exam = course.modules[1].exam!;
+  const primo = submitExam(
+    course,
+    completeLesson(course, createProgress(course), 'lesson-1'),
+    'exam-1',
+    's1',
+    [{ questionId: 'question-1', optionId: 'option-1-a' }],
+  );
+  const avvio = completeLesson(course, primo, 'lesson-2');
+  const q = per('matching');
+  // La risposta è ordinata per coppia: optionIds[k] è la definizione assegnata al termine k.
+  const esatte = q.pairs!.map((p) => p.rightOptionId);
+  const riga = (optionIds: string[]) =>
+    riepilogoUltimoTentativo(
+      course,
+      exam,
+      submitExam(course, avvio, exam.id, 't1', [{ questionId: q.id, optionIds }]).attempts.filter(
+        (a) => a.examId === exam.id,
+      ),
+    ).find((r) => r.questionId === q.id)!;
+  it('ogni coppia mostra termine, definizione assegnata e definizione giusta', () => {
+    const scambiate = [...esatte];
+    [scambiate[0], scambiate[1]] = [scambiate[1], scambiate[0]];
+    const r = riga(scambiate);
+    expect(r.giusta).toBe(false);
+    expect(r.senzaRisposta).toBe(false);
+    expect(r.scelta).toBeNull();
+    const testo = (id: string) => q.options.find((o) => o.id === id)!.text;
+    expect(r.coppie).toEqual([
+      { left: q.pairs![0].left, sceltaText: testo(scambiate[0]), giustaText: testo(esatte[0]), corretta: false },
+      { left: q.pairs![1].left, sceltaText: testo(scambiate[1]), giustaText: testo(esatte[1]), corretta: false },
+      { left: q.pairs![2].left, sceltaText: testo(esatte[2]), giustaText: testo(esatte[2]), corretta: true },
+    ]);
+    // Opzione al posto giusto in verde, al posto sbagliato in rosso.
+    const per_id = Object.fromEntries(r.opzioni.map((o) => [o.id, o.stato]));
+    expect(per_id[esatte[2]]).toBe('cor');
+    expect(per_id[scambiate[0]]).toBe('wr');
+    expect(per_id[scambiate[1]]).toBe('wr');
+  });
+  it('l’assegnazione esatta è giusta, in qualunque ordine la vista proponga le opzioni', () => {
+    expect(riga([...esatte]).giusta).toBe(true);
+  });
+  it('senza risposta: nessuna definizione assegnata, niente rosso', () => {
+    const r = riepilogoUltimoTentativo(
+      course,
+      exam,
+      submitExam(course, avvio, exam.id, 't1', []).attempts.filter((a) => a.examId === exam.id),
+    ).find((x) => x.questionId === q.id)!;
+    expect(r.senzaRisposta).toBe(true);
+    expect(r.giusta).toBe(false);
+    expect(r.coppie!.every((c) => c.sceltaText === null && !c.corretta)).toBe(true);
+    expect(r.opzioni.every((o) => o.stato === 'dim')).toBe(true);
   });
 });

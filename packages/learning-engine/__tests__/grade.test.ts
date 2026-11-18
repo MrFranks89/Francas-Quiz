@@ -46,7 +46,7 @@ it('descrive il risultato come «percentuale · Giudizio»', () => {
 describe('correzione dei tipi di domanda', () => {
   it('ogni tipo si corregge per opzione, come la scelta singola', () => {
     const course = CourseSchema.parse(JSON.parse(readFileSync(new URL('../../contracts/fixtures/sample-course.json', import.meta.url), 'utf8')));
-    const ids = course.modules[1].exam!.questionIds.filter(id => course.questions.find(q => q.id === id)!.kind !== 'multiple');
+    const ids = course.modules[1].exam!.questionIds.filter(id => !['multiple', 'matching'].includes(course.questions.find(q => q.id === id)!.kind));
     const giuste = ids.map(id => ({ questionId: id, optionId: course.questions.find(q => q.id === id)!.correctOptionId! }));
     expect(gradeQuestions(course, ids, giuste)).toMatchObject({ correct: ids.length, total: ids.length });
     expect(ids.length).toBe(6);
@@ -84,5 +84,28 @@ describe('risposta multipla', () => {
     expect(() => gradeQuestions(course, [q.id], [{ questionId: q.id, optionId: giuste[0] }])).toThrow('shape');
     const singola = course.questions.find(x => x.kind === 'single')!;
     expect(() => gradeQuestions(course, [singola.id], [{ questionId: singola.id, optionIds: [singola.correctOptionId!] }])).toThrow('shape');
+  });
+});
+
+describe('accoppiamento', () => {
+  const course = CourseSchema.parse(JSON.parse(readFileSync(new URL('../../contracts/fixtures/sample-course.json', import.meta.url), 'utf8')));
+  const q = course.questions.find(q => q.kind === 'matching')!;
+  // La risposta è ordinata per coppia: optionIds[k] è la definizione assegnata al termine k.
+  const giuste = q.pairs!.map(p => p.rightOptionId);
+  const voto = (optionIds: string[]) => gradeQuestions(course, [q.id], [{ questionId: q.id, optionIds }]).correct;
+  it('tutto-o-niente: giusta solo se ogni termine ha la sua definizione', () => {
+    expect(voto([...giuste])).toBe(1);
+    const scambiate = [...giuste]; [scambiate[0], scambiate[1]] = [scambiate[1], scambiate[0]];
+    expect(voto(scambiate)).toBe(0);
+    expect(voto(giuste.slice(1))).toBe(0);
+  });
+  it('senza risposta conta come sbagliata e non come risposta', () => {
+    expect(gradeQuestions(course, [q.id], [])).toMatchObject({ correct: 0, unanswered: 1 });
+  });
+  it('rifiuta forme sbagliate: elenco vuoto, duplicati, opzioni ignote, forma del tipo sbagliato', () => {
+    expect(() => voto([])).toThrow();
+    expect(() => voto([giuste[0], giuste[0], giuste[2]])).toThrow();
+    expect(() => voto(giuste.map((_, k) => k === 0 ? 'inventata' : giuste[k]))).toThrow();
+    expect(() => gradeQuestions(course, [q.id], [{ questionId: q.id, optionId: giuste[0] }])).toThrow('shape');
   });
 });

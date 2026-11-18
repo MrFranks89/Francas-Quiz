@@ -20,7 +20,8 @@ from pathlib import Path
 
 from .generation import GenerationError, generate
 from .generation.causa import oscura
-from .generation.selection import config_status, create_provider, selected_name
+from .generation.selection import FORNITORI, config_status, create_provider, selected_name
+from .generation.validazione import create_validator
 from .measurement import preventivo as pv
 from .measurement.guardia import FornitoreSorvegliato, GuardiaRifiuto, Registro, adesso, verifica_avvio
 from .measurement.prezzi import PREZZI, Prezzo, PrezzoMancante, carica, prezzo
@@ -153,13 +154,32 @@ class FornitoreRegolato(FornitoreSorvegliato):
         try:
             return super().module(chunk)
         finally:
-            # Nessuna chiamata aggiunta = arresto prima del blocco: niente da regolare.
-            if len(self.corsa['chiamate']) > prima:
-                chiamata = self.corsa['chiamate'][-1]
-                regolato = importo_regolato(chiamata.get('usage'), self.limiti[chunk.id], self.prezzo)                     if chiamata.get('esito') == 'completata' and not chiamata.get('violazioneLimite') else None
-                if regolato is not None:
-                    chiamata['regolatoUSD'] = regolato
-                    self.registro.aggiorna_corsa(self.corsa)
+            self._regola(chunk, prima)
+
+    def _regola(self, chunk, prima: int):
+        # Nessuna chiamata aggiunta = arresto prima del blocco: niente da regolare.
+        if len(self.corsa['chiamate']) <= prima:
+            return
+        chiamata = self.corsa['chiamate'][-1]
+        regolato = None
+        if chiamata.get('esito') == 'completata' and not chiamata.get('violazioneLimite'):
+            regolato = importo_regolato(chiamata.get('usage'), self.limiti[chunk.id], self.prezzo)
+        if regolato is not None:
+            chiamata['regolatoUSD'] = regolato
+            self.registro.aggiorna_corsa(self.corsa)
+
+
+class ValidatoreRegolato(FornitoreRegolato):
+    """Validatore incrociato sotto la stessa guardia: la sua chiamata per blocco (rispondere alla
+    cieca alle domande accettate) prenota lo stesso limite del blocco, ingresso dominato dallo
+    stesso materiale e uscita molto minore, alle tariffe del SUO fornitore (prezzi.json)."""
+
+    def verifica(self, chunk, domande):
+        prima = len(self.corsa['chiamate'])
+        try:
+            return self._sorvegliato(chunk, lambda: self.interno.verifica(chunk, domande))
+        finally:
+            self._regola(chunk, prima)
 
 
 def registro(store) -> RegistroApp:
@@ -226,6 +246,37 @@ def valuta(extraction: dict, provider, store) -> dict:
     if stima['oltreSogliaContestoLungo']:
         raise SpesaRifiuto('estimate_unavailable', 'Preventivo non disponibile: un blocco supera la soglia del '
                                                    'contesto lungo, oltre la quale il prezzo registrato non vale.')
+    # Validatore incrociato attivo (VALIDATION_PROVIDER): una chiamata per blocco con lo stesso
+    # limite in token della generazione (l'ingresso è dominato dallo stesso materiale), alle
+    # tariffe del suo fornitore; il suo limite superiore si somma a quello della generazione,
+    # così il tetto per corso e il pannello contano entrambe le chiamate.
+    nome_validatore = os.getenv('VALIDATION_PROVIDER', '').strip().lower()
+    if nome_validatore:
+        if nome_validatore not in FORNITORI:
+            raise SpesaRifiuto('not_configured', f"VALIDATION_PROVIDER deve essere {' oppure '.join(FORNITORI)}", 503)
+        if nome_validatore == fornitore:
+            raise SpesaRifiuto('invalid_validation_provider', 'VALIDATION_PROVIDER deve essere diverso da '
+                                                              'GENERATION_PROVIDER: il controllo incrociato richiede '
+                                                              'un fornitore indipendente.')
+        modello_validatore = os.getenv(f'{nome_validatore.upper()}_MODEL', '').strip()
+        if not modello_validatore:
+            raise SpesaRifiuto('estimate_unavailable', 'Preventivo non disponibile: modello del validatore non '
+                                                       f'dichiarato ({nome_validatore.upper()}_MODEL).')
+        try:
+            listino_validatore = prezzo(carica(PREZZI), nome_validatore, modello_validatore)
+        except PrezzoMancante as error:
+            raise SpesaRifiuto('estimate_unavailable', f'Preventivo non disponibile: {error}.') from error
+        stima_validatore = pv.preventivo_corsa(chunks, listino_validatore)
+        if not stima_validatore['limiteCompleto']:
+            raise SpesaRifiuto('estimate_unavailable', 'Preventivo non disponibile: quota per chiamata del fornitore '
+                                                       'di validazione non misurata (sovraccaricoIngressoPerChiamata in prezzi.json).')
+        stima['limiteSuperioreUSD'] += stima_validatore['limiteSuperioreUSD']
+        stima['tokenIngressoMassimi'] += stima_validatore['tokenIngressoMassimi']
+        stima['tokenUscitaMassimi'] += stima_validatore['tokenUscitaMassimi']
+        stima['chiamateMassime'] += stima_validatore['chiamateMassime']
+        stima['validazione'] = {'fornitore': nome_validatore, 'modello': modello_validatore,
+                                'limiteSuperioreUSD': stima_validatore['limiteSuperioreUSD']}
+        stima['listinoValidazione'] = listino_validatore
     return {**stima, 'listino': listino}
 
 
@@ -284,7 +335,11 @@ def genera_con_tetto(extraction: dict, provider, store, corsa_id: str, **opzioni
             sorvegliato = FornitoreRegolato(provider if provider is not None else create_provider(),
                                                {l.chunk_id: l for l in stima['limiti']}, stima['listino'],
                                                limiti['budgetUsd'], reg, corsa)
-            risultato = generate(extraction, sorvegliato, **opzioni)
+            validatore = None
+            if stima.get('validazione'):
+                validatore = ValidatoreRegolato(create_validator(), {l.chunk_id: l for l in stima['limiti']},
+                                                stima['listinoValidazione'], limiti['budgetUsd'], reg, corsa)
+            risultato = generate(extraction, sorvegliato, validator=validatore, **opzioni)
             corsa['esito'] = 'completata'
             return risultato
         except GenerationError as error:

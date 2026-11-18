@@ -18,6 +18,8 @@ export type CampiDelTipo = {
   motivazioni: boolean;
   /** Risposta multipla: un insieme di giuste invece di una sola. */
   piuGiuste: boolean;
+  /** Accoppiamento: i termini della colonna sinistra, uno per coppia; la giusta di ogni opzione è la sua coppia. */
+  coppie: boolean;
 };
 
 export function campiDelTipo(kind: TipoDomanda): CampiDelTipo {
@@ -27,6 +29,7 @@ export function campiDelTipo(kind: TipoDomanda): CampiDelTipo {
     testoRisposteModificabile: kind !== 'truefalse',
     motivazioni: kind !== 'truefalse',
     piuGiuste: kind === 'multiple',
+    coppie: kind === 'matching',
   };
 }
 

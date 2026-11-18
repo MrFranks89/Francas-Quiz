@@ -81,6 +81,53 @@ describe('ProposedIndexPanel helper functions', () => {
     expect(sections[0].pageRangeLabel).toBe('Senza pagina');
     expect(sections[0].title).toBe('Sezione 1 — Introduzione ai principi');
   });
+
+  test('raggruppa blocchi per sezione semantica (stile Algor) anche su più pagine', () => {
+    const blocksWithSections = [
+      {
+        id: 'b-1',
+        label: 'Intestazione',
+        page: 4,
+        kind: 'section_header',
+        level: 2,
+        section: '1.1 Alfabeto greco e insiemi',
+        text: '1.1 Alfabeto greco e insiemi\nIntroduzione alle notazioni.',
+      },
+      {
+        id: 'b-2',
+        label: 'Paragrafo continuo',
+        page: 5,
+        kind: 'paragraph',
+        level: 2,
+        section: '1.1 Alfabeto greco e insiemi',
+        text: 'Continuazione della spiegazione degli insiemi a pagina successiva.',
+      },
+      {
+        id: 'b-3',
+        label: 'Nuova sezione',
+        page: 5,
+        kind: 'section_header',
+        level: 2,
+        section: '1.2 Funzioni',
+        text: '1.2 Funzioni matematiche e corrispondenze biunivoche.',
+      },
+    ];
+
+    const sections = buildProposedSections(blocksWithSections);
+    expect(sections).toHaveLength(2);
+
+    expect(sections[0].topic).toBe('1.1 Alfabeto greco e insiemi');
+    expect(sections[0].pages).toEqual([4, 5]);
+    expect(sections[0].pageRangeLabel).toBe('Pagine 4–5');
+    expect(sections[0].title).toBe('Sezione 1 · Pagine 4–5 — 1.1 Alfabeto greco e insiemi');
+    expect(sections[0].blocksCount).toBe(2);
+
+    expect(sections[1].topic).toBe('1.2 Funzioni');
+    expect(sections[1].pages).toEqual([5]);
+    expect(sections[1].pageRangeLabel).toBe('Pagina 5');
+    expect(sections[1].title).toBe('Sezione 2 · Pagina 5 — 1.2 Funzioni');
+    expect(sections[1].blocksCount).toBe(1);
+  });
 });
 
 describe('ProposedIndexPanel component', () => {

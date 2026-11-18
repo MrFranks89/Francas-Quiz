@@ -28,7 +28,8 @@ from .generation import selection
 from .measurement.prezzi import PREZZI, PrezzoMancante, carica, modelli, prezzo
 
 VARIABILE_FORNITORE = 'GENERATION_PROVIDER'  # letta da selection.selected_name()
-ETICHETTE = {'openai': 'OpenAI', 'anthropic': 'Anthropic', 'gemini': 'Gemini'}
+ETICHETTE = {'openai': 'OpenAI', 'anthropic': 'Anthropic', 'gemini': 'Gemini', 'groq': 'Groq',
+             'openrouter': 'OpenRouter'}
 # Avviso sui dati per i fornitori usati con il piano gratuito, dai loro termini (letti il 2026-10-30):
 # Gemini, https://ai.google.dev/gemini-api/terms (aggiornati il 2026-04-28), «Unpaid Services»: contenuti
 # usati «to provide, improve, and develop» i prodotti, «human reviewers may read, annotate, and process»,
@@ -41,6 +42,20 @@ AVVISI_DATI = {
                'revisori umani. Usalo solo con materiale pubblico, mai con dati personali o materiale degli '
                'studenti. È gratuito solo se la chiave appartiene a un progetto Google senza fatturazione: con la '
                'fatturazione attiva le chiamate sono addebitate e il tetto di spesa dell\'app non le conta.'),
+    # Groq, https://groq.com/privacy-policy e https://groq.com/terms-of-service (letti il 2026-11-16):
+    # sul piano Free i contenuti possono essere usati per migliorare i servizi; sul piano a pagamento
+    # no. La gratuità vale solo con l'account sul piano Free.
+    'groq': ('Piano gratuito: Groq può usare i contenuti inviati per migliorare i suoi servizi. Usalo solo con '
+             'materiale pubblico, mai con dati personali o materiale degli studenti. È gratuito solo se '
+             'l\'account resta sul piano Free: attivando la fatturazione le chiamate sono addebitate e il tetto '
+             'di spesa dell\'app non le conta. Limiti: 30 richieste/minuto e 1.000 richieste/giorno per modello.'),
+    # OpenRouter, https://openrouter.ai/privacy e le schede dei singoli modelli (lette il 2026-11-16):
+    # le richieste sono servite da fornitori terzi, ciascuno con la propria politica sui dati; alcuni
+    # fornitori dei modelli :free possono usarle per l'addestramento (dichiarato sulla scheda del modello).
+    'openrouter': ('Modelli gratuiti (:free): la richiesta passa a un fornitore terzo scelto da OpenRouter, che '
+                   'può registrarla o usarla per addestrare i suoi modelli (vedi la scheda del modello). Usalo '
+                   'solo con materiale pubblico, mai con dati personali o materiale degli studenti. Limiti: 20 '
+                   'richieste/minuto e 50 richieste/giorno (1.000/giorno con almeno 10 crediti acquistati).'),
 }
 CIFRE_MOSTRATE = 4
 # Sotto questa lunghezza le ultime 4 cifre sarebbero una parte troppo grande della chiave.

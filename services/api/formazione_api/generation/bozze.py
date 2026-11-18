@@ -52,7 +52,8 @@ class SlideDraft(Model):
 # Tipi la cui giusta è una sola opzione scritta dal modello, indicata da correctIndex.
 TIPI_CON_GIUSTA_SINGOLA = ('single', 'fillblank', 'scenario', 'oddOneOut', 'correctStatement')
 # Numero minimo di opzioni per tipo: era minItems delle varianti (2, 4 per multiple), ora controllato qui.
-MINIMO_OPZIONI = {**{tipo: 2 for tipo in TIPI_CON_GIUSTA_SINGOLA}, 'multiple': 4}
+# In matching le opzioni sono la colonna destra e devono essere tante quante le coppie (3–6, tipi.ts).
+MINIMO_OPZIONI = {**{tipo: 2 for tipo in TIPI_CON_GIUSTA_SINGOLA}, 'multiple': 4, 'matching': 3}
 MASSIMO_OPZIONI = 6
 
 
@@ -71,6 +72,9 @@ class QuestionDraft(Model):
     correctIndexes: list[StrictInt] = Field(description='Solo multiple: le giuste, almeno 2 e non più di metà delle '
                                                         'opzioni. Lista vuota negli altri tipi.')
     correct: bool = Field(description='Solo truefalse: true se l\'affermazione di `prompt` è vera. false negli altri tipi.')
+    pairTerms: list[str] = Field(description='Solo matching: i termini della colonna sinistra, allineati per '
+                                             'indice a `options` (la colonna destra): l\'abbinamento giusto è '
+                                             'pairTerms[i] con options[i]. Lista vuota negli altri tipi.')
     rationales: list[str]
     explanation: str = Field(min_length=1)
     sourceRefs: list[str] = Field(min_length=1)
@@ -78,15 +82,43 @@ class QuestionDraft(Model):
 
     @model_validator(mode='after')
     def forma(self):
-        """Vincoli di forma che la grammatica non porta più (vedi sopra): errore del modulo, come prima."""
+        """Vincoli di forma che la grammatica non porta più (vedi sopra): tollera piccole discrepanze dell'LLM."""
+        if self.options:
+            pulite = [o.strip() for o in self.options if o.strip()]
+            minimo = MINIMO_OPZIONI.get(self.kind, 0)
+            if len(pulite) >= minimo and (self.kind != 'truefalse' or len(pulite) == len(self.options)):
+                self.options = pulite
         if any(not item.strip() for item in self.options):
             raise ValueError('Opzione vuota')
-        if len(self.rationales) != len(self.options):
-            raise ValueError('rationales deve avere un elemento per opzione')
         if self.kind in MINIMO_OPZIONI and len(self.options) < MINIMO_OPZIONI[self.kind]:
             raise ValueError(f'{self.kind}: servono almeno {MINIMO_OPZIONI[self.kind]} opzioni')
-        if self.kind in TIPI_CON_GIUSTA_SINGOLA and not 0 <= self.correctIndex < len(self.options):
-            raise ValueError('correctIndex fuori intervallo')
+        if self.kind == 'matching':
+            minimo_matching = MINIMO_OPZIONI['matching']
+            if (
+                len(self.pairTerms) >= minimo_matching
+                and len(self.options) >= minimo_matching
+                and len(self.pairTerms) != len(self.options)
+            ):
+                comune = min(len(self.pairTerms), len(self.options))
+                self.pairTerms = self.pairTerms[:comune]
+                self.options = self.options[:comune]
+                self.rationales = self.rationales[:comune]
+            # La corrispondenza giusta è per indice: un termine per opzione, nessuno vuoto.
+            if not self.pairTerms or len(self.pairTerms) != len(self.options):
+                raise ValueError('matching: pairTerms deve avere un elemento per opzione')
+            if any(not item.strip() for item in self.pairTerms):
+                raise ValueError('matching: termine vuoto')
+        if self.kind == 'truefalse' and not self.options:
+            self.rationales = []
+        elif len(self.rationales) < len(self.options):
+            self.rationales = [*self.rationales, *([''] * (len(self.options) - len(self.rationales)))]
+        elif len(self.rationales) > len(self.options):
+            self.rationales = self.rationales[:len(self.options)]
+        if self.kind in TIPI_CON_GIUSTA_SINGOLA and self.options:
+            if self.correctIndex == len(self.options):
+                self.correctIndex = len(self.options) - 1
+            elif not 0 <= self.correctIndex < len(self.options):
+                self.correctIndex = max(0, min(self.correctIndex, len(self.options) - 1))
         if self.kind == 'multiple' and any(not 0 <= i < len(self.options) for i in self.correctIndexes):
             raise ValueError('correctIndexes fuori intervallo')
         return self

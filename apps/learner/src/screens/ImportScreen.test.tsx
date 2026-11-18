@@ -4,6 +4,7 @@ import ReactTestRenderer, { act } from 'react-test-renderer';
 import { TextInput, Image, Text } from 'react-native';
 import * as Picker from 'expo-document-picker';
 import { uploadDocument, extractDocument, type Document } from '../api/documents';
+import { fetchConceptTree } from '../api/generation';
 import { Button } from '../components/ui';
 import { ImportScreen } from './ImportScreen';
 
@@ -34,11 +35,13 @@ jest.mock('../api/generation', () => ({
     })
   ),
   generateDraft: jest.fn(),
+  fetchConceptTree: jest.fn(),
 }));
 
 const mockPicker = Picker.getDocumentAsync as jest.MockedFunction<typeof Picker.getDocumentAsync>;
 const mockUpload = uploadDocument as jest.MockedFunction<typeof uploadDocument>;
 const mockExtract = extractDocument as jest.MockedFunction<typeof extractDocument>;
+const mockFetchConceptTree = fetchConceptTree as jest.MockedFunction<typeof fetchConceptTree>;
 
 describe('ImportScreen anteprima persistente e navigazione', () => {
   beforeEach(() => {
@@ -273,5 +276,123 @@ describe('ImportScreen anteprima persistente e navigazione', () => {
     expect(switchPagina2.props.value).toBe(false);
     const allTexts = renderer.root.findAllByType(Text).map((t) => t.props.children).flat().join(' ');
     expect(allTexts).toContain('1 pagina esclusa dalla generazione didattica: 2');
+  });
+
+  test('mostra i capitoli rilevati e imposta automaticamente range al tocco', async () => {
+    const { renderer } = await renderScreen();
+    mockPicker.mockResolvedValueOnce({
+      canceled: false,
+      assets: [
+        {
+          uri: 'file://libro.pdf',
+          name: 'libro.pdf',
+          mimeType: 'application/pdf',
+          size: 1024,
+          file: undefined,
+          lastModified: 0,
+        },
+      ],
+    });
+    mockUpload.mockResolvedValueOnce({
+      id: 'doc-cap-1',
+      name: 'libro.pdf',
+      kind: 'pdf',
+      pageCount: 40,
+      chapters: [
+        { title: 'Capitolo 1', fromPage: 1, toPage: 28, level: 1 },
+        { title: 'Capitolo 2', fromPage: 29, toPage: 40, level: 1 },
+      ],
+    });
+
+    const chooseBtn = renderer.root
+      .findAllByType(Button)
+      .find((b) => b.props.label === 'Scegli un documento');
+    await act(async () => {
+      await chooseBtn?.props.onPress();
+    });
+
+    const capBtn = renderer.root
+      .findAllByProps({ accessibilityLabel: 'Seleziona Capitolo 1 · pp. 1–28' })[0];
+    expect(capBtn).toBeDefined();
+
+    await act(async () => {
+      capBtn.props.onPress();
+    });
+
+    const fromInput = renderer.root
+      .findAllByType(TextInput)
+      .find((i) => i.props.accessibilityLabel === 'Pagina iniziale');
+    const toInput = renderer.root
+      .findAllByType(TextInput)
+      .find((i) => i.props.accessibilityLabel === 'Pagina finale');
+    expect(fromInput?.props.value).toBe('1');
+    expect(toInput?.props.value).toBe('28');
+  });
+
+  test('genera e visualizza la mappa concettuale stile Algor', async () => {
+    const { renderer } = await renderScreen();
+    await loadPdfDocument(renderer, 5);
+
+    mockExtract.mockResolvedValueOnce({
+      id: 'ext-map-1',
+      status: 'ready',
+      engine: 'native',
+      warnings: [],
+      blocks: [
+        { id: 'b1', label: 'Pagina 1', page: 1, text: 'Testo di riferimento su sicurezza.' },
+      ],
+    });
+
+    mockFetchConceptTree.mockResolvedValueOnce({
+      schemaVersion: 1,
+      id: 'tree-1',
+      rootTitle: 'Sicurezza Sul Lavoro',
+      branches: [
+        {
+          id: 'branch-1',
+          title: 'Prevenzione',
+          nodes: [
+            {
+              id: 'node-1',
+              title: 'Valutazione dei rischi',
+              summary: 'Analisi preventiva dei pericoli in azienda.',
+              sourceRefs: ['p. 1'],
+            },
+          ],
+        },
+      ],
+    });
+
+    const extractBtn = renderer.root
+      .findAllByType(Button)
+      .find((b) => b.props.label === 'Estrai il contenuto');
+    await act(async () => {
+      await extractBtn?.props.onPress();
+    });
+
+    const mapBtn = renderer.root
+      .findAllByType(Button)
+      .find((b) => b.props.label === "Genera Mappa Concettuale con l'AI");
+    expect(mapBtn).toBeDefined();
+
+    await act(async () => {
+      await mapBtn?.props.onPress();
+    });
+
+    expect(mockFetchConceptTree).toHaveBeenCalledWith('ext-map-1', []);
+    let allTexts = renderer.root.findAllByType(Text).map((t) => t.props.children).flat().join(' ');
+    expect(allTexts).toContain('Sicurezza Sul Lavoro');
+    expect(allTexts).toContain('Prevenzione');
+    expect(allTexts).toContain('Valutazione dei rischi');
+    expect(allTexts).toContain('[p. 1]');
+
+    const collapseBtn = renderer.root
+      .findAllByProps({ accessibilityLabel: 'Comprimi ramo Prevenzione' })[0];
+    await act(async () => {
+      collapseBtn.props.onPress();
+    });
+
+    allTexts = renderer.root.findAllByType(Text).map((t) => t.props.children).flat().join(' ');
+    expect(allTexts).not.toContain('Valutazione dei rischi');
   });
 });

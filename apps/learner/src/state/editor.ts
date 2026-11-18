@@ -80,6 +80,7 @@ export const NOMI_TIPO: Record<TipoDomanda, string> = {
   oddOneOut: "Trova l'intruso",
   correctStatement: "Correggi l'errore",
   multiple: 'Risposta multipla',
+  matching: 'Accoppiamento',
 };
 /** Etichetta del campo `prompt`, che cambia significato secondo il tipo. */
 export const ETICHETTA_PROMPT: Record<TipoDomanda, string> = {
@@ -90,6 +91,7 @@ export const ETICHETTA_PROMPT: Record<TipoDomanda, string> = {
   oddOneOut: 'Consegna',
   correctStatement: 'Consegna',
   multiple: 'Domanda',
+  matching: 'Consegna',
 };
 /**
  * Errori per tipo di ogni domanda, per indice di domanda e campo ('prompt', 'situation', 'options'...).

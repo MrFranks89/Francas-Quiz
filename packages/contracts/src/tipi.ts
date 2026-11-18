@@ -11,7 +11,7 @@
 // services/api/formazione_api/generation/regole.py (errori_tipo); i casi
 // condivisi stanno in services/api/tests/fixtures/invalid-course-cases.json.
 
-export const TIPI_DOMANDA = ['single', 'truefalse', 'fillblank', 'scenario', 'oddOneOut', 'correctStatement', 'multiple'] as const;
+export const TIPI_DOMANDA = ['single', 'truefalse', 'fillblank', 'scenario', 'oddOneOut', 'correctStatement', 'multiple', 'matching'] as const;
 export type TipoDomanda = (typeof TIPI_DOMANDA)[number];
 
 // Livelli letti da DifficultyBadge di Civis (packages/civis-ui/src/comune/DifficultyBadge.tsx):
@@ -26,12 +26,19 @@ export const OPZIONI_VERO_FALSO = ['Vero', 'Falso'] as const;
 export const SPAZIO = '___';
 
 /** Campi di presentazione propri di un tipo: su ogni altro tipo sono vietati. */
-const CAMPI_DEL_TIPO: Record<string, TipoDomanda> = { situation: 'scenario', sentence: 'correctStatement', wrong: 'correctStatement' };
+const CAMPI_DEL_TIPO: Record<string, TipoDomanda> = { situation: 'scenario', sentence: 'correctStatement', wrong: 'correctStatement', pairs: 'matching' };
+
+/** Una coppia dell'accoppiamento: termine della colonna sinistra e opzione giusta della colonna destra. */
+export type Coppia = { id: string; left: string; rightOptionId: string };
+// Numero di coppie di un accoppiamento: poche non distinguono, troppe non entrano in una schermata.
+export const MIN_COPPIE = 3;
+export const MAX_COPPIE = 6;
 
 export type DomandaDaControllare = {
   kind: TipoDomanda; prompt: string; options: { id: string; text: string; rationale?: string | null }[];
   correctOptionId?: string | null; correctOptionIds?: string[] | null;
   situation?: string | null; sentence?: string | null; wrong?: string | null;
+  pairs?: Coppia[] | null;
   explanation?: string | null;
 };
 /** `campo`: percorso relativo alla domanda ('prompt', 'situation', 'options'...), per mostrare l'errore sotto il campo. */
@@ -143,9 +150,29 @@ export function erroriStrutturaTipo(q: DomandaDaControllare): ErroreDomanda[] {
     if (giuste.length < 2) err('correctOptionIds', 'Risposta multipla: servono almeno 2 risposte giuste');
     else if (new Set(giuste).size !== giuste.length || giuste.some(g => !ids.has(g))) err('correctOptionIds', 'Risposta multipla: le giuste devono essere opzioni diverse della domanda');
     else if (giuste.length >= q.options.length) err('correctOptionIds', 'Risposta multipla: serve almeno una risposta sbagliata');
+  } else if (q.kind === 'matching') {
+    // Accoppiamento: la corrispondenza giusta sta in pairs (termine → opzione), non in correctOptionId(s).
+    if (q.correctOptionIds !== undefined && q.correctOptionIds !== null) err('correctOptionIds', 'Il campo correctOptionIds vale solo per il tipo multiple');
+    if (q.correctOptionId !== undefined && q.correctOptionId !== null) err('correctOptionId', 'Accoppiamento: la corrispondenza sta in pairs, non in correctOptionId');
   } else {
     if (q.correctOptionIds !== undefined && q.correctOptionIds !== null) err('correctOptionIds', 'Il campo correctOptionIds vale solo per il tipo multiple');
     if (!q.correctOptionId) err('correctOptionId', 'Manca la risposta giusta');
+  }
+  if (q.kind === 'matching') {
+    const coppie = q.pairs ?? [];
+    if (!q.pairs || coppie.length === 0) err('pairs', 'Accoppiamento: servono le coppie da abbinare');
+    else {
+      if (coppie.length < MIN_COPPIE || coppie.length > MAX_COPPIE) err('pairs', `Accoppiamento: da ${MIN_COPPIE} a ${MAX_COPPIE} coppie`);
+      if (coppie.some(c => !c.left.trim())) err('pairs', 'Accoppiamento: ogni termine della colonna sinistra deve avere un testo');
+      const sinistri = coppie.map(c => normalizzaOpzione(c.left));
+      if (new Set(sinistri).size !== sinistri.length) err('pairs', 'Accoppiamento: termini della colonna sinistra duplicati');
+      const idsOpzioni = q.options.map(o => o.id);
+      const usati = coppie.map(c => c.rightOptionId);
+      // Corrispondenza biunivoca fra coppie e opzioni: la colonna destra si mostra mescolata.
+      const biunivoca = new Set(idsOpzioni).size === idsOpzioni.length && new Set(usati).size === usati.length
+        && usati.length === idsOpzioni.length && usati.every(id => idsOpzioni.includes(id));
+      if (!biunivoca) err('pairs', 'Accoppiamento: ogni coppia deve puntare a un\'opzione diversa e tutte le opzioni devono essere abbinate');
+    }
   }
   if (q.kind === 'truefalse') {
     const testi = q.options.map(o => o.text.trim());
@@ -199,7 +226,8 @@ export function erroriQualitaTipo(q: DomandaDaControllare): ErroreDomanda[] {
   // Formule che non reggono fuori dalla lezione. Campi come in Civis: l'autoreferenziale in tutta la
   // domanda (righe 280, 905, 959: JSON.stringify), contesto e tempo solo nel testo della domanda
   // (righe 906 e 908: q.q), qui spezzato fra prompt, situation e sentence.
-  const domanda: Campi = [['prompt', q.prompt], ['situation', q.situation], ['sentence', q.sentence]];
+  const domanda: Campi = [['prompt', q.prompt], ['situation', q.situation], ['sentence', q.sentence],
+    ['pairs', q.pairs?.map(c => c.left).join('\n')]];
   const opzioni = [...q.options.map(o => o.text), ...q.options.map(o => o.rationale).filter((r): r is string => !!r)].join('\n');
   for (const [regola, campi, messaggio] of FORMULE) {
     for (const [campo, valore] of campi(domanda, opzioni, q.explanation)) {

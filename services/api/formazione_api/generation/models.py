@@ -10,6 +10,6 @@ L'insieme dei nomi è fissato da tests/istantanee/nomi-generation-models.json.
 """
 from .bozze import ModuleDraft, QuestionDraft, SlideDraft  # noqa: F401
 from .comune import OPZIONI_VERO_FALSO, SPAZIO, Difficolta, Model, TipoDomanda  # noqa: F401
-from .corso import Course, Exam, Lesson, Module, Option, Question, Slide, Source  # noqa: F401
+from .corso import Course, Exam, Lesson, Module, Option, Pair, Question, Slide, Source  # noqa: F401
 from .regole import errori_tipo, violazioni_domanda, violazioni_tipo  # noqa: F401
 from .soglia import errore_soglia_minima, soglia_minima  # noqa: F401

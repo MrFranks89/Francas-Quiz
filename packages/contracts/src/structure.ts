@@ -10,6 +10,8 @@ const refs = z.array(id).min(1);
 export const QuestionSchema = z.object({
   id, moduleId: id, lessonId: id, kind: z.enum(TIPI_DOMANDA).default('single'), prompt: text,
   situation: text.optional(), sentence: text.optional(), wrong: text.optional(),
+  // Accoppiamento (solo kind 'matching'): coppie termine → opzione della colonna destra (regole in tipi.ts).
+  pairs: z.array(z.object({ id, left: text, rightOptionId: id })).optional(),
   difficulty: z.enum(DIFFICOLTA).optional(),
   // `rationale`: perché l'opzione è (o non è) quella giusta, il `perche` di Civis.
   options: z.array(z.object({ id, text, rationale: text.optional() })).min(2),

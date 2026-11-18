@@ -1,3 +1,4 @@
+import logging
 from uuid import uuid4
 from time import perf_counter
 from pydantic import ValidationError
@@ -7,6 +8,8 @@ from .models import OPZIONI_VERO_FALSO, Course, ModuleDraft, Source, violazioni_
 from .selection import create_provider
 from .soglia import SOGLIA_SUPERAMENTO_PERCENTO, soglia_predefinita  # noqa: F401 (letti anche come pipeline.*)
 from .telemetry import aggregate_usage, call_usage
+
+logger = logging.getLogger(__name__)
 
 
 def avviso_scarti(n: int) -> str:
@@ -37,15 +40,25 @@ def domanda_del_contratto(question, qid: str, module_id: str, lesson_id: str) ->
     giuste = {}
     if question.kind == 'multiple' or question.correctIndexes:
         giuste['correctOptionIds'] = [f'option-{i}' for i in question.correctIndexes]
-    if question.kind != 'multiple':
+    if question.kind not in ('multiple', 'matching'):
         giuste['correctOptionId'] = f'option-{correct}'
+    if question.pairTerms:
+        # La corrispondenza giusta è per indice (bozze.py): pairTerms[k] si abbina a option-k.
+        # Su un tipo diverso da matching entra com'è e violazioni_domanda scarta con campo_di_altro_tipo.
+        extra['pairs'] = [dict(id=f'pair-{k}', left=term, rightOptionId=f'option-{k}')
+                          for k, term in enumerate(question.pairTerms)]
     return dict(id=qid, moduleId=module_id, lessonId=lesson_id, kind=question.kind, prompt=question.prompt, **extra,
                 difficulty=question.difficulty, options=options, **giuste,
                 explanation=question.explanation, sourceRefs=question.sourceRefs)
 
 
-def generate(extraction: dict, provider=None, *, title='Corso dal documento', max_chars=8000, max_chunks=40, acknowledge_warnings: bool = False):
-    """Atomic draft generation. No partial course returned on any failed chunk."""
+def generate(extraction: dict, provider=None, *, title='Corso dal documento', max_chars=8000, max_chunks=40, acknowledge_warnings: bool = False, validator=None):
+    """Atomic draft generation. No partial course returned on any failed chunk.
+
+    `validator`: validatore AI incrociato facoltativo (generation/validazione.py). Se presente,
+    risponde alla cieca — una chiamata per blocco — a ogni domanda che ha superato le regole di
+    qualità; le domande su cui non concorda sono scartate con la regola validazione_incrociata.
+    """
     status = extraction.get('status')
     if status not in ('ready', 'needs_review') or (status == 'needs_review' and acknowledge_warnings is not True):
         raise GenerationError('needs_review', 'Verificare prima i problemi di estrazione')
@@ -62,14 +75,19 @@ def generate(extraction: dict, provider=None, *, title='Corso dal documento', ma
     provider = provider or create_provider()
     modules, questions, objectives, coverage, usage_calls, scarti = [], [], [], [], [], []
     for i, chunk in enumerate(chunks, 1):
-        try:
-            started = perf_counter()
-            draft = ModuleDraft.model_validate(provider.module(chunk))
-            usage_calls.append(call_usage(provider, chunk.id, round((perf_counter() - started) * 1000, 3)))
-        except GenerationError:
-            raise
-        except (ValidationError, ValueError) as error:
-            raise GenerationError('invalid_generated_content', 'Contenuto AI non valido') from error
+        draft = None
+        for attempt in range(2):
+            try:
+                started = perf_counter()
+                draft = ModuleDraft.model_validate(provider.module(chunk))
+                usage_calls.append(call_usage(provider, chunk.id, round((perf_counter() - started) * 1000, 3)))
+                break
+            except GenerationError:
+                raise
+            except (ValidationError, ValueError) as error:
+                logger.warning('Validazione bozza fallita nel blocco %s (tentativo %d/2): %s', chunk.id, attempt + 1, error)
+                if attempt == 1:
+                    raise GenerationError('invalid_generated_content', f'Contenuto AI non valido nel blocco {chunk.id}: {error}') from error
         allowed = {p.source_id for p in chunk.pieces}
         # Prima delle regole di qualità e su tutte le domande, anche quelle che verranno scartate:
         # una fonte inventata resta fatale.
@@ -77,18 +95,35 @@ def generate(extraction: dict, provider=None, *, title='Corso dal documento', ma
             if len(set(item.sourceRefs)) != len(item.sourceRefs) or not set(item.sourceRefs) <= allowed:
                 raise GenerationError('invented_source', 'La risposta AI cita una fonte assente dal blocco')
         module_id, lesson_id = f'module-{i}', f'lesson-{i}'
-        ids, scarti_blocco = [], []
+        ids, scarti_blocco, accettate = [], [], []
         for position, question in enumerate(draft.questions, 1):
-            qid = f'question-{i}-{len(ids) + 1}'
-            domanda = domanda_del_contratto(question, qid, module_id, lesson_id)
+            # L'id definitivo si assegna dopo il validatore: gli scarti non consumano numerazione.
+            domanda = domanda_del_contratto(question, '', module_id, lesson_id)
             if violazioni := violazioni_domanda(domanda):
                 (rule, message), *altre = violazioni
                 scarti_blocco.append(dict(moduleId=module_id, chunkId=chunk.id, position=position, kind=question.kind,
                                           prompt=question.prompt, rule=rule, message=message,
                                           otherRules=[dict(rule=r, message=m) for r, m in altre]))
                 continue
+            accettate.append((position, question, domanda))
+        if validator is not None and accettate:
+            started = perf_counter()
+            non_concordi = set(validator.verifica(chunk, [d for _, _, d in accettate]))
+            usage_calls.append(call_usage(validator, chunk.id, round((perf_counter() - started) * 1000, 3)))
+            rimaste = []
+            for k, (position, question, domanda) in enumerate(accettate):
+                if k in non_concordi:
+                    scarti_blocco.append(dict(moduleId=module_id, chunkId=chunk.id, position=position, kind=question.kind,
+                                              prompt=question.prompt, rule='validazione_incrociata',
+                                              message='Il validatore indipendente non concorda con la risposta della bozza',
+                                              otherRules=[]))
+                    continue
+                rimaste.append((position, question, domanda))
+            accettate = rimaste
+        for _, _, domanda in accettate:
+            qid = f'question-{i}-{len(ids) + 1}'
             ids.append(qid)
-            questions.append(domanda)
+            questions.append({**domanda, 'id': qid})
         if not ids:
             # Un modulo senza domande non è un modulo valido: il blocco fallisce come prima dello scarto.
             raise GenerationError('invalid_generated_content', f'Contenuto AI non valido: {avviso_scarti(len(scarti_blocco))} '

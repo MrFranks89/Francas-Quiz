@@ -44,48 +44,81 @@ export function formatPageRange(pages: number[]): string {
   return min === max ? `Pagina ${min}` : `Pagine ${min}–${max}`;
 }
 
+export function getSectionBadge(section: ProposedSection): 'Capitolo' | 'Paragrafo' | null {
+  const h = section.blocks.find(
+    (b) => b.kind === 'section_header' || b.kind === 'title' || Boolean(b.section && b.section.trim()),
+  );
+  if (!h && !section.topic) return null;
+  const t = (h?.section || section.topic || '').trim().toLowerCase();
+  const k = h?.kind?.toLowerCase() || '';
+  if (t.startsWith('capitolo') || k === 'title' || (h?.level === 1 && !/^\d+\.\d+/.test(t))) {
+    return 'Capitolo';
+  }
+  if (
+    t.startsWith('paragrafo') ||
+    k === 'section_header' ||
+    (h?.level !== undefined && h.level > 1) ||
+    /^\d+\.\d+/.test(t)
+  ) {
+    return 'Paragrafo';
+  }
+  return 'Capitolo';
+}
+
 export function buildProposedSections(blocks: ExtractionBlock[]): ProposedSection[] {
   if (!blocks || blocks.length === 0) return [];
 
+  const hasSections = blocks.some((b) => Boolean(b.section && b.section.trim()));
   const groups: ExtractionBlock[][] = [];
   let currentGroup: ExtractionBlock[] = [];
+  let currentSection: string | undefined = undefined;
   let currentPage: number | null | undefined = undefined;
 
   for (const block of blocks) {
     const bPage = block.page ?? null;
+    const bSection = block.section?.trim();
+    const isHeader = block.kind === 'section_header' || block.kind === 'title';
+
+    let isNew = false;
     if (currentGroup.length === 0) {
-      currentGroup.push(block);
-      currentPage = bPage;
-    } else if (bPage !== null && currentPage !== null && bPage === currentPage) {
-      currentGroup.push(block);
-    } else if (bPage === null && currentPage === null && currentGroup.length < 4) {
-      currentGroup.push(block);
+      isNew = false;
+    } else if (hasSections) {
+      isNew = isHeader || (bSection !== undefined && bSection !== currentSection);
     } else {
+      isNew =
+        !(bPage !== null && currentPage !== null && bPage === currentPage) &&
+        !(bPage === null && currentPage === null && currentGroup.length < 4);
+    }
+
+    if (isNew) {
       groups.push(currentGroup);
       currentGroup = [block];
+      currentSection = bSection;
       currentPage = bPage;
+    } else {
+      currentGroup.push(block);
+      if (!currentSection && bSection) currentSection = bSection;
+      if (currentPage === undefined) currentPage = bPage;
     }
   }
-  if (currentGroup.length > 0) {
-    groups.push(currentGroup);
-  }
+  if (currentGroup.length > 0) groups.push(currentGroup);
 
   return groups.map((grp, idx) => {
     const index = idx + 1;
     const pages = Array.from(
-      new Set(
-        grp
-          .map((b) => b.page)
-          .filter((p): p is number => p !== null && p !== undefined),
-      ),
+      new Set(grp.map((b) => b.page).filter((p): p is number => p !== null && p !== undefined)),
     ).sort((a, b) => a - b);
     const pageRangeLabel = formatPageRange(pages);
 
-    const firstNonEmptyBlock =
-      grp.find((b) => b.text.trim().length > 0) ?? grp[0];
-    const defaultTopic =
-      firstNonEmptyBlock?.label?.trim() || `Argomento ${index}`;
-    const topic = extractTopic(firstNonEmptyBlock?.text ?? '', defaultTopic);
+    const sectionName = grp.find((b) => b.section && b.section.trim())?.section?.trim();
+    let topic: string;
+    if (sectionName) {
+      topic = sectionName;
+    } else {
+      const first = grp.find((b) => b.text.trim().length > 0) ?? grp[0];
+      const defaultTopic = first?.label?.trim() || `Argomento ${index}`;
+      topic = extractTopic(first?.text ?? '', defaultTopic);
+    }
 
     const title =
       pages.length > 0
@@ -94,16 +127,8 @@ export function buildProposedSections(blocks: ExtractionBlock[]): ProposedSectio
 
     const blocksCount = grp.length;
     const charCount = grp.reduce((acc, b) => acc + (b.text?.length ?? 0), 0);
-
-    const combinedText = grp
-      .map((b) => b.text?.trim() ?? '')
-      .filter(Boolean)
-      .join(' ')
-      .replace(/\s+/g, ' ');
-    const preview =
-      combinedText.length > 150
-        ? `${combinedText.slice(0, 147).trimEnd()}…`
-        : combinedText;
+    const combined = grp.map((b) => b.text?.trim() ?? '').filter(Boolean).join(' ').replace(/\s+/g, ' ');
+    const preview = combined.length > 150 ? `${combined.slice(0, 147).trimEnd()}…` : combined;
 
     return {
       id: `section-${index}`,
@@ -292,6 +317,7 @@ export function ProposedIndexPanel({
           ) : (
             sections.map((section) => {
               const isExpanded = !!expandedSections[section.id];
+              const structuralBadge = getSectionBadge(section);
               return (
                 <View key={section.id} style={localStyles.sectionCard}>
                   <View style={localStyles.sectionHeaderRow}>
@@ -299,6 +325,11 @@ export function ProposedIndexPanel({
                   </View>
 
                   <View style={localStyles.pillRow}>
+                    {structuralBadge && (
+                      <View style={localStyles.structuralBadge}>
+                        <Text style={localStyles.structuralBadgeText}>{structuralBadge}</Text>
+                      </View>
+                    )}
                     {section.pages.length > 0 && (
                       <View style={localStyles.pageBadge}>
                         <Text style={localStyles.pageBadgeText}>{section.pageRangeLabel}</Text>
@@ -533,6 +564,15 @@ const localStyles = StyleSheet.create({
   },
   sectionTitle: { fontSize: 15, fontWeight: '700', color: colors.navy, flex: 1 },
   pillRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  structuralBadge: {
+    backgroundColor: '#e6fffa',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#b2f5ea',
+  },
+  structuralBadgeText: { color: '#234e52', fontSize: 12, fontWeight: '700' },
   pageBadge: {
     backgroundColor: colors.pale,
     paddingHorizontal: 8,
@@ -578,11 +618,7 @@ const localStyles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 1,
   },
-  pageCardExcluded: {
-    backgroundColor: '#fafbfc',
-    borderColor: '#e2e8f0',
-    opacity: 0.75,
-  },
+  pageCardExcluded: { backgroundColor: '#fafbfc', borderColor: '#e2e8f0', opacity: 0.75 },
   pageCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -590,12 +626,7 @@ const localStyles = StyleSheet.create({
     gap: 8,
     flexWrap: 'wrap',
   },
-  pageCardHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flexWrap: 'wrap',
-  },
+  pageCardHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
   pageBadgeMain: {
     backgroundColor: colors.pale,
     paddingHorizontal: 10,
@@ -604,36 +635,13 @@ const localStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#cde4e0',
   },
-  pageBadgeMainText: {
-    color: colors.teal,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  pageBadgeExcluded: {
-    backgroundColor: '#edf2f7',
-    borderColor: '#cbd5e0',
-  },
-  pageBadgeExcludedText: {
-    color: colors.muted,
-  },
-  pageMetaText: {
-    fontSize: 13,
-    color: colors.muted,
-    fontWeight: '500',
-  },
-  pageToggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  pageToggleLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.teal,
-  },
-  pageToggleLabelExcluded: {
-    color: '#a0aec0',
-  },
+  pageBadgeMainText: { color: colors.teal, fontSize: 13, fontWeight: '700' },
+  pageBadgeExcluded: { backgroundColor: '#edf2f7', borderColor: '#cbd5e0' },
+  pageBadgeExcludedText: { color: colors.muted },
+  pageMetaText: { fontSize: 13, color: colors.muted, fontWeight: '500' },
+  pageToggleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  pageToggleLabel: { fontSize: 12, fontWeight: '600', color: colors.teal },
+  pageToggleLabelExcluded: { color: '#a0aec0' },
   excludedNoticeBadge: {
     backgroundColor: '#fffaf0',
     paddingHorizontal: 10,
@@ -642,11 +650,7 @@ const localStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#feebc8',
   },
-  excludedNoticeText: {
-    fontSize: 12,
-    color: '#c05621',
-    fontWeight: '600',
-  },
+  excludedNoticeText: { fontSize: 12, color: '#c05621', fontWeight: '600' },
   figureNoticeBadge: {
     backgroundColor: '#ebf8ff',
     paddingHorizontal: 10,
@@ -655,11 +659,7 @@ const localStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#bee3f8',
   },
-  figureNoticeText: {
-    fontSize: 12,
-    color: '#2b6cb0',
-    fontWeight: '600',
-  },
+  figureNoticeText: { fontSize: 12, color: '#2b6cb0', fontWeight: '600' },
   pageWarningsBox: {
     backgroundColor: '#fff5f5',
     padding: 8,
@@ -668,32 +668,11 @@ const localStyles = StyleSheet.create({
     borderColor: '#fed7d7',
     gap: 4,
   },
-  pageWarningItemText: {
-    fontSize: 12,
-    color: '#c53030',
-  },
-  toggleBlocksBtn: {
-    alignSelf: 'flex-start',
-    paddingVertical: 3,
-  },
-  toggleBlocksBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.teal,
-  },
-  pageBlocksList: {
-    gap: 10,
-    marginTop: 4,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#edf2f7',
-  },
-  rawBlockItem: {
-    gap: 6,
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#edf2f7',
-  },
+  pageWarningItemText: { fontSize: 12, color: '#c53030' },
+  toggleBlocksBtn: { alignSelf: 'flex-start', paddingVertical: 3 },
+  toggleBlocksBtnText: { fontSize: 12, fontWeight: '600', color: colors.teal },
+  pageBlocksList: { gap: 10, marginTop: 4, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#edf2f7' },
+  rawBlockItem: { gap: 6, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: '#edf2f7' },
   rawBlockHeader: { fontSize: 14, fontWeight: '700', color: colors.navy },
   rawBlockText: { fontSize: 14, lineHeight: 20, color: colors.ink },
 });

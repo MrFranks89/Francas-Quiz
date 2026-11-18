@@ -165,22 +165,39 @@ def _require_all_pages(result, start, end, success):
 
 def _blocks(document, start, end):
     blocks, warnings, covered = [], [], set()
-    for item, _level in document.iterate_items():
+    current_section = None
+    current_level = 1
+    for item, level in document.iterate_items():
         pages = {p.page_no for p in getattr(item, 'prov', []) if start <= p.page_no <= end}
         if not pages:
             continue
         label = str(getattr(item, 'label', 'Contenuto'))
-        if 'picture' in label.lower():
+        raw_label = label.lower()
+        if 'picture' in raw_label:
             warnings.append(f'Figura a pagina {min(pages)}: contenuto visivo da verificare.')
             continue
         text = getattr(item, 'text', None)
         if text is None and hasattr(item, 'export_to_markdown'):
             text = item.export_to_markdown(doc=document)
         if text and text.strip():
+            if 'title' in raw_label or 'header' in raw_label:
+                lines = [l.strip() for l in text.splitlines() if l.strip()]
+                clean_title = lines[0] if lines else text.strip()
+                current_section = clean_title
+                current_level = level if level is not None else 1
             for page in sorted(pages):
                 covered.add(page)
-                blocks.append({'id': f'b{len(blocks)+1}', 'text': text, 'page': page,
-                               'label': f'Pagina {page} — {label}'})
+                block = {
+                    'id': f'b{len(blocks)+1}',
+                    'text': text,
+                    'page': page,
+                    'label': f'Pagina {page} — {label}',
+                    'kind': raw_label,
+                    'level': level,
+                }
+                if current_section is not None:
+                    block['section'] = current_section
+                blocks.append(block)
     for page in range(start, end+1):
         if page not in covered:
             warnings.append(avviso_senza_testo(page))

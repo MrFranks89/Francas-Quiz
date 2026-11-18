@@ -44,6 +44,13 @@ class Compatibile:
 COMPATIBILI = {
     # base_url dell'esempio Python della pagina di compatibilità OpenAI di Gemini.
     'gemini': Compatibile('gemini', 'https://generativelanguage.googleapis.com/v1beta/openai/'),
+    # GroqCloud, endpoint compatibile OpenAI (console.groq.com/docs, letta il 2026-11-16):
+    # piano Free senza carta; output strutturato con response_format json_schema.
+    'groq': Compatibile('groq', 'https://api.groq.com/openai/v1'),
+    # OpenRouter, endpoint compatibile OpenAI (openrouter.ai/docs, letta il 2026-11-16):
+    # solo i modelli con suffisso :free, a costo zero; l'output strutturato va verificato
+    # modello per modello fra i supported_parameters (vedi prezzi.json).
+    'openrouter': Compatibile('openrouter', 'https://openrouter.ai/api/v1'),
 }
 
 

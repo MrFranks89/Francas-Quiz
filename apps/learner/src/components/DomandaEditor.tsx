@@ -63,6 +63,9 @@ export function DomandaEditor({
   const kind = question.kind;
   const giuste = giusteDi(question);
   const campi = campiDelTipo(kind);
+  /** Accoppiamento: indice della coppia che punta all'opzione (-1 se la domanda è da sistemare). */
+  const coppiaDi = (optionId: string) =>
+    (question.pairs ?? []).findIndex((p) => p.rightOptionId === optionId);
 
   return (
     <View style={editorStyles.container}>
@@ -128,7 +131,16 @@ export function DomandaEditor({
                 option.rationale ?? '',
                 { optional: true },
               )}
-            {campi.piuGiuste ? (
+            {campi.coppie ? (
+              // Accoppiamento: niente pulsante «Segna come corretta» — la giusta di ogni
+              // definizione è la sua coppia; qui si modifica il termine della colonna sinistra.
+              coppiaDi(option.id) >= 0 &&
+              field(
+                `Termine abbinato ${n}.${oi + 1}`,
+                ['pairs', coppiaDi(option.id), 'left'],
+                question.pairs?.[coppiaDi(option.id)]?.left ?? '',
+              )
+            ) : campi.piuGiuste ? (
               <Button
                 label={
                   giuste.includes(option.id)
@@ -163,6 +175,7 @@ export function DomandaEditor({
         )}
         {sotto('correctOptionIds')}
         {sotto('correctOptionId')}
+        {sotto('pairs')}
         {sotto('options')}
         <Text style={styles.muted}>Difficoltà</Text>
         <View style={styles.row}>

@@ -51,11 +51,8 @@ def test_campo_incoerente_col_tipo_scarta_la_domanda(kind, guasta, regola):
     ('fillblank', dict(options=[], rationales=[])),                                   # nessuna opzione
     ('multiple', dict(options=['A', 'B', 'C'], rationales=['', '', ''])),             # multiple: almeno 4
     ('single', dict(options=list('ABCDEFG'), rationales=[''] * 7)),                   # più di 6
-    ('scenario', dict(correctIndex=2)),                                               # giusta fuori dalle opzioni
     ('multiple', dict(correctIndexes=[0, 4])),                                        # giuste fuori dalle opzioni
-    ('truefalse', dict(rationales=['Perché sì.'])),                                   # una motivazione senza opzione
-    ('single', dict(rationales=[''])),                                                # una motivazione per opzione
-    ('single', dict(options=['Prima', ' '])),                                         # opzione vuota
+    ('single', dict(options=['Prima', ' '])),                                         # opzione vuota senza alternative valide
     ('single', dict(prompt='')),                                                      # testo della domanda vuoto
     ('single', dict(sourceRefs=[])),                                                  # nessuna fonte
 ])
@@ -65,6 +62,33 @@ def test_forma_del_campo_resta_un_errore_del_modulo(kind, guasta):
     with pytest.raises(GenerationError) as error:
         generate(extraction(), Fornitore(domande))
     assert error.value.code == 'invalid_generated_content'
+
+
+def test_discrepanze_tollerate_sanitizzate():
+    singola_1based = QuestionDraft.model_validate({**per_tipo('single'), 'correctIndex': 2})
+    assert singola_1based.correctIndex == 1
+    singola_neg = QuestionDraft.model_validate({**per_tipo('single'), 'correctIndex': -3})
+    assert singola_neg.correctIndex == 0
+    rationales_corte = QuestionDraft.model_validate({**per_tipo('single'), 'rationales': ['Solo una']})
+    assert rationales_corte.rationales == ['Solo una', '']
+    rationales_lunghe = QuestionDraft.model_validate({**per_tipo('single'), 'rationales': ['A', 'B', 'C']})
+    assert rationales_lunghe.rationales == ['A', 'B']
+    vf_rationales = QuestionDraft.model_validate({**per_tipo('truefalse'), 'rationales': ['Perché sì.']})
+    assert vf_rationales.rationales == []
+    spazi_extra = QuestionDraft.model_validate(
+        {**per_tipo('single'), 'options': [' Prima ', '  ', ' Seconda '], 'rationales': ['r1', 'r2', 'r3']}
+    )
+    assert spazi_extra.options == ['Prima', 'Seconda']
+    assert spazi_extra.rationales == ['r1', 'r2']
+    matching_corto = QuestionDraft.model_validate({
+        **per_tipo('matching'),
+        'pairTerms': ['T1', 'T2', 'T3', 'T4'],
+        'options': ['O1', 'O2', 'O3'],
+        'rationales': ['r1', 'r2', 'r3', 'r4'],
+    })
+    assert matching_corto.pairTerms == ['T1', 'T2', 'T3']
+    assert matching_corto.options == ['O1', 'O2', 'O3']
+    assert matching_corto.rationales == ['r1', 'r2', 'r3']
 
 
 def test_campo_mancante_o_estraneo_resta_un_errore_del_modulo():

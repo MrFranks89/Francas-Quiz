@@ -6,7 +6,14 @@ from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from fastapi.responses import Response
 from io import BytesIO
 
-from .documents import MAX_BYTES, MESSAGGIO_FOGLI, fonte_ammessa, inspect_document
+from .documents import (
+    MAX_BYTES,
+    MESSAGGIO_FOGLI,
+    extract_outline,
+    fonte_ammessa,
+    has_digital_text,
+    inspect_document,
+)
 from .extractors import native_extract
 from .models import ExtractionRequest, selected_pages
 
@@ -43,7 +50,16 @@ async def upload(request: Request, file: UploadFile = File(...)):
         if not size:
             raise ValueError('Il file è vuoto.')
         kind, count = inspect_document(path, filename)
-        result = {'id': identifier, 'name': filename, 'kind': kind, 'pageCount': count}
+        chapters = extract_outline(path, count) if kind == 'pdf' else []
+        has_digital = has_digital_text(path, count) if kind == 'pdf' else True
+        result = {
+            'id': identifier,
+            'name': filename,
+            'kind': kind,
+            'pageCount': count,
+            'chapters': chapters,
+            'hasDigitalText': has_digital,
+        }
         store.save(identifier, 'document.json', result)
         return result
     except HTTPException:

@@ -12,6 +12,7 @@ describe('campiDelTipo', () => {
         testoRisposteModificabile: true,
         motivazioni: true,
         piuGiuste: false,
+        coppie: false,
       },
       truefalse: {
         situazione: false,
@@ -19,6 +20,7 @@ describe('campiDelTipo', () => {
         testoRisposteModificabile: false,
         motivazioni: false,
         piuGiuste: false,
+        coppie: false,
       },
       fillblank: {
         situazione: false,
@@ -26,6 +28,7 @@ describe('campiDelTipo', () => {
         testoRisposteModificabile: true,
         motivazioni: true,
         piuGiuste: false,
+        coppie: false,
       },
       scenario: {
         situazione: true,
@@ -33,6 +36,7 @@ describe('campiDelTipo', () => {
         testoRisposteModificabile: true,
         motivazioni: true,
         piuGiuste: false,
+        coppie: false,
       },
       oddOneOut: {
         situazione: false,
@@ -40,6 +44,7 @@ describe('campiDelTipo', () => {
         testoRisposteModificabile: true,
         motivazioni: true,
         piuGiuste: false,
+        coppie: false,
       },
       correctStatement: {
         situazione: false,
@@ -47,6 +52,7 @@ describe('campiDelTipo', () => {
         testoRisposteModificabile: true,
         motivazioni: true,
         piuGiuste: false,
+        coppie: false,
       },
       multiple: {
         situazione: false,
@@ -54,6 +60,15 @@ describe('campiDelTipo', () => {
         testoRisposteModificabile: true,
         motivazioni: true,
         piuGiuste: true,
+        coppie: false,
+      },
+      matching: {
+        situazione: false,
+        fraseConErrore: false,
+        testoRisposteModificabile: true,
+        motivazioni: true,
+        piuGiuste: false,
+        coppie: true,
       },
     });
   });

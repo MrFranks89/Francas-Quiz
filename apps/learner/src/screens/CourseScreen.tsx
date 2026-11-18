@@ -3,12 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import {
   canAccessModule,
   completeLesson,
-  submitExam,
   createProgress,
-  displayOptions,
-  valutaTentativo,
-  descriviValutazione,
-  type Answer,
   type Progress,
 } from '@formazione/learning-engine';
 import { usePalette } from '@formazione/civis-ui/src/ThemeProvider';
@@ -21,11 +16,10 @@ import { SlideStep } from '@formazione/civis-ui/src/lezione/SlideStep';
 import { course, loadProgress, saveProgress, resetProgress } from '../state/course';
 import { slidePerCivis } from '../state/slide';
 import { fontiDellaSlide } from '../state/fonti';
-import { riepilogoUltimoTentativo } from '../state/riepilogo';
-import { presentazione } from '../state/presentazione';
 import { SourceNote } from '../components/SourceNote';
-import { DomandaInCorso, RiepilogoDomanda } from '../components/ExamView';
-import { Avviso, Pillola } from '../components/lettore';
+import { SezioneEsame } from '../components/SezioneEsame';
+import { Avviso } from '../components/lettore';
+import { BannerTipoSlide, BarraSlideSegmentata, RigaModulo } from '../components/SocrateCorso';
 import type { Course } from '@formazione/contracts';
 
 // Il lettore legge da sé titolo e testi delle slide: a SlideStep passa sempre
@@ -47,12 +41,12 @@ export function CourseScreen({
     [ready, setReady] = useState(false),
     [error, setError] = useState('');
   const [active, setActive] = useState(course.modules[0].id),
-    [answers, setAnswers] = useState<Record<string, string[]>>({}),
-    [saving, setSaving] = useState(false);
-  // Lezione aperta e slide corrente; «retrying»: nuovo tentativo avviato dopo il riepilogo.
+    [saving, setSaving] = useState(false),
+    // Cambia a ogni «Azzera»: rimonta SezioneEsame e ne svuota le risposte in corso.
+    [epoca, setEpoca] = useState(0);
+  // Lezione aperta e slide corrente.
   const [openLesson, setOpenLesson] = useState<string | null>(null),
-    [slideIndex, setSlideIndex] = useState(0),
-    [retrying, setRetrying] = useState(false);
+    [slideIndex, setSlideIndex] = useState(0);
   useEffect(() => {
     let live = true;
     loadProgress(course)
@@ -69,14 +63,16 @@ export function CourseScreen({
       live = false;
     };
   }, [course]);
-  async function update(next: Progress) {
+  async function update(next: Progress): Promise<boolean> {
     setSaving(true);
     setError('');
     try {
       await saveProgress(next);
       setProgress(next);
+      return true;
     } catch {
       setError('Salvataggio non riuscito. Riprova prima di proseguire.');
+      return false;
     } finally {
       setSaving(false);
     }
@@ -84,53 +80,10 @@ export function CourseScreen({
   const module = course.modules.find((m) => m.id === active)!;
   const unlocked = canAccessModule(course, progress, module.id),
     exam = module.exam;
-  const attempts = progress.attempts.filter((a) => a.examId === exam?.id),
-    last = attempts.at(-1);
-  const gatePassed = exam?.mode === 'gate' && attempts.some((a) => a.passed);
-  const exhausted =
-    exam?.maxAttempts !== null && exam !== null && attempts.length >= exam.maxAttempts;
   const lessonsDone = module.lessons.every((l) => progress.completedLessonIds.includes(l.id));
   const totalLessons = course.modules.flatMap((m) => m.lessons).length;
-  // Si risponde al primo tentativo, oppure dopo «Nuovo tentativo»; altrimenti si vede il riepilogo dell'ultimo.
-  const answering = !!exam && lessonsDone && !gatePassed && !exhausted && (!last || retrying);
-  // Dopo la consegna le risposte restano visibili: il riepilogo le legge dal tentativo salvato, non da `answers`.
-  async function submit() {
-    if (!exam) return;
-    try {
-      await update(
-        submitExam(
-          course,
-          progress,
-          exam.id,
-          `attempt-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-          exam.questionIds
-            .filter((id) => answers[id]?.length)
-            .map((questionId) => risposta(questionId, answers[questionId])),
-        ),
-      );
-      setAnswers({});
-      setRetrying(false);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Valutazione non riuscita.');
-    }
-  }
-  // Risposta multipla: ogni tocco aggiunge o toglie l'opzione; negli altri tipi la sostituisce.
-  function scegli(q: Course['questions'][number], attuali: string[], optionId: string) {
-    return q.kind !== 'multiple'
-      ? [optionId]
-      : attuali.includes(optionId)
-        ? attuali.filter((x) => x !== optionId)
-        : [...attuali, optionId];
-  }
-  function risposta(questionId: string, scelte: string[]): Answer {
-    return course.questions.find((q) => q.id === questionId)!.kind === 'multiple'
-      ? { questionId, optionIds: scelte }
-      : { questionId, optionId: scelte[0] };
-  }
   function chooseModule(id: string) {
     setActive(id);
-    setAnswers({});
-    setRetrying(false);
     setOpenLesson(null);
   }
   function openAt(lessonId: string) {
@@ -160,7 +113,6 @@ export function CourseScreen({
         : kind === 'draft'
           ? 'Bozza AI da revisionare · non pubblicata. Verifica testi, risposte e riferimenti alle fonti.'
           : 'Corso importato da JSON · contenuto fornito dall’utente, non generato durante questa sessione.';
-  const valutazione = last && exam ? valutaTentativo(last, exam) : null;
   return (
     <View style={{ gap: 18, width: '100%', maxWidth: 760, alignSelf: 'center' }}>
       <View style={{ gap: 6 }}>
@@ -188,14 +140,25 @@ export function CourseScreen({
       {!!error && <Avviso testo={error} errore />}
       <View style={{ gap: 8 }}>
         <Text style={s.eyebrow}>Moduli</Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        <View style={{ gap: 8 }}>
           {course.modules.map((m, i) => {
             const available = canAccessModule(course, progress, m.id);
+            const doneCount = m.lessons.filter((l) =>
+              progress.completedLessonIds.includes(l.id),
+            ).length;
+            const allModDone = m.lessons.length > 0 && doneCount === m.lessons.length;
+            const examPassed = m.exam
+              ? progress.attempts.some((a) => a.examId === m.exam!.id && a.passed)
+              : true;
             return (
-              <Pillola
+              <RigaModulo
                 key={m.id}
-                label={`${i + 1}. ${m.title}${available ? '' : ' · bloccato'}`}
-                attiva={m.id === active}
+                modulo={m}
+                indice={i}
+                available={available}
+                completed={available && allModDone && examPassed}
+                selezionato={m.id === active}
+                doneCount={doneCount}
                 disabled={!ready || !available || saving}
                 onPress={() => chooseModule(m.id)}
               />
@@ -216,7 +179,7 @@ export function CourseScreen({
                     flexDirection: 'row',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    marginBottom: 6,
+                    marginBottom: 8,
                     gap: 12,
                   }}
                 >
@@ -236,8 +199,12 @@ export function CourseScreen({
                     </Text>
                   </Pressable>
                 </View>
-                <ProgressBar current={index + 1} total={lesson.slides.length} color={C.indigo} />
-                <View style={{ height: 14 }} />
+                <BarraSlideSegmentata
+                  slides={lesson.slides}
+                  currentIndex={index}
+                  onSelect={setSlideIndex}
+                />
+                <BannerTipoSlide slide={slide} />
                 <SlideStep
                   key={slide.id}
                   step={slidePerCivis(slide)}
@@ -290,7 +257,7 @@ export function CourseScreen({
                   marginBottom: 12,
                 }}
               >
-                {done ? 'Lezione completata' : 'Da completare'}
+                {done ? '✓ Lezione completata' : 'Da completare'}
               </Text>
               <Btn
                 label={done ? 'Rivedi la lezione' : 'Inizia la lezione'}
@@ -303,124 +270,17 @@ export function CourseScreen({
           );
         })}
       {exam && (
-        <Card>
-          <Text style={s.eyebrow}>
-            {exam.mode === 'gate' ? 'Esame di sbarramento' : 'Test di controllo'}
-          </Text>
-          <Text
-            style={{ color: C.textDim, fontSize: TESTO.minuscolo, marginTop: 4, marginBottom: 14 }}
-          >
-            Soglia: {exam.passingScore}/{exam.questionIds.length} risposte corrette ·{' '}
-            {exam.maxAttempts === null
-              ? 'tentativi illimitati'
-              : `${attempts.length}/${exam.maxAttempts} tentativi usati`}
-          </Text>
-          {!lessonsDone && (
-            <Avviso testo="Completa tutte le lezioni del modulo per sostenere il test." />
-          )}
-          {answering && (
-            <>
-              {exam.questionIds.map((id, qi) => {
-                const q = course.questions.find((q) => q.id === id)!;
-                return (
-                  <DomandaInCorso
-                    key={id}
-                    numero={qi + 1}
-                    totale={exam.questionIds.length}
-                    domanda={presentazione(q)}
-                    opzioni={displayOptions(course, exam.id, attempts.length, id).map((o) => ({
-                      id: o.id,
-                      text: o.text,
-                    }))}
-                    scelte={answers[id] ?? []}
-                    disabled={saving}
-                    onScegli={(optionId) =>
-                      setAnswers((current) => ({
-                        ...current,
-                        [id]: scegli(q, current[id] ?? [], optionId),
-                      }))
-                    }
-                  />
-                );
-              })}
-              <Btn
-                label="Consegna il test"
-                primary
-                color={C.indigo}
-                disabled={
-                  !ready ||
-                  saving ||
-                  !lessonsDone ||
-                  gatePassed ||
-                  !!exhausted ||
-                  exam.questionIds.some((id) => !answers[id]?.length)
-                }
-                onPress={submit}
-              />
-              {last && (
-                <Pressable
-                  onPress={() => {
-                    setRetrying(false);
-                    setAnswers({});
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel="Torna al riepilogo"
-                  hitSlop={8}
-                  style={{ alignSelf: 'center' }}
-                >
-                  <Text style={{ color: C.textDim, fontSize: TESTO.piccolo, fontWeight: '700' }}>
-                    Torna al riepilogo del tentativo precedente
-                  </Text>
-                </Pressable>
-              )}
-            </>
-          )}
-          {last && valutazione && !answering && (
-            <>
-              <Text
-                style={{
-                  color: valutazione.superato ? C.greenText : C.redText,
-                  fontSize: TESTO.occhiello,
-                  fontWeight: '800',
-                  letterSpacing: 1.1,
-                  marginBottom: 4,
-                }}
-              >
-                {valutazione.superato ? 'TEST SUPERATO' : 'TEST NON SUPERATO'} · TENTATIVO{' '}
-                {attempts.length}
-              </Text>
-              <Text accessibilityRole="header" style={[s.slideHeading, { marginBottom: 2 }]}>
-                {descriviValutazione(valutaTentativo(last, exam))}
-              </Text>
-              <Text
-                style={{ color: C.textDim, fontSize: TESTO.corpoPiccolo, marginBottom: 16 }}
-              >{`${last.correct}/${last.total} risposte corrette${gatePassed ? ' · modulo successivo sbloccato' : ''}`}</Text>
-              {riepilogoUltimoTentativo(course, exam, attempts).map((riga, qi) => (
-                <RiepilogoDomanda key={riga.questionId} numero={qi + 1} riga={riga} />
-              ))}
-              {lessonsDone && !gatePassed && !exhausted && (
-                <Btn
-                  label="Nuovo tentativo"
-                  primary
-                  color={C.indigo}
-                  disabled={!ready || saving}
-                  onPress={() => {
-                    setAnswers({});
-                    setRetrying(true);
-                  }}
-                />
-              )}
-            </>
-          )}
-          {exhausted && !gatePassed && (
-            <View style={{ marginTop: 8 }}>
-              <Avviso
-                testo="Tentativi terminati. Il modulo successivo rimane bloccato. Nel corso dimostrativo puoi azzerare i progressi."
-                errore
-              />
-            </View>
-          )}
-        </Card>
+        <SezioneEsame
+          key={`${module.id}:${epoca}`}
+          course={course}
+          exam={exam}
+          progress={progress}
+          lessonsDone={lessonsDone}
+          ready={ready}
+          saving={saving}
+          onSalva={update}
+          onErrore={setError}
+        />
       )}
       <Btn
         label={kind === 'demo' ? 'Azzera il corso dimostrativo' : 'Azzera i progressi locali'}
@@ -431,6 +291,7 @@ export function CourseScreen({
             .then((p) => {
               setProgress(p);
               chooseModule(course.modules[0].id);
+              setEpoca((e) => e + 1);
               setError('');
             })
             .catch(() => setError('Impossibile azzerare i progressi.'))

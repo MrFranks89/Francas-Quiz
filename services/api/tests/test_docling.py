@@ -117,6 +117,30 @@ def test_docling_pagina_assente_anche_con_successo_dichiarato(monkeypatch, tmp_p
         docling_extract(path, 'pdf', 1, 3)
 
 
+def test_docling_extracts_sections_and_headings():
+    header = SimpleNamespace(
+        text='1.1 Insiemi e logica\nIntroduzione ai concetti',
+        label='section_header',
+        prov=[SimpleNamespace(page_no=1)],
+    )
+    paragraph = SimpleNamespace(
+        text='Un insieme è una collezione ben definita di oggetti.',
+        label='paragraph',
+        prov=[SimpleNamespace(page_no=1)],
+    )
+    document = SimpleNamespace(iterate_items=lambda: [(header, 1), (paragraph, 2)])
+    blocks, warnings, status = _blocks(document, 1, 1)
+
+    assert len(blocks) == 2
+    assert blocks[0]['kind'] == 'section_header'
+    assert blocks[0]['level'] == 1
+    assert blocks[0]['section'] == '1.1 Insiemi e logica'
+
+    assert blocks[1]['kind'] == 'paragraph'
+    assert blocks[1]['level'] == 2
+    assert blocks[1]['section'] == '1.1 Insiemi e logica'
+
+
 def test_docling_limite_di_tempo_proporzionale_alle_pagine(tmp_path):
     pytest.importorskip('docling.document_converter')
     from docling.datamodel.base_models import InputFormat

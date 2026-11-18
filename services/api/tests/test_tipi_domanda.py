@@ -20,7 +20,7 @@ def sample():
 
 def test_il_backend_accetta_il_corso_campione_con_ogni_tipo():
     course = Course.model_validate(sample())
-    assert {q.kind for q in course.questions} == {'single', 'truefalse', 'fillblank', 'scenario', 'oddOneOut', 'correctStatement', 'multiple'}
+    assert {q.kind for q in course.questions} == {'single', 'truefalse', 'fillblank', 'scenario', 'oddOneOut', 'correctStatement', 'multiple', 'matching'}
     # Il JSON del backend resta leggibile da Zod: niente null per i campi facoltativi assenti.
     dumped = course.model_dump()
     assert dumped['questions'][0]['kind'] == 'single'

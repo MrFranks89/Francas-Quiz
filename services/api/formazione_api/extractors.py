@@ -1,3 +1,4 @@
+import re
 from typing import NamedTuple
 
 import pypdfium2 as pdfium
@@ -6,6 +7,11 @@ from docx import Document
 from pypdf import PdfReader
 
 from .pagine_non_lette import avviso_pagina_bianca, avviso_scansione
+
+HEADING_PATTERN = re.compile(
+    r'^(?:(?:\d+(?:\.\d+)*|[A-Z]\.|\b(?:Capitolo|Sezione|Parte|Paragrafo)\s+\d+)\b[^\n]{2,80})',
+    re.MULTILINE | re.IGNORECASE,
+)
 
 # Criterio «probabile scansione», misurato sul corpus pubblico (tests/corpus/manifest.json, sha256
 # verificati il 2026-10-29): una pagina con meno di SCAN_MAX_CHARS caratteri nativi e immagini
@@ -123,10 +129,38 @@ def scansioni(path, start, end):
 
 def native_extract(path, kind, start, end):
     blocks, warnings = [], []
+    current_section = None
+
+    def detect_heading(text: str):
+        if not text:
+            return None
+        match = HEADING_PATTERN.search(text)
+        if match:
+            return match.group(0).strip()
+        lines = [line.strip() for line in text.splitlines() if line.strip()]
+        if lines:
+            first = lines[0]
+            if 2 <= len(first) <= 80 and not first.endswith(('.', ':', ';', ',')):
+                if len(lines) == 1 or first.isupper() or text.startswith(first + '\n\n'):
+                    return first
+        return None
 
     def add(text, page, label):
+        nonlocal current_section
         if text.strip():
-            blocks.append({'id': f'b{len(blocks) + 1}', 'text': text, 'page': page, 'label': label})
+            found_heading = detect_heading(text)
+            if found_heading:
+                current_section = found_heading
+            block = {
+                'id': f'b{len(blocks) + 1}',
+                'text': text,
+                'page': page,
+                'label': label,
+                'kind': 'text',
+            }
+            if current_section is not None:
+                block['section'] = current_section
+            blocks.append(block)
 
     if kind == 'pdf':
         reader = PdfReader(path)

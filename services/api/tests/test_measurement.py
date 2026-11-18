@@ -296,7 +296,7 @@ def test_prezzi_registrati_hanno_fonte_data_e_sono_leggibili():
     from formazione_api.measurement.prezzi import PREZZI
     prezzi = carica(PREZZI)
     coppie = list(modelli(prezzi))
-    assert {f for f, _ in coppie} == {'openai', 'anthropic', 'gemini'}
+    assert {f for f, _ in coppie} == {'openai', 'anthropic', 'gemini', 'groq', 'openrouter'}
     for fornitore, modello in coppie:
         tariffa = prezzo(prezzi, fornitore, modello)
         # Prezzo 0 solo per i piani gratuiti dichiarati (test_prezzo_zero.py).

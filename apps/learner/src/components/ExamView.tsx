@@ -1,14 +1,15 @@
 import React from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { usePalette } from '@formazione/civis-ui/src/ThemeProvider';
 import { useStyles } from '@formazione/civis-ui/src/comune/stili';
 import { TESTO } from '@formazione/civis-ui/src/tema';
-import { OptLetter, type OptSt } from '@formazione/civis-ui/src/comune/OptLetter';
-import { OptMark } from '@formazione/civis-ui/src/comune/OptMark';
 import { FormatPill } from '@formazione/civis-ui/src/comune/FormatPill';
 import { DifficultyBadge } from '@formazione/civis-ui/src/comune/DifficultyBadge';
-import { statoInCorso, type OpzioneMostrata, type RigaRiepilogo } from '../state/riepilogo';
+import { statoInCorso, type CoppiaRiepilogo, type OpzioneMostrata, type RigaRiepilogo } from '../state/riepilogo';
 import { SPAZIO_VUOTO, type Presentazione } from '../state/presentazione';
+import { ChipParole, CorpoAccoppiamento, type AccoppiamentoInCorso } from './AccoppiamentoView';
+import type { Palette } from './stiliOpzione';
+import { BottoniVeroFalso, RigaOpzione } from './RigheOpzione';
 
 /**
  * Vista del test e riepilogo (componenti nostri, con lo stile di Civis:
@@ -20,217 +21,14 @@ import { SPAZIO_VUOTO, type Presentazione } from '../state/presentazione';
  * (docs/decisions/002-interfaccia.md): FormatPill senza `icon`.
  */
 
-type Palette = ReturnType<typeof usePalette>;
-function coloriOpzione(C: Palette, stato: OptSt) {
-  if (stato === 'sel') return { borderColor: C.selBorder, backgroundColor: C.selBg, text: C.text };
-  if (stato === 'cor')
-    return { borderColor: C.green, backgroundColor: C.greenBg, text: C.greenText };
-  if (stato === 'wr') return { borderColor: C.red, backgroundColor: C.redBg, text: C.redText };
-  if (stato === 'dim')
-    return { borderColor: C.borderSubtle, backgroundColor: C.surfaceDark, text: C.textDim };
-  return { borderColor: C.slate, backgroundColor: C.surfaceDark, text: C.optionText };
-}
-const descriviStato = (stato: OptSt) =>
-  stato === 'cor' ? ', giusta' : stato === 'wr' ? ', sbagliata, la tua risposta' : '';
 // Colore della pillola per tipo, come negli step di Civis: teal per «Completa la frase», scenario per gli altri formati.
 const colorePillola = (C: Palette, kind: Presentazione['kind']) =>
   kind === 'fillblank' ? C.teal : kind === 'truefalse' ? C.indigo : C.scenario;
 
-/** `mancata`: risposta multipla, giusta non scelta: bordo verde senza riempimento e la parola «Mancata». */
-function RigaOpzione({
-  i,
-  text,
-  stato,
-  onPress,
-  disabled,
-  mancata,
-}: {
-  i: number;
-  text: string;
-  stato: OptSt;
-  onPress?: () => void;
-  disabled?: boolean;
-  mancata?: boolean;
-}) {
-  const C = usePalette(),
-    s = useStyles();
-  const c = mancata
-    ? { ...coloriOpzione(C, 'cor'), backgroundColor: C.surfaceDark }
-    : coloriOpzione(C, stato);
-  const forte = stato === 'sel' || stato === 'cor' || stato === 'wr';
-  const contenuto = (
-    <>
-      <OptLetter i={i} state={stato} />
-      <Text
-        style={[
-          s.quizOptionText,
-          { marginLeft: 11, color: c.text },
-          forte && { fontWeight: '800' },
-        ]}
-      >
-        {text}
-      </Text>
-      {mancata ? (
-        <Text style={{ color: C.greenText, fontSize: 17, fontWeight: '800' }}>Mancata</Text>
-      ) : (
-        <OptMark state={stato} />
-      )}
-    </>
-  );
-  const stile = [
-    s.quizOption,
-    { borderColor: c.borderColor, backgroundColor: c.backgroundColor },
-    forte && { borderWidth: 2 },
-  ];
-  if (!onPress)
-    return (
-      <View
-        style={stile}
-        accessibilityLabel={`Opzione ${String.fromCharCode(65 + i)}: ${text}${mancata ? ', giusta, non scelta' : descriviStato(stato)}`}
-      >
-        {contenuto}
-      </View>
-    );
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      disabled={disabled}
-      accessibilityRole="button"
-      accessibilityLabel={`Opzione ${String.fromCharCode(65 + i)}: ${text}`}
-      accessibilityState={{ selected: stato === 'sel', disabled: !!disabled }}
-      style={stile}
-    >
-      {contenuto}
-    </TouchableOpacity>
-  );
-}
-
-/** Vero o falso: due pulsanti affiancati (s.tfBtn di TrueFalseStep), colori per correttezza dopo la consegna. */
-function BottoniVeroFalso({
-  opzioni,
-  onScegli,
-  disabled,
-}: {
-  opzioni: OpzioneMostrata[];
-  onScegli?: (id: string) => void;
-  disabled?: boolean;
-}) {
-  const C = usePalette(),
-    s = useStyles();
-  return (
-    <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
-      {opzioni.map((o) => {
-        const c = coloriOpzione(C, o.stato);
-        const box =
-          o.stato === 'idle'
-            ? null
-            : { backgroundColor: c.backgroundColor, borderColor: c.borderColor };
-        const testo = (
-          <>
-            <Text
-              style={[
-                s.tfBtnText,
-                { color: c.text },
-                o.stato !== 'idle' && o.stato !== 'dim' && { fontWeight: '800' },
-              ]}
-            >
-              {o.text}
-            </Text>
-            {(o.stato === 'cor' || o.stato === 'wr') && (
-              <View style={{ marginTop: 6 }}>
-                <OptMark state={o.stato} />
-              </View>
-            )}
-          </>
-        );
-        if (!onScegli)
-          return (
-            <View
-              key={o.id}
-              style={[s.tfBtn, box]}
-              accessibilityLabel={`${o.text}${descriviStato(o.stato)}`}
-            >
-              {testo}
-            </View>
-          );
-        return (
-          <TouchableOpacity
-            key={o.id}
-            onPress={() => onScegli(o.id)}
-            disabled={disabled}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel={o.text}
-            accessibilityState={{ selected: o.stato === 'sel', disabled: !!disabled }}
-            style={[s.tfBtn, box]}
-          >
-            {testo}
-          </TouchableOpacity>
-        );
-      })}
-    </View>
-  );
-}
-
-/** Completa la frase: parole come chip (s.fillChip di FillBlankStep). */
-function ChipParole({
-  opzioni,
-  onScegli,
-  disabled,
-}: {
-  opzioni: OpzioneMostrata[];
-  onScegli?: (id: string) => void;
-  disabled?: boolean;
-}) {
-  const C = usePalette(),
-    s = useStyles();
-  return (
-    <View style={s.fillOptionsRow}>
-      {opzioni.map((o, i) => {
-        const c = coloriOpzione(C, o.stato);
-        const forte = o.stato === 'sel' || o.stato === 'cor' || o.stato === 'wr';
-        const stile = [
-          s.fillChip,
-          { backgroundColor: c.backgroundColor, borderColor: c.borderColor },
-          forte && { borderWidth: 2 },
-        ];
-        const testo = (
-          <Text style={[s.fillChipText, { color: c.text }, forte && { fontWeight: '800' }]}>
-            {o.text}
-          </Text>
-        );
-        if (!onScegli)
-          return (
-            <View
-              key={o.id}
-              style={stile}
-              accessibilityLabel={`Opzione ${String.fromCharCode(65 + i)}: ${o.text}${descriviStato(o.stato)}`}
-            >
-              {testo}
-            </View>
-          );
-        return (
-          <TouchableOpacity
-            key={o.id}
-            onPress={() => onScegli(o.id)}
-            disabled={disabled}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel={`Opzione ${String.fromCharCode(65 + i)}: ${o.text}`}
-            accessibilityState={{ selected: o.stato === 'sel', disabled: !!disabled }}
-            style={stile}
-          >
-            {testo}
-          </TouchableOpacity>
-        );
-      })}
-    </View>
-  );
-}
-
 /**
  * Testo della domanda secondo il tipo, poi le opzioni.
  * `parola`: testo che riempie lo spazio di «Completa la frase» (la scelta), `coloreParola` il suo colore.
+ * Accoppiamento: in corso vale `accoppiamento`, nel riepilogo `coppieRiepilogo`.
  */
 function CorpoDomanda({
   domanda,
@@ -239,6 +37,8 @@ function CorpoDomanda({
   disabled,
   parola,
   coloreParola,
+  accoppiamento,
+  coppieRiepilogo,
 }: {
   domanda: Presentazione;
   opzioni: OpzioneMostrata[];
@@ -246,6 +46,8 @@ function CorpoDomanda({
   disabled?: boolean;
   parola: string | null;
   coloreParola: string;
+  accoppiamento?: AccoppiamentoInCorso;
+  coppieRiepilogo?: CoppiaRiepilogo[];
 }) {
   const C = usePalette(),
     s = useStyles();
@@ -331,6 +133,20 @@ function CorpoDomanda({
           {righe}
         </>
       );
+    case 'matching':
+      // Righe per coppia nel riepilogo, termini attivabili e chip in corso (AccoppiamentoView).
+      return (
+        <>
+          {domandaTesto}
+          <CorpoAccoppiamento
+            domanda={domanda}
+            opzioni={opzioni}
+            accoppiamento={accoppiamento}
+            coppieRiepilogo={coppieRiepilogo}
+            disabled={disabled}
+          />
+        </>
+      );
     default:
       return (
         <>
@@ -378,7 +194,8 @@ function Intestazione({
 }
 
 /** Una domanda mentre si risponde: la scelta è evidenziata in indaco, senza rivelare nulla. */
-/** `scelte`: opzioni selezionate (al più una, tranne nella risposta multipla). */
+/** `scelte`: opzioni selezionate (al più una, tranne nella risposta multipla; nell'accoppiamento
+ * è l'elenco ordinato per coppia, con null per le coppie senza definizione). */
 export function DomandaInCorso({
   numero,
   totale,
@@ -387,14 +204,16 @@ export function DomandaInCorso({
   scelte,
   onScegli,
   disabled,
+  accoppiamento,
 }: {
   numero: number;
   totale: number;
   domanda: Presentazione;
   opzioni: { id: string; text: string }[];
-  scelte: string[];
+  scelte: (string | null)[];
   onScegli: (id: string) => void;
   disabled?: boolean;
+  accoppiamento?: AccoppiamentoInCorso;
 }) {
   const C = usePalette();
   const mostrate = opzioni.map((o) => ({ ...o, stato: statoInCorso(scelte.includes(o.id)) }));
@@ -413,6 +232,7 @@ export function DomandaInCorso({
         disabled={disabled}
         parola={parola}
         coloreParola={parola ? C.text : C.textDim}
+        accoppiamento={accoppiamento}
       />
     </View>
   );
@@ -448,6 +268,7 @@ export function RiepilogoDomanda({ numero, riga }: { numero: number; riga: RigaR
         opzioni={riga.opzioni}
         parola={riga.testoScelto}
         coloreParola={riga.giusta ? C.greenText : C.redText}
+        coppieRiepilogo={riga.coppie}
       />
       {motivate.map((o) => (
         <View key={o.id} style={{ marginBottom: 8 }}>

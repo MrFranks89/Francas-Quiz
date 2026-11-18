@@ -5,7 +5,7 @@ prendono il valore neutro che le istruzioni chiedono al modello, così i test sc
 """
 
 NEUTRI = dict(situation='', sentence='', wrong='', options=[], correctIndex=0, correctIndexes=[], correct=False,
-              rationales=[])
+              pairTerms=[], rationales=[])
 
 
 def bozza(**campi) -> dict:

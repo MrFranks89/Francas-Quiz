@@ -189,3 +189,134 @@ def test_health_and_cors(client):
     edit_preflight = client.options('/drafts/example', headers={'Origin': 'http://localhost:8081', 'Access-Control-Request-Method': 'PUT', 'Access-Control-Request-Headers': 'content-type'})
     assert edit_preflight.status_code == 200
     assert 'PUT' in edit_preflight.headers['access-control-allow-methods']
+
+
+def test_pdf_native_outline_chapters_extracted(client):
+    from pypdf import PdfReader, PdfWriter
+
+    writer = PdfWriter()
+    reader = PdfReader(BytesIO(pdf_bytes(5)))
+    for page in reader.pages:
+        writer.add_page(page)
+    parent = writer.add_outline_item('Capitolo 1 - Principi', 0)
+    writer.add_outline_item('1.1 Definizioni', 1, parent=parent)
+    writer.add_outline_item('Capitolo 2 - Applicazione', 3)
+    buf = BytesIO()
+    writer.write(buf)
+
+    doc = upload(client, 'libro_outline.pdf', buf.getvalue())
+    assert doc['chapters'] == [
+        {'title': 'Capitolo 1 - Principi', 'fromPage': 1, 'toPage': 3, 'level': 1},
+        {'title': '1.1 Definizioni', 'fromPage': 2, 'toPage': 3, 'level': 2},
+        {'title': 'Capitolo 2 - Applicazione', 'fromPage': 4, 'toPage': 5, 'level': 1},
+    ]
+    persisted = client.app.state.store.read(doc['id'], 'document.json')
+    assert persisted['chapters'] == doc['chapters']
+
+
+def test_pdf_text_heading_chapters_fallback(client):
+    output = BytesIO()
+    writer = canvas.Canvas(output)
+    pages_text = [
+        'Capitolo 1: Introduzione al metodo',
+        'Dettagli operativi della prima parte.',
+        'Capitolo 2: Sicurezza sul lavoro',
+        'Conclusioni e riepilogo finale.',
+    ]
+    for text in pages_text:
+        writer.drawString(72, 720, text)
+        writer.showPage()
+    writer.save()
+
+    doc = upload(client, 'manuale_headings.pdf', output.getvalue())
+    assert doc['chapters'] == [
+        {'title': 'Capitolo 1: Introduzione al metodo', 'fromPage': 1, 'toPage': 2, 'level': 1},
+        {'title': 'Capitolo 2: Sicurezza sul lavoro', 'fromPage': 3, 'toPage': 4, 'level': 1},
+    ]
+
+
+def test_concept_tree_endpoint(client, monkeypatch):
+    from formazione_api.generation.concept import ConceptTreeDraft
+
+    class MockConceptProvider:
+        def __init__(self):
+            self.chunks = []
+
+        def concept_tree(self, chunk):
+            self.chunks.append(chunk)
+            return ConceptTreeDraft.model_validate({
+                'rootTitle': 'Manuale Operativo',
+                'branches': [
+                    {
+                        'title': 'Concetti Base',
+                        'nodes': [
+                            {
+                                'title': 'Regola Principale',
+                                'summary': 'Verifica il testo prima di procedere.',
+                                'sourceRefs': ['p. 1'],
+                            }
+                        ],
+                    }
+                ],
+            })
+
+    doc = upload(client, 'guida.pdf', pdf_bytes(2))
+    extracted = extraction(client, doc, {'mode': 'all'}).json()
+
+    # Senza provider configurato risponde 503
+    monkeypatch.delenv('GENERATION_PROVIDER', raising=False)
+    monkeypatch.delenv('OPENAI_API_KEY', raising=False)
+    monkeypatch.delenv('OPENAI_MODEL', raising=False)
+    unconfigured = client.post(f"/extractions/{extracted['id']}/concept-tree", json={})
+    assert unconfigured.status_code == 503
+
+    provider = MockConceptProvider()
+    client.app.state.concept_provider = provider
+    response = client.post(
+        f"/extractions/{extracted['id']}/concept-tree",
+        json={'excludePages': [2]},
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data['rootTitle'] == 'Manuale Operativo'
+    assert len(data['branches']) == 1
+    assert data['branches'][0]['nodes'][0]['sourceRefs'] == ['p. 1']
+    assert len(provider.chunks) == 1
+    assert 'page 1.' in provider.chunks[0].pieces[0].text
+    assert all('page 2.' not in piece.text for piece in provider.chunks[0].pieces)
+    assert client.post('/extractions/non-esiste/concept-tree', json={}).status_code == 404
+
+
+def test_has_digital_text_detected_on_upload(client):
+    from formazione_api.documents import has_digital_text
+
+    # PDF con testo digitale abbondante (> 80 caratteri)
+    buf_digital = BytesIO()
+    writer = canvas.Canvas(buf_digital)
+    writer.drawString(72, 720, 'Questo documento PDF contiene testo digitale nativo abbastanza lungo da superare la soglia.')
+    writer.showPage()
+    writer.save()
+    digital_doc = upload(client, 'digitale.pdf', buf_digital.getvalue())
+    assert digital_doc['hasDigitalText'] is True
+    assert client.app.state.store.read(digital_doc['id'], 'document.json')['hasDigitalText'] is True
+
+    # PDF vuoto / scansione senza testo -> False
+    scan_doc = upload(client, 'scansione.pdf', pdf_bytes(count=3, blank=True))
+    assert scan_doc['hasDigitalText'] is False
+
+    # PDF di 1 pagina con meno di 80 caratteri: non va contato 3 volte
+    buf_short = BytesIO()
+    short_writer = canvas.Canvas(buf_short)
+    short_writer.drawString(72, 720, 'Solo trenta caratteri circa.')
+    short_writer.showPage()
+    short_writer.save()
+    short_doc = upload(client, 'corto.pdf', buf_short.getvalue())
+    assert short_doc['hasDigitalText'] is False
+
+    # Formati non PDF (TXT, DOCX) -> True
+    assert upload(client, 'note.txt', b'Testo semplice')['hasDigitalText'] is True
+    assert upload(client, 'note.docx', docx_bytes())['hasDigitalText'] is True
+
+    # Errori o count <= 0 -> False
+    assert has_digital_text(Path('inesistente.pdf'), 0) is False
+    assert has_digital_text(Path('inesistente.pdf'), 3) is False

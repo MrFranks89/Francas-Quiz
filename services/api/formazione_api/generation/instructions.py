@@ -23,7 +23,11 @@ ISTRUZIONI_DIDATTICHE = ('Sei un autore didattico. Scrivi in italiano un modulo 
                          'correctStatement (una frase del materiale in cui wrong, presente una sola volta, è '
                          'sbagliato; le opzioni lo sostituiscono) solo se il testo descrive comportamenti o fatti '
                          'precisi che lo permettono: la situazione e la correzione devono derivare dal materiale, '
-                         'senza fatti inventati. Ogni domanda cita sempre i suoi sourceRefs. '
+                         'senza fatti inventati. Quando il materiale collega termini, definizioni, ruoli o fasi, '
+                         'usa matching (accoppiamento): pairTerms ha i termini della colonna sinistra e options le '
+                         'definizioni della colonna destra, allineate per indice (pairTerms[i] si abbina a '
+                         'options[i]; chi risponde le vede mescolate); da 3 a 6 coppie, termini tutti diversi. '
+                         'Ogni domanda cita sempre i suoi sourceRefs. '
                          # Regola madre di Civis (C:\Civica\Contenuti_Regole_Editoriali.md, «Dove vanno gli
                          # esercizi»): nessun esercizio presenta argomenti non spiegati prima, risposte
                          # sbagliate comprese. Le domande del test si mostrano dopo le slide del modulo.

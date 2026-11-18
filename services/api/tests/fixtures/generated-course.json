@@ -50,7 +50,8 @@
             "question-1-4",
             "question-1-5",
             "question-1-6",
-            "question-1-7"
+            "question-1-7",
+            "question-1-8"
           ]
         }
       ],
@@ -63,7 +64,8 @@
           "question-1-4",
           "question-1-5",
           "question-1-6",
-          "question-1-7"
+          "question-1-7",
+          "question-1-8"
         ],
         "mode": "practice",
         "passingScore": 5,
@@ -95,7 +97,8 @@
             "question-2-4",
             "question-2-5",
             "question-2-6",
-            "question-2-7"
+            "question-2-7",
+            "question-2-8"
           ]
         }
       ],
@@ -108,7 +111,8 @@
           "question-2-4",
           "question-2-5",
           "question-2-6",
-          "question-2-7"
+          "question-2-7",
+          "question-2-8"
         ],
         "mode": "practice",
         "passingScore": 5,
@@ -306,6 +310,50 @@
       ]
     },
     {
+      "id": "question-1-8",
+      "moduleId": "module-1",
+      "lessonId": "lesson-1",
+      "kind": "matching",
+      "prompt": "Accoppia ogni elemento alla sua descrizione.",
+      "pairs": [
+        {
+          "id": "pair-0",
+          "left": "Testo di formazione",
+          "rightOptionId": "option-0"
+        },
+        {
+          "id": "pair-1",
+          "left": "Secondo paragrafo",
+          "rightOptionId": "option-1"
+        },
+        {
+          "id": "pair-2",
+          "left": "Glossario",
+          "rightOptionId": "option-2"
+        }
+      ],
+      "difficulty": "base",
+      "options": [
+        {
+          "id": "option-0",
+          "text": "Il contenuto principale"
+        },
+        {
+          "id": "option-1",
+          "text": "La parte che segue il testo"
+        },
+        {
+          "id": "option-2",
+          "text": "L'elenco dei termini"
+        }
+      ],
+      "explanation": "Spiegazione di prova",
+      "sourceRefs": [
+        "page-201",
+        "page-202"
+      ]
+    },
+    {
       "id": "question-2-1",
       "moduleId": "module-2",
       "lessonId": "lesson-2",
@@ -480,6 +528,49 @@
       "correctOptionIds": [
         "option-0",
         "option-1"
+      ],
+      "explanation": "Spiegazione di prova",
+      "sourceRefs": [
+        "page-202"
+      ]
+    },
+    {
+      "id": "question-2-8",
+      "moduleId": "module-2",
+      "lessonId": "lesson-2",
+      "kind": "matching",
+      "prompt": "Accoppia ogni elemento alla sua descrizione.",
+      "pairs": [
+        {
+          "id": "pair-0",
+          "left": "Testo di formazione",
+          "rightOptionId": "option-0"
+        },
+        {
+          "id": "pair-1",
+          "left": "Secondo paragrafo",
+          "rightOptionId": "option-1"
+        },
+        {
+          "id": "pair-2",
+          "left": "Glossario",
+          "rightOptionId": "option-2"
+        }
+      ],
+      "difficulty": "base",
+      "options": [
+        {
+          "id": "option-0",
+          "text": "Il contenuto principale"
+        },
+        {
+          "id": "option-1",
+          "text": "La parte che segue il testo"
+        },
+        {
+          "id": "option-2",
+          "text": "L'elenco dei termini"
+        }
       ],
       "explanation": "Spiegazione di prova",
       "sourceRefs": [

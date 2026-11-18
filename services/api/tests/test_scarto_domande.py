@@ -128,8 +128,8 @@ def test_fonte_inventata_resta_fatale_anche_su_una_domanda_da_scartare():
 
 
 @pytest.mark.parametrize('rompi', [
-    lambda q: q.update(correctIndex=4),                    # risposta fuori dalle opzioni
-    lambda q: q.update(rationales=['']),                   # una motivazione per opzione
+    lambda q: q.update(options=['Sola']),                    # meno di due opzioni
+    lambda q: q.update(prompt=''),                           # testo della domanda vuoto
     lambda q: q.update(options=['Prima', '  ']),           # opzione vuota
     lambda q: q.update(colore='rosso'),                    # campo estraneo allo schema
     lambda q: q.pop('explanation'),                        # campo obbligatorio assente

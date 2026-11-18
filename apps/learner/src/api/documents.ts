@@ -9,11 +9,32 @@ export const apiUrl = (
   process.env.EXPO_PUBLIC_API_URL ||
   (Platform.OS === 'android' ? 'http://10.0.2.2:8000' : 'http://127.0.0.1:8000')
 ).replace(/\/$/, '');
-export type Document = { id: string; name: string; kind: string; pageCount: number | null };
+export type DocumentChapter = {
+  title: string;
+  fromPage: number;
+  toPage: number;
+  level: number;
+};
+export type Document = {
+  id: string;
+  name: string;
+  kind: string;
+  pageCount: number | null;
+  chapters?: DocumentChapter[];
+  hasDigitalText?: boolean;
+};
 export type Extraction = {
   id: string;
   status: 'ready' | 'needs_review';
-  blocks: { id: string; text: string; page: number | null; label: string }[];
+  blocks: {
+    id: string;
+    text: string;
+    page: number | null;
+    label: string;
+    kind?: string;
+    level?: number;
+    section?: string;
+  }[];
   warnings: string[];
   engine: string;
 };

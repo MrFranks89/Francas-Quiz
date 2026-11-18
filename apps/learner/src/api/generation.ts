@@ -1,4 +1,4 @@
-import { CourseSchema, type Course } from '@formazione/contracts';
+import { CourseSchema, type ConceptTree, type Course } from '@formazione/contracts';
 import { corsoDaLeggere } from '../state/lettura';
 import { apiUrl } from './documents';
 import { apiErrorMessage } from './errors';
@@ -84,4 +84,66 @@ export async function recoverDraft(id: string): Promise<Draft> {
   const result = await response.json();
   if (!response.ok) throw new Error(apiErrorMessage(result, 'Corso non recuperabile.'));
   return { ...result, course: corsoDaLeggere(result.course) };
+}
+
+type RawConceptTree = {
+  schemaVersion?: number;
+  id?: string;
+  documentId?: string;
+  rootTitle: string;
+  summary?: string;
+  branches: {
+    id?: string;
+    title: string;
+    description?: string;
+    nodes: {
+      id?: string;
+      title: string;
+      summary: string;
+      sourceRefs: string[];
+      keyTerms?: string[];
+    }[];
+  }[];
+};
+
+export async function fetchConceptTree(
+  extractionId: string,
+  excludePages: number[] = [],
+): Promise<ConceptTree> {
+  let response: Response;
+  try {
+    response = await fetch(`${apiUrl}/extractions/${extractionId}/concept-tree`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ excludePages }),
+    });
+  } catch {
+    throw new Error(
+      `Server non raggiungibile (${apiUrl}). Avvia l’API o configura EXPO_PUBLIC_API_URL.`,
+    );
+  }
+  const result = await response.json();
+  if (!response.ok) {
+    throw new Error(apiErrorMessage(result, 'Generazione della mappa concettuale non riuscita.'));
+  }
+  const raw = result as RawConceptTree;
+  return {
+    schemaVersion: 1,
+    id: raw.id || `tree-${extractionId}`,
+    ...(raw.documentId ? { documentId: raw.documentId } : {}),
+    rootTitle: raw.rootTitle,
+    ...(raw.summary ? { summary: raw.summary } : {}),
+    branches: (raw.branches ?? []).map((branch, branchIdx) => ({
+      id: branch.id || `branch-${branchIdx + 1}`,
+      title: branch.title,
+      ...(branch.description ? { description: branch.description } : {}),
+      nodes: (branch.nodes ?? []).map((node, nodeIdx) => ({
+        id: node.id || `node-${branchIdx + 1}-${nodeIdx + 1}`,
+        title: node.title,
+        summary: node.summary,
+        sourceRefs: node.sourceRefs ?? [],
+        ...(node.keyTerms ? { keyTerms: node.keyTerms } : {}),
+      })),
+    })),
+  };
 }

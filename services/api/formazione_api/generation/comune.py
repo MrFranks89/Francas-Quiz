@@ -8,7 +8,8 @@ class Model(BaseModel):
 
 
 # Tipi di domanda: stessi valori e stesse regole di packages/contracts/src/tipi.ts.
-TipoDomanda = Literal['single', 'truefalse', 'fillblank', 'scenario', 'oddOneOut', 'correctStatement', 'multiple']
+TipoDomanda = Literal['single', 'truefalse', 'fillblank', 'scenario', 'oddOneOut', 'correctStatement', 'multiple',
+                      'matching']
 # Livelli letti da DifficultyBadge di Civis (packages/civis-ui/src/comune/DifficultyBadge.tsx).
 Difficolta = Literal['base', 'medio', 'avanzato']
 # Opzioni fisse del vero/falso, nell'ordine di Civis (TrueFalseStep, normalizzaPerRipasso).

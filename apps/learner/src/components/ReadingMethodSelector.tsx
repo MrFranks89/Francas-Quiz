@@ -8,13 +8,36 @@ interface ReadingMethodSelectorProps {
   engine: ReadingEngine;
   onChange: (engine: ReadingEngine) => void;
   disabled?: boolean;
+  hasDigitalText?: boolean;
 }
 
 export function ReadingMethodSelector({
   engine,
   onChange,
   disabled = false,
+  hasDigitalText,
 }: ReadingMethodSelectorProps) {
+  const nativeSubtitle =
+    hasDigitalText === true
+      ? 'Consigliato · Testo digitale già presente (< 2s)'
+      : hasDigitalText === false
+      ? 'Non consigliato · Nessun testo digitale rilevato nel PDF'
+      : 'Veloce · Ideale per PDF digitali, DOCX e TXT';
+
+  const doclingSubtitle =
+    hasDigitalText === true
+      ? 'Sconsigliato / Lento (~10-15s a pagina) · Testo già presente'
+      : hasDigitalText === false
+      ? 'Consigliato per scansioni · Estrae testo da immagini (~10-15s/pag)'
+      : 'Accurato · Consigliato per scansioni e layout complessi';
+
+  const noteText =
+    hasDigitalText === true
+      ? 'Testo digitale già presente: «Testo nativo» è istantaneo. L’OCR è sconsigliato perché molto più lento.'
+      : hasDigitalText === false
+      ? 'Nessun testo digitale rilevato (probabile scansione): «Docling / OCR» è consigliato. Richiede i modelli configurati sul server.'
+      : 'Docling richiede i modelli configurati sul server. Eventuali pagine senza testo saranno segnalate.';
+
   const options: Array<{
     id: ReadingEngine;
     title: string;
@@ -24,14 +47,14 @@ export function ReadingMethodSelector({
     {
       id: 'native',
       title: 'Testo nativo',
-      subtitle: 'Veloce · Ideale per PDF digitali, DOCX e TXT',
-      badge: 'Veloce',
+      subtitle: nativeSubtitle,
+      badge: hasDigitalText === true ? 'Consigliato' : hasDigitalText === false ? 'Solo testo' : 'Veloce',
     },
     {
       id: 'docling',
       title: 'Docling / OCR',
-      subtitle: 'Accurato · Consigliato per scansioni e layout complessi',
-      badge: 'Accurato',
+      subtitle: doclingSubtitle,
+      badge: hasDigitalText === false ? 'Consigliato' : hasDigitalText === true ? 'Lento · OCR' : 'Accurato',
     },
   ];
 
@@ -85,10 +108,7 @@ export function ReadingMethodSelector({
           );
         })}
       </View>
-      <Text style={selectorStyles.note}>
-        Docling richiede i modelli configurati sul server. Eventuali pagine senza testo saranno
-        segnalate.
-      </Text>
+      <Text style={selectorStyles.note}>{noteText}</Text>
     </View>
   );
 }

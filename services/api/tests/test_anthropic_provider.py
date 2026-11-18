@@ -153,10 +153,12 @@ def test_invented_source_rejected_by_pipeline():
 
 
 def test_invalid_json_is_invalid_generated_content():
-    provider, _ = sdk_provider((200, message('{"title": ""}')))
+    provider, requests = sdk_provider((200, message('{"title": ""}')), (200, message('{"title": ""}')))
     with pytest.raises(GenerationError) as error:
         generate(extraction(), provider)
     assert error.value.code == 'invalid_generated_content'
+    assert 'chunk-1' in str(error.value)
+    assert len(requests) == 2
 
 
 def test_missing_configuration(monkeypatch):

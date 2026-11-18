@@ -9,7 +9,7 @@ import { TIPI_DOMANDA } from '@formazione/contracts';
 // Il mescolamento serve solo se il lettore lo usa: le opzioni di un test non
 // devono mai essere disegnate nell'ordine in cui sono state generate.
 it('renders exam options through displayOptions, never in generated order', () => {
-  const source = readFileSync(new URL('./CourseScreen.tsx', import.meta.url), 'utf8');
+  const source = readFileSync(new URL('../components/SezioneEsame.tsx', import.meta.url), 'utf8');
   expect(source).toMatch(
     /displayOptions\(\s*course,\s*exam\.id,\s*attempts\.length,\s*id,?\s*\)\s*\.map\(/,
   );
@@ -19,8 +19,9 @@ it('renders exam options through displayOptions, never in generated order', () =
 // Il giudizio serve solo se il lettore lo mostra: percentuale e giudizio vengono
 // da valutaTentativo, non da un calcolo locale su last.passed o last.correct.
 it('shows percentage and grade of the last attempt through valutaTentativo', () => {
-  const source = readFileSync(new URL('./CourseScreen.tsx', import.meta.url), 'utf8');
-  expect(source).toMatch(/descriviValutazione\(\s*valutaTentativo\(\s*last,\s*exam,?\s*\),?\s*\)/);
+  const source = readFileSync(new URL('../components/SezioneEsame.tsx', import.meta.url), 'utf8');
+  expect(source).toMatch(/valutaTentativo\(\s*last,\s*exam,?\s*\)/);
+  expect(source).toMatch(/descriviValutazione\(\s*valutazione\s*\)/);
   expect(source).not.toMatch(/last\.passed\?/);
   expect(source).not.toMatch(/\*\s*100|\/\s*last\.total/);
 });
@@ -28,8 +29,8 @@ it('shows percentage and grade of the last attempt through valutaTentativo', () 
 // I tipi di domanda servono solo se il lettore li disegna: la domanda passa per
 // presentazione() e la vista ha un caso per ogni tipo diverso dalla scelta singola.
 it('presents every question kind through presentazione and a case in the exam view', () => {
-  const source = readFileSync(new URL('./CourseScreen.tsx', import.meta.url), 'utf8');
-  expect(source).toMatch(/domanda=\{\s*presentazione\(\s*q\s*\)\s*\}/);
+  const source = readFileSync(new URL('../components/SezioneEsame.tsx', import.meta.url), 'utf8');
+  expect(source).toMatch(/presentazione\(\s*q\s*\)/);
   const vista = readFileSync(new URL('../components/ExamView.tsx', import.meta.url), 'utf8');
   for (const kind of TIPI_DOMANDA.filter((k) => k !== 'single' && k !== 'oddOneOut'))
     expect(vista).toContain(`case '${kind}':`);

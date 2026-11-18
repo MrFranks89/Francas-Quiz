@@ -114,6 +114,60 @@
           "fonte": "https://ai.google.dev/gemini-api/docs/pricing", "lettoIl": "2026-10-30"
         }
       }
+    },
+    "groq": {
+      "fonte": "https://console.groq.com/docs/rate-limits",
+      "lettoIl": "2026-11-16",
+      "nota": "Solo piano gratuito (Free plan, senza carta). Limiti per modello: 30 richieste/minuto, 1.000 richieste/giorno, 8.000 token/minuto, 200.000 token/giorno; i limiti esatti dell'organizzazione sono nella console (Settings → Limits). Output strutturato con response_format json_schema documentato: https://console.groq.com/docs/structured-outputs. Endpoint compatibile OpenAI: https://api.groq.com/openai/v1. Attivando la fatturazione (Developer plan) le chiamate sono addebitate a prezzoAPagamento e il tetto di spesa NON lo vede.",
+      "sovraccaricoIngressoPerChiamata": {
+        "token": null,
+        "motivo": "Non pubblicato. Con prezzo 0 non serve: 0 per qualunque numero di token resta 0 (preventivo.preventivo_corsa, Prezzo.gratuito).",
+        "fonte": "https://console.groq.com/docs/rate-limits"
+      },
+      "modelli": {
+        "openai/gpt-oss-120b": {
+          "ingresso": 0, "ingressoCache": 0, "uscita": 0,
+          "piano": "gratuito",
+          "condizione": "Chiave di un'organizzazione GroqCloud sul piano Free (senza carta né fatturazione attivata).",
+          "prezzoAPagamento": { "ingresso": 0.15, "ingressoCache": 0.075, "uscita": 0.60, "fonte": "https://groq.com/pricing" },
+          "sogliaContestoLungo": null,
+          "fonte": "https://console.groq.com/docs/rate-limits", "lettoIl": "2026-11-16"
+        },
+        "openai/gpt-oss-20b": {
+          "ingresso": 0, "ingressoCache": 0, "uscita": 0,
+          "piano": "gratuito",
+          "condizione": "Chiave di un'organizzazione GroqCloud sul piano Free (senza carta né fatturazione attivata).",
+          "prezzoAPagamento": { "ingresso": 0.075, "ingressoCache": 0.0375, "uscita": 0.30, "fonte": "https://groq.com/pricing" },
+          "sogliaContestoLungo": null,
+          "fonte": "https://console.groq.com/docs/rate-limits", "lettoIl": "2026-11-16"
+        }
+      }
+    },
+    "openrouter": {
+      "fonte": "https://openrouter.ai/docs/faq",
+      "lettoIl": "2026-11-16",
+      "nota": "Solo modelli con suffisso :free, a costo zero per token. Limiti: 20 richieste/minuto e 50 richieste/giorno (1.000/giorno dopo aver acquistato almeno 10 crediti in totale). L'elenco dei modelli :free cambia spesso: verificare sulla Models API che il modello esista e che dichiari structured_outputs fra i supported_parameters. Endpoint compatibile OpenAI: https://openrouter.ai/api/v1. Un saldo negativo dà errori 402 anche sui modelli gratuiti.",
+      "sovraccaricoIngressoPerChiamata": {
+        "token": null,
+        "motivo": "Non pubblicato. Con prezzo 0 non serve: 0 per qualunque numero di token resta 0 (preventivo.preventivo_corsa, Prezzo.gratuito).",
+        "fonte": "https://openrouter.ai/docs/faq"
+      },
+      "modelli": {
+        "nvidia/nemotron-3-super-120b-a12b:free": {
+          "ingresso": 0, "ingressoCache": 0, "uscita": 0,
+          "piano": "gratuito",
+          "condizione": "Modello con suffisso :free su OpenRouter: 20 richieste/minuto e 50 richieste/giorno (1.000/giorno con almeno 10 crediti acquistati). structured_outputs dichiarato fra i supported_parameters della rotta gratuita.",
+          "sogliaContestoLungo": null,
+          "fonte": "https://openrouter.ai/nvidia/nemotron-3-super-120b-a12b", "lettoIl": "2026-11-16"
+        },
+        "google/gemma-4-26b-a4b-it:free": {
+          "ingresso": 0, "ingressoCache": 0, "uscita": 0,
+          "piano": "gratuito",
+          "condizione": "Modello con suffisso :free su OpenRouter: 20 richieste/minuto e 50 richieste/giorno (1.000/giorno con almeno 10 crediti acquistati). structured_outputs dichiarato fra i supported_parameters della rotta gratuita.",
+          "sogliaContestoLungo": null,
+          "fonte": "https://openrouter.ai/google/gemma-4-26b-a4b-it", "lettoIl": "2026-11-16"
+        }
+      }
     }
   }
 }

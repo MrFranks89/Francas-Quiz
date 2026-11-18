@@ -1,8 +1,8 @@
 import React, { useState, useReducer, useMemo, useEffect } from 'react';
-import { Text, TextInput, View, StyleSheet, Platform } from 'react-native';
+import { Text, View, StyleSheet, Platform } from 'react-native';
 import * as Picker from 'expo-document-picker';
 import { parsePageSelection, selectedPages } from '@formazione/contracts';
-import { apiUrl, uploadDocument, extractDocument } from '../api/documents';
+import { apiUrl, uploadDocument, extractDocument, type DocumentChapter } from '../api/documents';
 import { FORMATI_AMMESSI, tipiSelettore } from '../api/formats';
 import { Button, Card, Notice, styles, colors } from '../components/ui';
 import { importReducer, initialImport } from '../state/import';
@@ -10,6 +10,10 @@ import { GenerationPanel } from '../components/GenerationPanel';
 import { PagePreviewPanel } from '../components/PagePreviewPanel';
 import { ReadingMethodSelector } from '../components/ReadingMethodSelector';
 import { ProposedIndexPanel } from '../components/ProposedIndexPanel';
+import { ChaptersSelector } from '../components/ChaptersSelector';
+import { ConceptTreeSection } from '../components/ConceptTreeSection';
+import { PageRangeCard } from '../components/PageRangeCard';
+import { ExtractionProgressCard } from '../components/ExtractionProgressCard';
 import type { Draft } from '../api/generation';
 
 export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
@@ -23,11 +27,28 @@ export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
   const [activePageIndex, setActivePageIndex] = useState(0);
   const [lastValidPages, setLastValidPages] = useState<number[]>([]);
   const [excludedPages, setExcludedPages] = useState<number[]>([]);
+  const [rangeHighlighted, setRangeHighlighted] = useState(false);
 
-  const setRange = (value: boolean) => dispatch({ type: 'range', value });
-  const setFrom = (value: string) => dispatch({ type: 'from', value });
-  const setTo = (value: string) => dispatch({ type: 'to', value });
+  const setRange = (value: boolean) => {
+    setRangeHighlighted(false);
+    dispatch({ type: 'range', value });
+  };
+  const setFrom = (value: string) => {
+    setRangeHighlighted(false);
+    dispatch({ type: 'from', value });
+  };
+  const setTo = (value: string) => {
+    setRangeHighlighted(false);
+    dispatch({ type: 'to', value });
+  };
   const setEngine = (value: 'native' | 'docling') => dispatch({ type: 'engine', value });
+
+  function selectChapter(chapter: DocumentChapter) {
+    dispatch({ type: 'range', value: true });
+    dispatch({ type: 'from', value: String(chapter.fromPage) });
+    dispatch({ type: 'to', value: String(chapter.toPage) });
+    setRangeHighlighted(true);
+  }
 
   function togglePageExclusion(pageNumber: number) {
     setExcludedPages((prev) => {
@@ -90,6 +111,7 @@ export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
         setActivePageIndex(0);
         setLastValidPages([]);
         setExcludedPages([]);
+        setRangeHighlighted(false);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Caricamento non riuscito.');
@@ -197,71 +219,31 @@ export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
             </Text>
           )}
 
-          {document.kind === 'pdf' && range && (
-            <View style={localStyles.rangeCard}>
-              <Text style={localStyles.rangeCardTitle}>🎯 Intervallo di studio personalizzato</Text>
-              <Text style={localStyles.rangeCardHint}>
-                Inserisci l'intervallo compreso tra 1 e {document.pageCount} pagine:
-              </Text>
-              <View style={localStyles.rangeInputsRow}>
-                <View style={localStyles.inputGroup}>
-                  <Text style={localStyles.inputLabel}>Da pagina</Text>
-                  <TextInput
-                    accessibilityLabel="Pagina iniziale"
-                    editable={!busy}
-                    style={localStyles.rangeInput}
-                    keyboardType="number-pad"
-                    value={from}
-                    onChangeText={setFrom}
-                  />
-                </View>
-                <View style={localStyles.inputGroup}>
-                  <Text style={localStyles.inputLabel}>a pagina</Text>
-                  <TextInput
-                    accessibilityLabel="Pagina finale"
-                    editable={!busy}
-                    style={localStyles.rangeInput}
-                    keyboardType="number-pad"
-                    value={to}
-                    onChangeText={setTo}
-                  />
-                </View>
-              </View>
-
-              <View
-                style={[
-                  localStyles.statusBadge,
-                  selectionInfo.valid
-                    ? localStyles.statusBadgeValid
-                    : localStyles.statusBadgeInvalid,
-                ]}
-              >
-                <Text
-                  style={
-                    selectionInfo.valid
-                      ? localStyles.statusTextValid
-                      : localStyles.statusTextInvalid
-                  }
-                >
-                  {selectionInfo.valid
-                    ? `✓ ${selectionInfo.count} ${selectionInfo.count === 1 ? 'pagina selezionata' : 'pagine selezionate'} (su ${document.pageCount} totali)`
-                    : `⚠️ ${selectionInfo.error ?? 'Intervallo non valido'}`}
-                </Text>
-              </View>
-            </View>
+          {document.chapters && document.chapters.length > 0 && (
+            <ChaptersSelector
+              chapters={document.chapters}
+              range={range}
+              from={from}
+              to={to}
+              disabled={busy}
+              onSelect={selectChapter}
+            />
           )}
 
-          {document.kind === 'pdf' && !range && (
-            <View style={localStyles.allVolumeBox}>
-              <View style={[localStyles.statusBadge, localStyles.statusBadgeValid]}>
-                <Text style={localStyles.statusTextValid}>
-                  ✓ Tutte le {document.pageCount} pagine del volume selezionate per l'elaborazione
-                </Text>
-              </View>
-              <Text style={localStyles.allVolumeHint}>
-                Tocca "Da pagina… a pagina…" se vuoi estrarre solo un capitolo o una parte del documento.
-              </Text>
-            </View>
+          {document.kind === 'pdf' && document.pageCount !== null && (
+            <PageRangeCard
+              pageCount={document.pageCount}
+              range={range}
+              from={from}
+              to={to}
+              busy={busy}
+              highlighted={rangeHighlighted}
+              valid={selectionInfo.valid}
+              selectedCount={selectionInfo.count}
+              error={selectionInfo.error}
+              onChangeFrom={setFrom}
+              onChangeTo={setTo}
+            />
           )}
 
           {document.kind === 'pdf' && (
@@ -292,12 +274,20 @@ export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
             engine={engine}
             onChange={setEngine}
             disabled={busy}
+            hasDigitalText={document?.hasDigitalText}
           />
           <Button
             label={busy ? 'Lettura in corso…' : 'Estrai il contenuto'}
             disabled={busy}
             onPress={extract}
           />
+          {busy && (
+            <ExtractionProgressCard
+              engine={engine}
+              pageCount={document?.pageCount ?? null}
+              selectedPagesCount={selectionInfo.count || (document?.pageCount ?? 1)}
+            />
+          )}
         </Card>
       )}
 
@@ -330,6 +320,14 @@ export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
             excludedPages={excludedPages}
             onTogglePage={togglePageExclusion}
           />
+
+          <ConceptTreeSection
+            key={`concept-${result.id}`}
+            extractionId={result.id}
+            excludedPages={excludedPages}
+            hasBlocks={result.blocks.length > 0}
+          />
+
           <GenerationPanel
             key={result.id}
             extraction={result}
@@ -369,34 +367,8 @@ const localStyles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   docName: { fontSize: 16, fontWeight: '700', color: colors.navy, flex: 1 },
-  rangeCard: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: '#cde4e0',
-    padding: 16,
-    gap: 12,
-  },
   modeSelectorBox: {
     gap: 8,
-  },
-  rangeCardTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.navy,
-  },
-  rangeCardHint: {
-    fontSize: 13,
-    color: colors.muted,
-  },
-  allVolumeBox: {
-    gap: 6,
-    paddingVertical: 2,
-  },
-  allVolumeHint: {
-    fontSize: 12,
-    color: colors.muted,
-    fontStyle: 'italic',
   },
   excludedPagesBanner: {
     backgroundColor: '#fffaf0',
@@ -411,24 +383,4 @@ const localStyles = StyleSheet.create({
     color: '#9c4221',
     fontWeight: '600',
   },
-  rangeInputsRow: { flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
-  inputGroup: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  inputLabel: { fontSize: 15, fontWeight: '600', color: colors.navy },
-  rangeInput: {
-    borderWidth: 1,
-    borderColor: colors.line,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    fontSize: 15,
-    color: colors.navy,
-    backgroundColor: 'white',
-    minWidth: 70,
-    textAlign: 'center',
-  },
-  statusBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, alignSelf: 'flex-start' },
-  statusBadgeValid: { backgroundColor: colors.pale },
-  statusBadgeInvalid: { backgroundColor: '#fff0eb' },
-  statusTextValid: { color: colors.teal, fontSize: 13, fontWeight: '600' },
-  statusTextInvalid: { color: '#9d3a24', fontSize: 13, fontWeight: '600' },
 });
