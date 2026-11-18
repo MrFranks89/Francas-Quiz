@@ -1,25 +1,32 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { usePalette, useTheme } from '@formazione/civis-ui/src/ThemeProvider';
 import type { GenerationConfig, GenerationEstimate } from '../api/generation';
-import { importoUsd } from '../state/generazione';
+import { blocchiStima, importoUsd } from '../state/generazione';
 import { Notice, colors } from './ui';
 
-export function getProviderBadge(provider?: string) {
+export function getProviderBadge(provider?: string, dark = false) {
   const p = (provider ?? '').toLowerCase();
   if (p.includes('anthropic') || p.includes('claude')) {
-    return { name: 'Anthropic Claude', bg: '#fbf4ee', border: '#e8d5c4', text: '#8e3e18' };
+    return dark
+      ? { name: 'Anthropic Claude', bg: 'rgba(234,88,12,0.18)', border: 'rgba(251,146,60,0.4)', text: '#fdba74' }
+      : { name: 'Anthropic Claude', bg: '#fbf4ee', border: '#e8d5c4', text: '#8e3e18' };
   }
   if (p.includes('openai') || p.includes('gpt')) {
-    return { name: 'OpenAI', bg: '#edf7f2', border: '#c3e6d3', text: '#0e704a' };
+    return dark
+      ? { name: 'OpenAI', bg: 'rgba(16,185,129,0.18)', border: 'rgba(52,211,153,0.4)', text: '#6ee7b7' }
+      : { name: 'OpenAI', bg: '#edf7f2', border: '#c3e6d3', text: '#0e704a' };
   }
   if (p.includes('gemini') || p.includes('google')) {
-    return { name: 'Google Gemini', bg: '#edf2fc', border: '#c7d7f7', text: '#1a56db' };
+    return dark
+      ? { name: 'Google Gemini', bg: 'rgba(59,130,246,0.18)', border: 'rgba(96,165,250,0.4)', text: '#93c5fd' }
+      : { name: 'Google Gemini', bg: '#edf2fc', border: '#c7d7f7', text: '#1a56db' };
   }
   return {
     name: provider ? provider.toUpperCase() : 'AI Provider',
-    bg: colors.pale,
-    border: '#cde4e0',
-    text: colors.teal,
+    bg: dark ? 'rgba(34,211,238,0.14)' : colors.pale,
+    border: dark ? 'rgba(34,211,238,0.35)' : '#cde4e0',
+    text: dark ? '#22d3ee' : colors.teal,
   };
 }
 
@@ -32,43 +39,46 @@ export function EstimateCard({
   estimate: GenerationEstimate | null;
   preventivo: { testo: string; bloccante: boolean };
 }) {
-  const badge = getProviderBadge(estimate?.provider ?? config.provider);
+  const C = usePalette(), { dark } = useTheme();
+  const badge = getProviderBadge(estimate?.provider ?? config.provider, dark);
+  const boxStyle = dark ? { backgroundColor: C.surfaceDark, borderColor: C.border } : null;
+  const labelStyle = dark ? { color: C.textMuted } : null;
+  const valStyle = dark ? { color: C.text } : null;
+  const hintStyle = dark ? { color: C.lightText } : null;
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, dark && { backgroundColor: C.surface, borderColor: C.border }]}>
       <View style={styles.header}>
         <View style={[styles.badge, { backgroundColor: badge.bg, borderColor: badge.border }]}>
           <Text style={[styles.badgeText, { color: badge.text }]}>{badge.name}</Text>
         </View>
-        <Text style={styles.model} numberOfLines={1}>
+        <Text style={[styles.model, dark && { color: C.lightText }]} numberOfLines={1}>
           {estimate?.model ?? 'Modello predefinito'}
         </Text>
-        <View style={styles.pill}>
-          <Text style={styles.pillText}>✓ Pronto</Text>
+        <View style={[styles.pill, dark && { backgroundColor: 'rgba(34,211,238,0.14)' }]}>
+          <Text style={[styles.pillText, dark && { color: C.teal }]}>✓ Pronto</Text>
         </View>
       </View>
 
       <View style={styles.stats}>
-        <View style={styles.statBox}>
-          <Text style={styles.statLabel}>Costo massimo stimato</Text>
-          <Text style={styles.statValue}>
+        <View style={[styles.statBox, boxStyle]}>
+          <Text style={[styles.statLabel, labelStyle]}>Costo massimo stimato</Text>
+          <Text style={[styles.statValue, valStyle]}>
             {estimate?.maxCostUsd ? importoUsd(estimate.maxCostUsd) : 'In calcolo…'}
           </Text>
-          <Text style={styles.statHint}>
-            {estimate?.chunks
-              ? `Fino a ${estimate.chunks === 1 ? '1 blocco' : `${estimate.chunks} blocchi`}`
-              : 'Stima garantita per il corso'}
+          <Text style={[styles.statHint, hintStyle]}>
+            {estimate?.chunks ? `Fino a ${blocchiStima(estimate)}` : 'Stima garantita per il corso'}
           </Text>
         </View>
 
-        <View style={styles.statBox}>
-          <Text style={styles.statLabel}>Budget residuo</Text>
-          <Text style={styles.statValue}>
+        <View style={[styles.statBox, boxStyle]}>
+          <Text style={[styles.statLabel, labelStyle]}>Budget residuo</Text>
+          <Text style={[styles.statValue, valStyle]}>
             {config.spending?.remainingUsd
               ? importoUsd(config.spending.remainingUsd)
               : 'Disponibile'}
           </Text>
-          <Text style={styles.statHint}>
+          <Text style={[styles.statHint, hintStyle]}>
             {config.spending?.budgetUsd
               ? `su ${importoUsd(config.spending.budgetUsd)} totali`
               : 'Copre la generazione'}
@@ -80,7 +90,7 @@ export function EstimateCard({
         <Notice text={preventivo.testo} error />
       ) : (
         <View style={styles.reassurance}>
-          <Text style={styles.reassuranceText}>
+          <Text style={[styles.reassuranceText, dark && { color: C.teal }]}>
             ✓ Costo massimo garantito prima dell’avvio. Bozza da revisionare prima dell’esame.
           </Text>
         </View>

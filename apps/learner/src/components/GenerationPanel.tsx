@@ -16,15 +16,20 @@ import {
   type GenerationEstimate,
   type Draft,
 } from '../api/generation';
+import { ErroreGenerazione, type BlocchiSalvati } from '../api/errors';
 import {
+  etichettaGenerazione,
   messaggioConfigurazione,
+  statoRipresa,
   testoEsclusione,
   testoPagineNonLette,
   testoPreventivo,
+  testoRipresa,
 } from '../state/generazione';
 import { seguiImpostazioni } from '../state/impostazioni';
+import { usePalette, useTheme } from '@formazione/civis-ui/src/ThemeProvider';
 import type { Extraction } from '../api/documents';
-import { Button, Notice, styles, colors } from './ui';
+import { Button, Notice, useUiStyles, colors } from './ui';
 import { EstimateCard } from './EstimateCard';
 
 export function GenerationPanel({
@@ -38,6 +43,7 @@ export function GenerationPanel({
   excludedPages?: number[];
   onExcludedPagesChange?: (pages: number[]) => void;
 }) {
+  const C = usePalette(), { dark } = useTheme(), s = useUiStyles();
   const [config, setConfig] = useState<GenerationConfig | null>(null);
   const [error, setError] = useState('');
   const [title, setTitle] = useState('Il mio corso');
@@ -45,6 +51,10 @@ export function GenerationPanel({
   const [busy, setBusy] = useState(false);
   const [estimate, setEstimate] = useState<GenerationEstimate | null>(null);
   const [internalEscluse, setInternalEscluse] = useState<number[]>([]);
+  // Esito dell'ultima generazione fallita: tenuto a parte da `error`, che refresh() azzera.
+  const [fallita, setFallita] = useState<{ messaggio: string; ripresa: BlocchiSalvati | null } | null>(
+    null,
+  );
 
   // Pagine escluse: da prop se fornite, altrimenti fallback allo stato locale.
   const escluse = excludedPages !== undefined ? excludedPages : internalEscluse;
@@ -53,6 +63,7 @@ export function GenerationPanel({
 
   const nonLette = estimate?.unreadPages ?? [];
   const preventivo = testoPreventivo(estimate);
+  const ripresa = statoRipresa(fallita?.ripresa ?? null, estimate);
   const alive = useRef(true);
 
   async function refresh(targetPages = escluseRef.current) {
@@ -101,14 +112,21 @@ export function GenerationPanel({
     }
   }
 
-  async function generate() {
+  async function generate(ricomincia = false) {
     setBusy(true);
     setError('');
+    setFallita(null);
     try {
-      const draft = await generateDraft(extraction.id, title, ack, escluseRef.current);
+      const draft = await generateDraft(extraction.id, title, ack, escluseRef.current, ricomincia);
       if (alive.current) onDraft(draft);
     } catch (e) {
-      if (alive.current) setError(e instanceof Error ? e.message : 'Generazione non riuscita.');
+      if (!alive.current) return;
+      setFallita({
+        messaggio: e instanceof Error ? e.message : 'Generazione non riuscita.',
+        ripresa: e instanceof ErroreGenerazione ? e.ripresa : null,
+      });
+      // Preventivo riletto: dopo un blocco fallito conta solo i blocchi mancanti.
+      void refresh();
     } finally {
       if (alive.current) setBusy(false);
     }
@@ -124,7 +142,7 @@ export function GenerationPanel({
 
   return (
     <View style={{ gap: 16 }}>
-      <Text style={styles.subtitle}>04 · Crea una bozza didattica</Text>
+      <Text style={s.subtitle}>04 · Crea una bozza didattica</Text>
 
       {!config?.configured ? (
         <Notice text={messaggioConfigurazione(config)} />
@@ -157,50 +175,62 @@ export function GenerationPanel({
 
       <View style={localStyles.inputWrapper}>
         <View style={localStyles.inputLabelRow}>
-          <Text style={localStyles.inputLabel}>Titolo del corso da generare</Text>
-          <Text style={localStyles.inputHint}>Obbligatorio</Text>
+          <Text style={[localStyles.inputLabel, dark && { color: C.text }]}>
+            Titolo del corso da generare
+          </Text>
+          <Text style={[localStyles.inputHint, dark && { color: C.textMuted }]}>Obbligatorio</Text>
         </View>
         <TextInput
           accessibilityLabel="Titolo del corso"
-          style={styles.input}
+          style={s.input}
           value={title}
           onChangeText={setTitle}
           editable={!busy}
           placeholder="Es. Corso di Formazione Generale"
-          placeholderTextColor={colors.muted}
+          placeholderTextColor={dark ? C.textVeryDim : colors.muted}
         />
       </View>
 
-      <View style={styles.row}>
+      <View style={s.row}>
         <Switch
           accessibilityLabel="Ho verificato il testo estratto e gli avvisi"
           value={ack}
           onValueChange={setAck}
           disabled={busy}
         />
-        <Text style={styles.body}>Ho verificato il testo estratto e gli avvisi</Text>
+        <Text style={s.body}>Ho verificato il testo estratto e gli avvisi</Text>
       </View>
 
       {!!error && <Notice text={error} error />}
+      {!!fallita && <Notice text={fallita.messaggio} error />}
+      {!!ripresa && <Notice text={testoRipresa(ripresa)} />}
 
       <View style={localStyles.actionsRow}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={busy ? 'Generazione in corso…' : 'Crea bozza AI'}
+          accessibilityLabel={etichettaGenerazione(busy, ripresa)}
           accessibilityState={{ disabled: disabledGenerate, busy }}
           disabled={disabledGenerate}
-          onPress={generate}
+          onPress={() => generate()}
           style={({ pressed }) => [
             localStyles.primaryBtn,
+            dark && { backgroundColor: '#0e7490' },
             disabledGenerate && localStyles.primaryBtnDisabled,
             pressed && !disabledGenerate && localStyles.primaryBtnPressed,
           ]}
         >
           {busy && <ActivityIndicator color="white" size="small" style={{ marginRight: 8 }} />}
-          <Text style={localStyles.primaryBtnText}>
-            {busy ? 'Generazione in corso…' : 'Crea bozza AI'}
-          </Text>
+          <Text style={localStyles.primaryBtnText}>{etichettaGenerazione(busy, ripresa)}</Text>
         </Pressable>
+        {!!ripresa && (
+          // Scarta i blocchi salvati: si pagano di nuovo tutti i blocchi (restart sul server).
+          <Button
+            label="Ricomincia da capo"
+            secondary
+            disabled={disabledGenerate}
+            onPress={() => generate(true)}
+          />
+        )}
         <Button
           label="Ricontrolla configurazione AI"
           secondary
@@ -209,7 +239,7 @@ export function GenerationPanel({
         />
       </View>
 
-      <Text style={styles.muted}>
+      <Text style={s.muted}>
         La bozza non viene pubblicata automaticamente. La generazione può richiedere diversi minuti.
       </Text>
     </View>

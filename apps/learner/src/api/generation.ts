@@ -1,7 +1,7 @@
 import { CourseSchema, type ConceptTree, type Course } from '@formazione/contracts';
 import { corsoDaLeggere } from '../state/lettura';
 import { apiUrl } from './documents';
-import { apiErrorMessage } from './errors';
+import { ErroreGenerazione, apiErrorMessage, blocchiSalvati } from './errors';
 import { corpoGenerazione, percorsoPreventivo } from '../state/generazione';
 export type GenerationConfig = {
   configured: boolean;
@@ -22,7 +22,11 @@ export type GenerationEstimate = {
   allowed: boolean;
   provider?: string;
   model?: string;
+  // chunks: blocchi da generare (gli unici nel costo); savedChunks: salvati da una generazione
+  // interrotta, riusati senza pagarli; totalChunks: tutti (ripresa_generazione.py).
   chunks?: number;
+  savedChunks?: number;
+  totalChunks?: number;
   maxCostUsd?: string;
   upperBoundUsd?: string;
   refusal?: { code: string; message: string };
@@ -57,14 +61,20 @@ export async function generateDraft(
   title: string,
   acknowledgeWarnings: boolean,
   escluse: number[] = [],
+  ricomincia = false,
 ): Promise<Draft> {
   const response = await fetch(`${apiUrl}/extractions/${id}/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(corpoGenerazione(title, acknowledgeWarnings, escluse)),
+    body: JSON.stringify(corpoGenerazione(title, acknowledgeWarnings, escluse, ricomincia)),
   });
   const result = await response.json();
-  if (!response.ok) throw new Error(apiErrorMessage(result, 'Generazione non riuscita.'));
+  // Blocco fallito: il server dice quanti blocchi ha salvato per la ripresa (savedChunks, totalChunks).
+  if (!response.ok)
+    throw new ErroreGenerazione(
+      apiErrorMessage(result, 'Generazione non riuscita.'),
+      blocchiSalvati(result),
+    );
   // Generazione: la bozza appena scritta dalla pipeline deve rispettare anche le regole di qualità.
   return { ...result, course: CourseSchema.parse(result.course) };
 }

@@ -1,4 +1,4 @@
-import { apiErrorMessage } from './errors';
+import { ErroreGenerazione, apiErrorMessage, blocchiSalvati } from './errors';
 it('shows provider and budget error messages sent as structured detail', () => {
   expect(
     apiErrorMessage(
@@ -40,4 +40,29 @@ it('keeps string errors and handles malformed or missing detail explicitly', () 
     { detail: '' },
   ])
     expect(apiErrorMessage(value, 'Errore comprensibile')).toBe('Errore comprensibile');
+});
+it('reads the saved chunks of an interrupted generation from the error detail', () => {
+  const payload = {
+    detail: {
+      code: 'provider_error',
+      message: 'Errore AI controllato',
+      savedChunks: 5,
+      totalChunks: 10,
+    },
+  };
+  expect(blocchiSalvati(payload)).toEqual({ salvati: 5, totali: 10 });
+  const errore = new ErroreGenerazione(apiErrorMessage(payload, 'x'), blocchiSalvati(payload));
+  expect(errore).toBeInstanceOf(Error);
+  expect(errore.message).toBe('Errore AI controllato');
+  expect(errore.ripresa).toEqual({ salvati: 5, totali: 10 });
+  for (const value of [
+    null,
+    { detail: 'testo' },
+    { detail: { code: 'needs_review', message: 'Verificare' } },
+    { detail: { savedChunks: '5', totalChunks: 10 } },
+    { detail: { savedChunks: 5 } },
+    { detail: { savedChunks: -1, totalChunks: 10 } },
+    { detail: { savedChunks: 11, totalChunks: 10 } },
+  ])
+    expect(blocchiSalvati(value)).toBeNull();
 });
