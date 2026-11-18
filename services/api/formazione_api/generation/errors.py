@@ -4,3 +4,6 @@ class GenerationError(ValueError):
         self.code = code
         # Causa strutturata e senza segreti di un errore del fornitore (causa.py); None per gli altri errori.
         self.causa = causa
+        # Blocchi salvati per la ripresa ({savedChunks, totalChunks}), scritto da generate() quando il
+        # fallimento avviene durante i blocchi di una generazione con ripresa; None negli altri casi.
+        self.ripresa = None
