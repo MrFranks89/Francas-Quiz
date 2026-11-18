@@ -119,6 +119,13 @@ class FornitoreSorvegliato:
         raise GenerationError('budget_guard', motivo)
 
     def module(self, chunk):
+        return self._sorvegliato(chunk, lambda: self.interno.module(chunk))
+
+    def _sorvegliato(self, chunk, chiama, voce: dict | None = None):
+        """Una chiamata del blocco sotto la guardia: controllo, prenotazione, `chiama()`, registrazione.
+        Usata da module() e dal validatore incrociato (spesa_generazione.ValidatoreRegolato.verifica).
+        `voce`: campi aggiunti alla voce della chiamata nel registro (per il validatore: ruolo,
+        fornitore, modello); assente per module(), la cui voce resta quella di sempre."""
         limite = self.limiti[chunk.id]
         if self.violazione:
             self._ferma(self.violazione)
@@ -126,12 +133,12 @@ class FornitoreSorvegliato:
         speso = self.registro.speso()
         if speso + riserva > self.budget:
             self._ferma(f'Arresto prima di {chunk.id}: speso {speso} + limite del blocco {riserva} > budget {self.budget} USD')
-        chiamata = dict(chunkId=chunk.id, inizio=adesso(), addebitatoUSD=riserva, esito='in_corso')
+        chiamata = dict(chunkId=chunk.id, **(voce or {}), inizio=adesso(), addebitatoUSD=riserva, esito='in_corso')
         self.corsa['chiamate'].append(chiamata)
         self.corsa['addebitatoUSD'] = Decimal(str(self.corsa['addebitatoUSD'])) + riserva
         self.registro.aggiorna_corsa(self.corsa)
         try:
-            risultato = self.interno.module(chunk)
+            risultato = chiama()
             chiamata['esito'] = 'completata'
             return risultato
         except Exception as error:

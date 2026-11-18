@@ -177,7 +177,10 @@ class ValidatoreRegolato(FornitoreRegolato):
     def verifica(self, chunk, domande):
         prima = len(self.corsa['chiamate'])
         try:
-            return self._sorvegliato(chunk, lambda: self.interno.verifica(chunk, domande))
+            # Stessa guardia di module() (FornitoreSorvegliato._sorvegliato); la voce nel registro dice
+            # che è la chiamata del validatore, con il suo fornitore e modello.
+            return self._sorvegliato(chunk, lambda: self.interno.verifica(chunk, domande),
+                                     voce=dict(ruolo='validazione', fornitore=self.provider_name, modello=self.model))
         finally:
             self._regola(chunk, prima)
 

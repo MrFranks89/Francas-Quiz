@@ -248,3 +248,135 @@ class TestStimaCombinata:
         with pytest.raises(spesa.SpesaRifiuto) as errore:
             spesa.valuta(extraction(), self.fornitore_finto(), self.store_finto(tmp_path))
         assert errore.value.code == 'estimate_unavailable'
+
+
+class TestRotta:
+    """Percorso vero con il validatore acceso: rotta POST /extractions/{id}/generate -> genera_con_tetto
+    -> create_validator -> Validatore anthropic (SDK vero, trasporto finto) dentro ValidatoreRegolato.
+    La chiamata del validatore passa dalla stessa guardia di spesa della generazione: prenotata,
+    registrata nel registro dell'app e misurata alle tariffe del SUO fornitore."""
+
+    MODELLO_VALIDATORE = 'claude-haiku-5-5'
+
+    class Generatore:
+        # Generatore gratuito dichiarato (groq, prezzi.json): il validatore a pagamento è anthropic.
+        provider_name, model = 'groq', MODELLO_GROQ
+        last_usage = None
+
+        def module(self, chunk):
+            from bozze_di_prova import bozza
+            fonte = chunk.pieces[0].source_id
+            comune = dict(kind='single', rationales=['', ''], difficulty='base', options=['Il manuale', 'Un romanzo'],
+                          correctIndex=0, explanation='La procedura è nel manuale.', sourceRefs=[fonte])
+            return dict(title='Lezione', objectives=['Comprendere la procedura'],
+                        slides=[dict(heading='Procedura', body='Leggere il manuale', highlight='Verificare',
+                                     sourceRefs=[fonte])],
+                        questions=[bozza(**comune, prompt='Cosa leggere?'),
+                                   bozza(**comune, prompt='Dove si trova la procedura?')])
+
+    def prepara(self, tmp_path, monkeypatch, risposta):
+        import anthropic
+        import httpx2
+        from fastapi.testclient import TestClient
+        from formazione_api.main import create_app
+        from test_api import extraction as estrai, upload
+        inviate = []
+
+        def handler(request):
+            inviate.append(json.loads(request.content))
+            return risposta()
+
+        vero = anthropic.Anthropic
+
+        def offline(**kwargs):
+            assert kwargs['api_key'] == 'anthropic-key-not-real'
+            return vero(**kwargs, base_url='http://anthropic.invalid',
+                        http_client=anthropic.DefaultHttpxClient(transport=httpx2.MockTransport(handler)))
+
+        monkeypatch.setattr(anthropic, 'Anthropic', offline)
+        monkeypatch.setenv('GENERATION_PROVIDER', 'groq')
+        monkeypatch.setenv('VALIDATION_PROVIDER', 'anthropic')
+        monkeypatch.setenv('ANTHROPIC_API_KEY', 'anthropic-key-not-real')
+        monkeypatch.setenv('ANTHROPIC_MODEL', self.MODELLO_VALIDATORE)
+        client = TestClient(create_app(tmp_path))
+        client.app.state.generation_provider = self.Generatore()
+        doc = upload(client, 'appunti.txt', b'Leggere il manuale prima di iniziare.')
+        estratta = estrai(client, doc, {'mode': 'all'}).json()
+        return client, f"/extractions/{estratta['id']}/generate", inviate
+
+    def corsa_registrata(self, client):
+        registro = json.loads((client.app.state.store.root / spesa.NOME_REGISTRO).read_text(encoding='utf-8'),
+                              parse_float=Decimal)
+        (corsa,) = registro['corse']
+        # Gli importi sono scritti come testo (guardia._decimale): riletti come Decimal.
+        importi = ('addebitatoUSD', 'effettivoUSD', 'regolatoUSD')
+        for voce in [corsa, *corsa['chiamate']]:
+            voce.update({k: Decimal(voce[k]) for k in importi if voce.get(k) is not None})
+        return corsa
+
+    def test_disaccordo_scartato_e_due_chiamate_nel_registro(self, monkeypatch, tmp_path):
+        import httpx2
+        from formazione_api.measurement.guardia import costo_effettivo
+        from formazione_api.measurement.prezzi import PREZZI, carica, prezzo
+
+        uso = {'input_tokens': 300, 'output_tokens': 20, 'cache_creation_input_tokens': 0, 'cache_read_input_tokens': 0}
+
+        def risposta():
+            corpo = json.dumps({'risposte': [['Il manuale'], ['Un romanzo']]})
+            return httpx2.Response(200, json={
+                'id': 'msg_val', 'type': 'message', 'role': 'assistant', 'model': self.MODELLO_VALIDATORE,
+                'content': [{'type': 'text', 'text': corpo}], 'stop_reason': 'end_turn', 'stop_sequence': None,
+                'usage': uso})
+
+        client, endpoint, inviate = self.prepara(tmp_path, monkeypatch, risposta)
+        response = client.post(endpoint, json={'title': 'Corso validato'})
+        assert response.status_code == 201, response.text
+        risultato = response.json()
+        assert [q['prompt'] for q in risultato['course']['questions']] == ['Cosa leggere?']
+        (scarto,) = risultato['scarti']
+        assert scarto['rule'] == 'validazione_incrociata' and scarto['prompt'] == 'Dove si trova la procedura?'
+        # Una sola chiamata al validatore, alla cieca: le risposte della bozza non partono.
+        (richiesta,) = inviate
+        assert richiesta['model'] == self.MODELLO_VALIDATORE
+        assert 'correctOptionId' not in richiesta['messages'][0]['content']
+
+        corsa = self.corsa_registrata(client)
+        assert corsa['esito'] == 'completata'
+        generazione, validazione = corsa['chiamate']
+        assert generazione['chunkId'] == validazione['chunkId'] == 'chunk-1'
+        assert generazione['esito'] == validazione['esito'] == 'completata'
+        assert 'ruolo' not in generazione  # voce del fornitore di generazione invariata
+        assert (validazione['ruolo'], validazione['fornitore'], validazione['modello']) == \
+            ('validazione', 'anthropic', self.MODELLO_VALIDATORE)
+        assert validazione['usage']['inputTokens'] == 300 and validazione['usage']['outputTokens'] == 20
+        # Tariffe del validatore (anthropic), non del generatore gratuito.
+        listino = prezzo(carica(PREZZI), 'anthropic', self.MODELLO_VALIDATORE)
+        assert validazione['effettivoUSD'] == costo_effettivo(validazione['usage'], listino) > 0
+        assert Decimal(0) < validazione['regolatoUSD'] <= validazione['addebitatoUSD']
+        # La prenotazione del validatore pesa sul totale della corsa.
+        assert validazione['addebitatoUSD'] > 0
+        assert corsa['addebitatoUSD'] == generazione['addebitatoUSD'] + validazione['addebitatoUSD']
+
+    def test_validatore_in_errore_fallisce_leggibile_e_resta_nel_registro(self, monkeypatch, tmp_path):
+        import httpx2
+
+        def risposta():
+            return httpx2.Response(400, json={'type': 'error', 'error': {
+                'type': 'invalid_request_error', 'message': 'Richiesta rifiutata dal fornitore di prova'}})
+
+        client, endpoint, inviate = self.prepara(tmp_path, monkeypatch, risposta)
+        response = client.post(endpoint, json={'title': 'Corso validato'})
+        assert response.status_code == 502, response.text
+        dettaglio = response.json()['detail']
+        assert dettaglio['code'] == 'provider_error' and dettaglio['message']
+        assert len(inviate) == 1
+        assert not list(client.app.state.store.root.glob('*.draft.json'))
+
+        corsa = self.corsa_registrata(client)
+        assert corsa['esito'] == 'fallita' and corsa['errore']['code'] == 'provider_error'
+        generazione, validazione = corsa['chiamate']
+        assert generazione['esito'] == 'completata'
+        assert validazione['ruolo'] == 'validazione' and validazione['esito'] == 'errore'
+        assert validazione['errore'] == 'provider_error' and validazione['dettaglio']
+        assert validazione['addebitatoUSD'] > 0 and validazione.get('regolatoUSD') is None
+        assert corsa['addebitatoUSD'] == generazione['addebitatoUSD'] + validazione['addebitatoUSD']
