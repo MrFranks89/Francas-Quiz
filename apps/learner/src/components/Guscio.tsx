@@ -29,7 +29,7 @@ export function Guscio({
 }) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const orizzontale = width < 600 ? 16 : 36;
+  const orizzontale = width < 600 ? 16 : width <= 1024 ? 24 : 36;
   const [altezzaTestata, setAltezzaTestata] = useState(0);
   const misura = (e: LayoutChangeEvent) => setAltezzaTestata(e.nativeEvent.layout.height);
   return (
@@ -84,7 +84,7 @@ export function Pannello({
 }) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const orizzontale = width < 600 ? 16 : 36;
+  const orizzontale = width < 600 ? 16 : width <= 1024 ? 24 : 36;
   if (!attivo && !persistente) return null;
   return (
     <ScrollView

@@ -71,7 +71,9 @@ export function Pillola({
       style={({ pressed }) => [
         {
           maxWidth: '100%',
-          paddingVertical: 9,
+          minHeight: 44,
+          justifyContent: 'center',
+          paddingVertical: 11,
           paddingHorizontal: 14,
           borderRadius: 20,
           borderWidth: 1.5,

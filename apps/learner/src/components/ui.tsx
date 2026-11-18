@@ -32,12 +32,17 @@ export function Button({
       style={({ pressed }) => [
         styles.button,
         dark && { backgroundColor: '#0e7490' },
-        secondary && (dark ? { backgroundColor: C.surfaceHover, borderWidth: 1, borderColor: C.border } : styles.secondary),
+        secondary &&
+          (dark
+            ? { backgroundColor: C.surfaceHover, borderWidth: 1, borderColor: C.border }
+            : styles.secondary),
         disabled && { opacity: 0.4 },
         pressed && { opacity: 0.75 },
       ]}
     >
-      <Text style={[styles.buttonText, secondary && { color: dark ? C.teal : colors.teal }]}>{label}</Text>
+      <Text style={[styles.buttonText, secondary && { color: dark ? C.teal : colors.teal }]}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -45,12 +50,7 @@ export function Card({ children }: { children: React.ReactNode }) {
   const C = usePalette();
   const { dark } = useTheme();
   return (
-    <View
-      style={[
-        styles.card,
-        dark && { backgroundColor: C.surface, borderColor: C.border },
-      ]}
-    >
+    <View style={[styles.card, dark && { backgroundColor: C.surface, borderColor: C.border }]}>
       {children}
     </View>
   );
@@ -58,13 +58,7 @@ export function Card({ children }: { children: React.ReactNode }) {
 export function Notice({ text, error = false }: { text: string; error?: boolean }) {
   const C = usePalette();
   const { dark } = useTheme();
-  const bg = dark
-    ? error
-      ? C.redBg
-      : C.surfaceHover
-    : error
-      ? '#fff0eb'
-      : colors.pale;
+  const bg = dark ? (error ? C.redBg : C.surfaceHover) : error ? '#fff0eb' : colors.pale;
   const fg = dark ? (error ? C.redText : C.text) : error ? '#9d3a24' : colors.ink;
   return (
     <View
@@ -119,6 +113,8 @@ export const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     alignSelf: 'flex-start',
+    minHeight: 48,
+    justifyContent: 'center',
   },
   secondary: { backgroundColor: colors.pale },
   buttonText: { color: 'white', fontWeight: '700', fontSize: 15 },
@@ -136,6 +132,7 @@ export const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.navy,
     minWidth: 90,
+    minHeight: 48,
     backgroundColor: 'white',
   },
 });

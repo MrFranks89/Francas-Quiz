@@ -3,12 +3,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { usePalette, useTheme } from '@formazione/civis-ui/src/ThemeProvider';
 import { DIFFICOLTA, type Question } from '@formazione/contracts';
 import { ETICHETTA_PROMPT, facoltativo } from '../state/editor';
-import {
-  alternaGiusta,
-  campiDelTipo,
-  etichettaDifficolta,
-  giusteDi,
-} from '../state/editorDomanda';
+import { alternaGiusta, campiDelTipo, etichettaDifficolta, giusteDi } from '../state/editorDomanda';
 import { QuizTypeBadge } from './QuizTypeBadge';
 import { Button, Notice, useUiStyles } from './ui';
 
@@ -32,7 +27,9 @@ export function DomandaEditor({
   disabled: boolean;
   change: (path: (string | number)[], value: unknown) => void;
 }) {
-  const C = usePalette(), { dark } = useTheme(), styles = useUiStyles();
+  const C = usePalette(),
+    { dark } = useTheme(),
+    styles = useUiStyles();
   const [expanded, setExpanded] = useState(true);
   const n = qi + 1;
   const base = ['questions', qi];
@@ -75,10 +72,7 @@ export function DomandaEditor({
         accessibilityRole="button"
         accessibilityLabel={`Domanda ${n}: tocca per ${expanded ? 'comprimere' : 'espandere'}`}
         onPress={() => setExpanded((prev) => !prev)}
-        style={({ pressed }) => [
-          editorStyles.accordionHeader,
-          pressed && { opacity: 0.75 },
-        ]}
+        style={({ pressed }) => [editorStyles.accordionHeader, pressed && { opacity: 0.75 }]}
       >
         <View style={editorStyles.headerRow}>
           <View style={editorStyles.titleGroup}>
@@ -87,8 +81,15 @@ export function DomandaEditor({
           </View>
           <View style={editorStyles.chevronGroup}>
             {hasErrors && (
-              <View style={[editorStyles.errorPill, dark && { backgroundColor: C.redBg, borderColor: C.red }]}>
-                <Text style={[editorStyles.errorPillText, dark && { color: C.redText }]}>Errori</Text>
+              <View
+                style={[
+                  editorStyles.errorPill,
+                  dark && { backgroundColor: C.redBg, borderColor: C.red },
+                ]}
+              >
+                <Text style={[editorStyles.errorPillText, dark && { color: C.redText }]}>
+                  Errori
+                </Text>
               </View>
             )}
             <Text style={[editorStyles.chevron, dark && { color: C.textMuted }]}>
@@ -216,6 +217,8 @@ const editorStyles = StyleSheet.create({
   accordionHeader: {
     gap: 6,
     paddingVertical: 6,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   headerRow: {
     flexDirection: 'row',

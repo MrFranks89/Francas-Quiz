@@ -1,1 +1,64 @@
-{"expo":{"name":"Studio Formazione","slug":"studio-formazione","version":"0.1.0","orientation":"default","userInterfaceStyle":"automatic","web":{"bundler":"metro","output":"single"},"ios":{"supportsTablet":true},"android":{"package":"it.formazione.studio"}}}
+{
+  "expo": {
+    "name": "Studio Formazione",
+    "slug": "studio-formazione",
+    "version": "0.1.0",
+    "scheme": "studioformazione",
+    "orientation": "default",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "icon": "./assets/icon.png",
+    "backgroundColor": "#F3F7F8",
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-mark.png",
+          "imageWidth": 160,
+          "resizeMode": "contain",
+          "backgroundColor": "#F3F7F8",
+          "dark": {
+            "image": "./assets/splash-mark-dark.png",
+            "backgroundColor": "#132C3E"
+          }
+        }
+      ],
+      [
+        "expo-status-bar",
+        {
+          "hidden": false,
+          "style": "dark"
+        }
+      ],
+      [
+        "expo-navigation-bar",
+        {
+          "hidden": false,
+          "style": "light",
+          "enforceContrast": true
+        }
+      ]
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "buildNumber": "1",
+      "userInterfaceStyle": "automatic"
+    },
+    "android": {
+      "package": "it.formazione.studio",
+      "versionCode": 1,
+      "userInterfaceStyle": "automatic",
+      "softwareKeyboardLayoutMode": "resize",
+      "edgeToEdgeEnabled": true,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon-foreground.png",
+        "monochromeImage": "./assets/adaptive-icon-monochrome.png",
+        "backgroundColor": "#087E83"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    }
+  }
+}

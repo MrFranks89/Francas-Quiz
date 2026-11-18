@@ -1,5 +1,13 @@
 import React, { useCallback, useEffect, useReducer, useState } from 'react';
-import { Pressable, Text, TextInput, View, useWindowDimensions, Platform } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+  useWindowDimensions,
+  Platform,
+} from 'react-native';
 import * as Picker from 'expo-document-picker';
 import { File } from 'expo-file-system';
 import { StatusBar } from 'expo-status-bar';
@@ -55,6 +63,8 @@ function NavPillola({
       style={({ pressed }) => [
         {
           maxWidth: '100%',
+          minHeight: 44,
+          justifyContent: 'center',
           paddingVertical: 8,
           paddingHorizontal: 14,
           borderRadius: 99,
@@ -156,6 +166,39 @@ function Shell() {
       Prototipo locale · materiali e progressi sul tuo ambiente di sviluppo
     </Text>
   );
+  // Sotto 600 px le pillole di navigazione scorrono in orizzontale invece di
+  // andare a capo: la testata non si allunga (ordine n. 2, blocco F5).
+  const pillole = (
+    <>
+      <NavPillola
+        label="Materiali"
+        attiva={screen === 'import'}
+        dark={dark}
+        onPress={() => dispatch({ type: 'screen', screen: 'import' })}
+      />
+      <NavPillola
+        label="Prova il corso"
+        attiva={screen === 'course' && selected === null}
+        dark={dark}
+        onPress={() => dispatch({ type: 'demo' })}
+      />
+      <NavPillola label="Importa corso JSON" dark={dark} onPress={importCourse} />
+      {draft && (
+        <NavPillola
+          label="Gestisci bozza"
+          attiva={screen === 'editor'}
+          dark={dark}
+          onPress={() => dispatch({ type: 'draft', draft })}
+        />
+      )}
+      <NavPillola
+        label="Impostazioni"
+        attiva={screen === 'settings'}
+        dark={dark}
+        onPress={() => dispatch({ type: 'screen', screen: 'settings' })}
+      />
+    </>
+  );
   // Testata fissa: estetica Socrate (palette slate/blue, badge traslucido e navigazione blu/indaco).
   const testata = (
     <>
@@ -218,35 +261,17 @@ function Shell() {
           <InterruttoreTema />
         </View>
         <View style={{ height: 1, backgroundColor: dark ? 'rgba(255,255,255,0.1)' : '#dbeafe' }} />
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          <NavPillola
-            label="Materiali"
-            attiva={screen === 'import'}
-            dark={dark}
-            onPress={() => dispatch({ type: 'screen', screen: 'import' })}
-          />
-          <NavPillola
-            label="Prova il corso"
-            attiva={screen === 'course' && selected === null}
-            dark={dark}
-            onPress={() => dispatch({ type: 'demo' })}
-          />
-          <NavPillola label="Importa corso JSON" dark={dark} onPress={importCourse} />
-          {draft && (
-            <NavPillola
-              label="Gestisci bozza"
-              attiva={screen === 'editor'}
-              dark={dark}
-              onPress={() => dispatch({ type: 'draft', draft })}
-            />
-          )}
-          <NavPillola
-            label="Impostazioni"
-            attiva={screen === 'settings'}
-            dark={dark}
-            onPress={() => dispatch({ type: 'screen', screen: 'settings' })}
-          />
-        </View>
+        {width < 600 ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ flexDirection: 'row', gap: 8, paddingRight: 16 }}
+          >
+            {pillole}
+          </ScrollView>
+        ) : (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{pillole}</View>
+        )}
       </View>
       {!!error && <Avviso testo={error} errore />}
     </>
