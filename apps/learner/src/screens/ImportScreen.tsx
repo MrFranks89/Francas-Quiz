@@ -14,6 +14,7 @@ import { PageRangeCard } from '../components/PageRangeCard';
 import { ExtractionProgressCard } from '../components/ExtractionProgressCard';
 import { StudyConfigCard } from '../components/StudyConfigCard';
 import { StudyExperienceView } from '../components/StudyExperienceView';
+import { FotoPicker, type PickedAsset } from '../components/FotoPicker';
 import type { Draft } from '../api/generation';
 
 export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
@@ -30,49 +31,38 @@ export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
   const [excludedPages, setExcludedPages] = useState<number[]>([]);
   const [rangeHighlighted, setRangeHighlighted] = useState(false);
 
-  const setRange = (value: boolean) => {
-    setRangeHighlighted(false);
-    dispatch({ type: 'range', value });
-  };
-  const setFrom = (value: string) => {
-    setRangeHighlighted(false);
-    dispatch({ type: 'from', value });
-  };
-  const setTo = (value: string) => {
-    setRangeHighlighted(false);
-    dispatch({ type: 'to', value });
-  };
+  const setRange = (v: boolean) => { setRangeHighlighted(false); dispatch({ type: 'range', value: v }); };
+  const setFrom = (v: string) => { setRangeHighlighted(false); dispatch({ type: 'from', value: v }); };
+  const setTo = (v: string) => { setRangeHighlighted(false); dispatch({ type: 'to', value: v }); };
 
-  function selectChapter(chapter: DocumentChapter) {
+  function selectChapter(ch: DocumentChapter) {
     dispatch({ type: 'range', value: true });
-    dispatch({ type: 'from', value: String(chapter.fromPage) });
-    dispatch({ type: 'to', value: String(chapter.toPage) });
+    dispatch({ type: 'from', value: String(ch.fromPage) });
+    dispatch({ type: 'to', value: String(ch.toPage) });
     setRangeHighlighted(true);
   }
 
-  function togglePageExclusion(pageNumber: number) {
+  function togglePageExclusion(page: number) {
     setExcludedPages((prev) =>
-      prev.includes(pageNumber)
-        ? prev.filter((p) => p !== pageNumber)
-        : [...prev, pageNumber].sort((a, b) => a - b),
+      prev.includes(page) ? prev.filter((p) => p !== page) : [...prev, page].sort((a, b) => a - b),
     );
   }
 
   const selectionInfo = useMemo(() => {
-    if (!document || document.kind !== 'pdf' || !document.pageCount) {
+    if (!document) return { valid: false, pages: [] as number[], count: 0, error: null };
+    if (document.kind === 'image') return { valid: true, pages: [1], count: 1, error: null };
+    if (document.kind !== 'pdf' || !document.pageCount) {
       return { valid: false, pages: [] as number[], count: 0, error: null };
     }
     try {
-      const selection = range
+      const sel = range
         ? parsePageSelection({ mode: 'range', fromPage: from, toPage: to }, document.pageCount)
         : { mode: 'all' as const };
-      const pages = selectedPages(selection, document.pageCount);
+      const pages = selectedPages(sel, document.pageCount);
       return { valid: true, pages, count: pages.length, error: null };
     } catch {
       return {
-        valid: false,
-        pages: [] as number[],
-        count: 0,
+        valid: false, pages: [] as number[], count: 0,
         error: `Intervallo non valido: inserisci numeri interi tra 1 e ${document.pageCount}.`,
       };
     }
@@ -86,34 +76,38 @@ export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
 
   const previewPages = selectionInfo.valid
     ? selectionInfo.pages
-    : lastValidPages.length > 0
-      ? lastValidPages
-      : [];
+    : lastValidPages.length > 0 ? lastValidPages : [];
   const safeIndex = Math.min(activePageIndex, Math.max(0, previewPages.length - 1));
   const currentPage = previewPages[safeIndex] ?? 1;
 
-  async function pick() {
+  async function accetta(asset: Picker.DocumentPickerAsset | PickedAsset) {
     setBusy(true);
     setError('');
     try {
-      const selected = await Picker.getDocumentAsync({
-        type: tipiSelettore(Platform.OS === 'web'),
-        copyToCacheDirectory: true,
-        multiple: false,
-      });
-      if (!selected.canceled) {
-        const value = await uploadDocument(selected.assets[0]);
-        dispatch({ type: 'document', value });
-        setShowPreview(false);
-        setActivePageIndex(0);
-        setLastValidPages([]);
-        setExcludedPages([]);
-        setRangeHighlighted(false);
-      }
+      const value = await uploadDocument(asset as Picker.DocumentPickerAsset);
+      dispatch({ type: 'document', value });
+      setShowPreview(false);
+      setActivePageIndex(0);
+      setLastValidPages([]);
+      setExcludedPages([]);
+      setRangeHighlighted(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Caricamento non riuscito.');
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function pick() {
+    try {
+      const res = await Picker.getDocumentAsync({
+        type: tipiSelettore(Platform.OS === 'web'),
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+      if (!res.canceled) await accetta(res.assets[0]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Selezione non riuscita.');
     }
   }
 
@@ -122,10 +116,11 @@ export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
     setBusy(true);
     setError('');
     try {
-      const selection = range
-        ? parsePageSelection({ mode: 'range', fromPage: from, toPage: to }, document.pageCount!)
-        : { mode: 'all' as const };
-      dispatch({ type: 'result', value: await extractDocument(document.id, selection, engine) });
+      const sel =
+        range && document.kind === 'pdf'
+          ? parsePageSelection({ mode: 'range', fromPage: from, toPage: to }, document.pageCount!)
+          : { mode: 'all' as const };
+      dispatch({ type: 'result', value: await extractDocument(document.id, sel, engine) });
       setExcludedPages([]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Estrazione non riuscita.');
@@ -135,18 +130,12 @@ export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
   }
 
   function togglePreview() {
-    if (showPreview) {
-      setShowPreview(false);
-      return;
-    }
+    if (showPreview) { setShowPreview(false); return; }
     if (selectionInfo.valid || previewPages.length > 0) {
       setShowPreview(true);
       setError('');
     } else {
-      setError(
-        selectionInfo.error ||
-          'Controlla l’intervallo: servono numeri interi tra 1 e il totale pagine.',
-      );
+      setError(selectionInfo.error || 'Controlla l’intervallo: servono numeri interi tra 1 e il totale.');
     }
   }
 
@@ -160,10 +149,8 @@ export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
 
       {step === 'config' && (
         <StudyConfigCard
-          includeMap={includeMap}
-          includeCourse={includeCourse}
-          includeGamify={includeGamify}
-          includeVoice={includeVoice}
+          includeMap={includeMap} includeCourse={includeCourse}
+          includeGamify={includeGamify} includeVoice={includeVoice}
           onToggleMap={() => dispatch({ type: 'toggleMap' })}
           onToggleCourse={() => dispatch({ type: 'toggleCourse' })}
           onToggleGamify={() => dispatch({ type: 'toggleGamify' })}
@@ -192,19 +179,17 @@ export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
             <Text style={s.subtitle}>01 · Carica il materiale</Text>
             <Text style={s.muted}>{FORMATI_AMMESSI} · massimo 25 MB</Text>
             <Button
-              label={
-                busy
-                  ? 'Operazione in corso…'
-                  : document
-                    ? 'Scegli un altro documento'
-                    : 'Scegli un documento'
-              }
+              label={busy ? 'Operazione in corso…' : document ? 'Scegli un altro documento' : 'Scegli un documento'}
               onPress={pick}
               disabled={busy}
             />
+            <FotoPicker onPick={accetta} onError={setError} disabled={busy} />
             {document && (
               <View
-                style={[localStyles.docCard, dark && { backgroundColor: C.surface, borderColor: C.border }]}
+                style={[
+                  localStyles.docCard,
+                  dark && { backgroundColor: C.surface, borderColor: C.border },
+                ]}
               >
                 <View style={localStyles.docHeader}>
                   <View
@@ -222,9 +207,11 @@ export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
                   </Text>
                 </View>
                 <Text style={s.muted}>
-                  {document.pageCount
-                    ? `${document.pageCount} pagine originali rilevate`
-                    : 'Documento senza paginazione fissa'}
+                  {document.kind === 'image'
+                    ? 'Foto o immagine (1 pagina)'
+                    : document.pageCount
+                      ? `${document.pageCount} pagine originali rilevate`
+                      : 'Documento senza paginazione fissa'}
                 </Text>
               </View>
             )}
@@ -232,68 +219,67 @@ export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
 
           {document && (
             <Card>
-              <Text style={s.subtitle}>02 · Scegli cosa studiare</Text>
+              <Text style={s.subtitle}>
+                {document.kind === 'image' ? '02 · Elaborazione immagine' : '02 · Scegli cosa studiare'}
+              </Text>
               <Text style={s.muted}>
-                Scegli se analizzare l'intero documento oppure delimitare un intervallo di pagine
-                specifico prima dell'estrazione didattica.
+                {document.kind === 'image'
+                  ? 'La foto verrà letta con riconoscimento ottico del testo (OCR).'
+                  : 'Scegli se analizzare l’intero documento o un intervallo di pagine.'}
               </Text>
 
-              <View style={s.row}>
-                <Button
-                  label="Tutto il volume"
-                  disabled={busy}
-                  secondary={range}
-                  onPress={() => setRange(false)}
-                />
-                <Button
-                  label="Da pagina… a pagina…"
-                  secondary={!range}
-                  disabled={busy || document.kind !== 'pdf'}
-                  onPress={() => setRange(true)}
-                />
-              </View>
+              {document.kind !== 'image' && (
+                <>
+                  <View style={s.row}>
+                    <Button
+                      label="Tutto il volume"
+                      disabled={busy}
+                      secondary={range}
+                      onPress={() => setRange(false)}
+                    />
+                    <Button
+                      label="Da pagina… a pagina…"
+                      secondary={!range}
+                      disabled={busy || document.kind !== 'pdf'}
+                      onPress={() => setRange(true)}
+                    />
+                  </View>
 
-              {document.kind !== 'pdf' && (
-                <Text style={s.muted}>
-                  La selezione per pagina richiede un PDF. Per gli altri formati si elabora tutto il
-                  documento.
-                </Text>
+                  {document.kind !== 'pdf' && (
+                    <Text style={s.muted}>
+                      La selezione per pagina richiede un PDF. Per gli altri formati si elabora tutto.
+                    </Text>
+                  )}
+
+                  {document.chapters && document.chapters.length > 0 && (
+                    <ChaptersSelector
+                      chapters={document.chapters}
+                      range={range}
+                      from={from}
+                      to={to}
+                      disabled={busy}
+                      onSelect={selectChapter}
+                    />
+                  )}
+
+                  {document.kind === 'pdf' && document.pageCount !== null && (
+                    <PageRangeCard
+                      pageCount={document.pageCount} range={range} from={from} to={to}
+                      busy={busy} highlighted={rangeHighlighted} valid={selectionInfo.valid}
+                      selectedCount={selectionInfo.count} error={selectionInfo.error}
+                      onChangeFrom={setFrom} onChangeTo={setTo}
+                    />
+                  )}
+                </>
               )}
 
-              {document.chapters && document.chapters.length > 0 && (
-                <ChaptersSelector
-                  chapters={document.chapters}
-                  range={range}
-                  from={from}
-                  to={to}
-                  disabled={busy}
-                  onSelect={selectChapter}
-                />
-              )}
-
-              {document.kind === 'pdf' && document.pageCount !== null && (
-                <PageRangeCard
-                  pageCount={document.pageCount}
-                  range={range}
-                  from={from}
-                  to={to}
-                  busy={busy}
-                  highlighted={rangeHighlighted}
-                  valid={selectionInfo.valid}
-                  selectedCount={selectionInfo.count}
-                  error={selectionInfo.error}
-                  onChangeFrom={setFrom}
-                  onChangeTo={setTo}
-                />
-              )}
-
-              {document.kind === 'pdf' && (
+              {(document.kind === 'pdf' || document.kind === 'image') && (
                 <>
                   <Button
                     label={
                       showPreview
-                        ? 'Nascondi anteprima pagine'
-                        : 'Controlla le pagine selezionate'
+                        ? document.kind === 'image' ? 'Nascondi anteprima' : 'Nascondi anteprima pagine'
+                        : document.kind === 'image' ? 'Controlla la foto caricata' : 'Controlla le pagine selezionate'
                     }
                     secondary={!showPreview}
                     disabled={busy}
@@ -313,13 +299,18 @@ export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
                 </>
               )}
 
-              <Text style={s.subtitle}>03 · Metodo di lettura</Text>
-              <ReadingMethodSelector
-                engine={engine}
-                onChange={(value) => dispatch({ type: 'engine', value })}
-                disabled={busy}
-                hasDigitalText={document?.hasDigitalText}
-              />
+              {document.kind !== 'image' && (
+                <>
+                  <Text style={s.subtitle}>03 · Metodo di lettura</Text>
+                  <ReadingMethodSelector
+                    engine={engine}
+                    onChange={(value) => dispatch({ type: 'engine', value })}
+                    disabled={busy}
+                    hasDigitalText={document?.hasDigitalText}
+                  />
+                </>
+              )}
+
               <View style={s.row}>
                 <Button
                   label={busy ? 'Lettura in corso…' : 'Estrai il contenuto'}
@@ -338,7 +329,7 @@ export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
               {busy && (
                 <ExtractionProgressCard
                   engine={engine}
-                  pageCount={document?.pageCount ?? null}
+                  pageCount={document?.pageCount ?? 1}
                   selectedPagesCount={selectionInfo.count || (document?.pageCount ?? 1)}
                 />
               )}
@@ -351,16 +342,11 @@ export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
 
       {step === 'study' && result && (
         <StudyExperienceView
-          extraction={result}
-          documentName={document?.name}
-          includeMap={includeMap}
-          includeCourse={includeCourse}
-          includeGamify={includeGamify}
-          includeVoice={includeVoice}
-          excludedPages={excludedPages}
-          onTogglePage={togglePageExclusion}
-          onExcludedPagesChange={setExcludedPages}
-          onDraft={onDraft}
+          extraction={result} documentName={document?.name}
+          includeMap={includeMap} includeCourse={includeCourse}
+          includeGamify={includeGamify} includeVoice={includeVoice}
+          excludedPages={excludedPages} onTogglePage={togglePageExclusion}
+          onExcludedPagesChange={setExcludedPages} onDraft={onDraft}
           onBackToMaterial={() => dispatch({ type: 'step', value: 'material' })}
           onBackToConfig={() => dispatch({ type: 'step', value: 'config' })}
         />

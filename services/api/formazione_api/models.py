@@ -25,7 +25,7 @@ def selected_pages(selection, count, kind):
     if selection.mode == 'all':
         return (1, count) if count else (None, None)
     if kind != 'pdf':
-        raise ValueError('La selezione per pagina è disponibile solo per PDF; usare tutto il documento.')
+        raise ValueError('La selezione per pagina non si applica a questo formato: verrà letto tutto il documento.')
     if not 1 <= selection.fromPage <= selection.toPage <= count:
         raise ValueError(f'Intervallo non valido: indicare pagine da 1 a {count}, in ordine crescente.')
     return selection.fromPage, selection.toPage

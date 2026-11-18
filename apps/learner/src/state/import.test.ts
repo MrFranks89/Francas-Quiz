@@ -86,3 +86,15 @@ it('handles study configuration toggles and step transitions without clearing re
   expect(state.step).toBe('material');
   expect(state.result).toEqual(extraction);
 });
+
+it('selects docling and disables page range for image uploads', () => {
+  const state = importReducer(initialImport, {
+    type: 'document',
+    value: { id: 'img1', name: 'foto.jpg', kind: 'image', pageCount: 1, hasDigitalText: false },
+  });
+  expect(state.engine).toBe('docling');
+  expect(state.range).toBe(false);
+  expect(state.from).toBe('');
+  expect(state.to).toBe('');
+  expect(state.document?.kind).toBe('image');
+});

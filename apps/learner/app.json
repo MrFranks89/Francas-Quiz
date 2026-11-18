@@ -37,6 +37,13 @@
           "style": "light",
           "enforceContrast": true
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "L'app richiede l'accesso alle foto per caricare documenti da digitalizzare.",
+          "cameraPermission": "L'app richiede l'accesso alla fotocamera per scattare foto ai documenti da digitalizzare."
+        }
       ]
     ],
     "ios": {

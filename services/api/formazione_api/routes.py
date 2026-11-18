@@ -51,7 +51,7 @@ async def upload(request: Request, file: UploadFile = File(...)):
             raise ValueError('Il file è vuoto.')
         kind, count = inspect_document(path, filename)
         chapters = extract_outline(path, count) if kind == 'pdf' else []
-        has_digital = has_digital_text(path, count) if kind == 'pdf' else True
+        has_digital = has_digital_text(path, count) if kind == 'pdf' else (False if kind == 'image' else True)
         result = {
             'id': identifier,
             'name': filename,
@@ -78,6 +78,15 @@ async def upload(request: Request, file: UploadFile = File(...)):
 def preview(identifier: str, page: int, request: Request):
     store = request.app.state.store
     document = read_record(store, identifier, 'document.json')
+    if document['kind'] == 'image':
+        if page != 1:
+            raise HTTPException(422, "La foto è un documento di una sola pagina.")
+        from PIL import Image, ImageOps
+        with Image.open(store.path(identifier, 'source')) as img:
+            img = ImageOps.exif_transpose(img).convert('RGB')
+            output = BytesIO()
+            img.save(output, 'PNG')
+        return Response(output.getvalue(), media_type='image/png', headers={'X-Original-Page': '1'})
     if document['kind'] != 'pdf' or not 1 <= page <= document['pageCount']:
         raise HTTPException(422, 'Anteprima disponibile solo per pagine PDF valide.')
     try:
@@ -110,7 +119,8 @@ def extract(identifier: str, body: ExtractionRequest, request: Request):
     except ValueError as error:
         raise HTTPException(422, str(error)) from error
     try:
-        if body.engine == 'native':
+        engine = 'docling' if document['kind'] == 'image' else body.engine
+        if engine == 'native':
             blocks, warnings, status = native_extract(store.path(identifier, 'source'), document['kind'], start, end)
         else:
             from .docling_adapter import docling_extract
@@ -122,7 +132,7 @@ def extract(identifier: str, body: ExtractionRequest, request: Request):
         logger.error('Extraction failed: %s', type(error).__name__)
         raise HTTPException(422, 'Estrazione non riuscita; verificare il documento.') from error
     extraction_id = store.new_id()
-    result = {'id': extraction_id, 'documentId': identifier, 'selection': body.selection.model_dump(), 'pageCount': end - start + 1 if start else None, 'blocks': blocks, 'warnings': warnings, 'status': status, 'engine': body.engine}
+    result = {'id': extraction_id, 'documentId': identifier, 'selection': body.selection.model_dump(), 'pageCount': end - start + 1 if start else None, 'blocks': blocks, 'warnings': warnings, 'status': status, 'engine': engine}
     store.save(extraction_id, 'extraction.json', result)
     return result
 

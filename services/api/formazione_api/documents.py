@@ -10,7 +10,15 @@ from .extractors import HEADING_PATTERN
 
 MAX_BYTES = 25 * 1024 * 1024
 MAX_EXPANDED = 100 * 1024 * 1024
-KINDS = {'.pdf': 'pdf', '.docx': 'docx', '.txt': 'text', '.md': 'text'}
+KINDS = {
+    '.pdf': 'pdf',
+    '.docx': 'docx',
+    '.txt': 'text',
+    '.md': 'text',
+    '.jpg': 'image',
+    '.jpeg': 'image',
+    '.png': 'image',
+}
 
 # Decisione del 29 ottobre 2026 (docs/decisions/004-niente-fogli-di-calcolo.md): i fogli di calcolo
 # non sono una fonte, perché un foglio di dati renderebbe facile «barare».
@@ -45,7 +53,7 @@ def inspect_document(path, filename):
         raise ValueError(MESSAGGIO_FOGLI)
     kind = KINDS.get(Path(filename).suffix.lower())
     if kind is None:
-        raise ValueError('Formato non supportato: PDF, DOCX, TXT o MD.')
+        raise ValueError('Formato non supportato: PDF, DOCX, TXT, MD, JPG o PNG.')
     count = None
     if kind == 'pdf':
         with path.open('rb') as source:
@@ -71,6 +79,17 @@ def inspect_document(path, filename):
             Document(path)
         except BadZipFile as error:
             raise ValueError('Archivio Office non valido.') from error
+    elif kind == 'image':
+        data = path.read_bytes()
+        if not (data[:3] == b'\xff\xd8\xff' or data[:8] == b'\x89PNG\r\n\x1a\n'):
+            raise ValueError("Il file non è un'immagine JPEG o PNG valida.")
+        try:
+            from PIL import Image
+            with Image.open(path) as img:
+                img.verify()  # bombe di decompressione: Pillow le rifiuta da sé (MAX_IMAGE_PIXELS)
+        except Exception as error:
+            raise ValueError("Il file non è un'immagine JPEG o PNG valida.") from error
+        count = 1
     else:
         content = path.read_bytes()
         if b'\x00' in content:

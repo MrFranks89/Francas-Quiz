@@ -45,7 +45,8 @@ export type ImportAction =
 
 export function importReducer(state: ImportState, action: ImportAction): ImportState {
   switch (action.type) {
-    case 'document':
+    case 'document': {
+      const isImage = action.value.kind === 'image';
       return {
         ...initialImport,
         includeMap: state.includeMap,
@@ -53,10 +54,13 @@ export function importReducer(state: ImportState, action: ImportAction): ImportS
         includeGamify: state.includeGamify,
         includeVoice: state.includeVoice,
         step: state.step === 'study' ? 'material' : state.step,
-        engine: action.value.hasDigitalText === false ? 'docling' : 'native',
+        engine: isImage || action.value.hasDigitalText === false ? 'docling' : 'native',
+        range: false,
+        from: isImage ? '' : '1',
+        to: isImage ? '' : String(action.value.pageCount || 1),
         document: action.value,
-        to: String(action.value.pageCount || 1),
       };
+    }
     case 'result':
       return { ...state, result: action.value, step: 'study' };
     case 'step':

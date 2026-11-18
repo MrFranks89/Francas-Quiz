@@ -9,17 +9,22 @@ it('il selettore non propone fogli di calcolo, né sul web né su dispositivo', 
   }
   expect(FORMATI_AMMESSI).not.toMatch(fogli);
 });
-it('il selettore propone ancora PDF, DOCX, TXT e Markdown', () => {
+it('il selettore propone ancora PDF, DOCX, TXT, Markdown e immagini JPG/PNG', () => {
   expect(tipiSelettore(true)).toEqual(
     expect.arrayContaining([
       'application/pdf',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'text/plain',
       'text/markdown',
+      'image/jpeg',
+      'image/png',
       '.pdf',
       '.docx',
       '.txt',
       '.md',
+      '.jpg',
+      '.jpeg',
+      '.png',
     ]),
   );
   expect(tipiSelettore(false).every((t) => t.includes('/'))).toBe(true);

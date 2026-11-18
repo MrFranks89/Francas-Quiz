@@ -24,7 +24,7 @@ os.environ.setdefault('TRANSFORMERS_OFFLINE', '1')
 SECONDS_PER_PAGE = 60
 # Versione dichiarata dell'adattatore, nella chiave della cache delle misure (measurement/corsa.py).
 # Cambiarla quando cambiano configurazione di Docling, testo o avvisi prodotti.
-VERSIONE = '2026-10-30-bianca-un-avviso'
+VERSIONE = '2026-11-18-immagini'
 MIN_TIMEOUT = 120
 
 # Caratteri utili minimi che l'OCR deve leggere su una pagina «probabile scansione» oltre al suo
@@ -79,9 +79,30 @@ def _converter(artifacts, pages=1):
                              format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=options)})
 
 
+class _PercorsoInMemoria:
+    def __init__(self, data: bytes):
+        self._data = data
+
+    def read_bytes(self) -> bytes:
+        return self._data
+
+
+def _pdf_da_immagine(path):
+    from PIL import Image, ImageOps
+    with Image.open(path) as img:
+        img = ImageOps.exif_transpose(img).convert('RGB')
+        buf = BytesIO()
+        img.save(buf, format='PDF', resolution=200.0)
+        return _PercorsoInMemoria(buf.getvalue())
+
+
 def docling_extract(path, kind, start, end):
-    if kind != 'pdf':
-        raise ValueError('Docling è disponibile in questa versione solo per PDF.')
+    if kind not in ('pdf', 'image'):
+        raise ValueError('Docling è disponibile in questa versione solo per PDF e immagini.')
+    if kind == 'image':
+        path = _pdf_da_immagine(path)
+        start = 1
+        end = 1
     configured = os.environ.get('DOCLING_ARTIFACTS_PATH')
     if configured:
         if not Path(configured).is_dir():
@@ -103,6 +124,10 @@ def docling_extract(path, kind, start, end):
         raise RuntimeError('Modelli o dipendenze Docling mancanti: completare il provisioning offline.') from error
     _require_all_pages(result, start, end, ConversionStatus.SUCCESS)
     blocks, warnings, status = _blocks(result.document, start, end)
+    if kind == 'image':
+        if not blocks:
+            warnings = ['Nessun testo leggibile nella foto: controllare inquadratura e illuminazione.']
+        return blocks, warnings, status
     avvisi = _scansioni_non_lette(path, start, end, blocks)
     # La pagina bianca senza testo riceveva anche l'avviso generico di _blocks: lo stesso caso detto
     # due volte, e «revisione necessaria» contraddiceva «ignorata». Sulle altre pagine resta.
