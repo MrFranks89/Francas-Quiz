@@ -1,5 +1,13 @@
-import React, { useState, type ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from 'react';
 import {
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -66,6 +74,19 @@ export function Guscio({
   );
 }
 
+export interface ScrollPannelloContesto {
+  scrollRef: RefObject<ScrollView | null>;
+  getScrollY: () => number;
+  scrollaDi: (delta: number, animated?: boolean) => void;
+  scrollToEnd: (animated?: boolean) => void;
+}
+
+export const ScrollContext = createContext<ScrollPannelloContesto | null>(null);
+
+export function useScrollPannello(): ScrollPannelloContesto | null {
+  return useContext(ScrollContext);
+}
+
 /**
  * Una schermata con il proprio scroll. `persistente`: resta montata anche
  * quando non è attiva (display: none), così non si perdono documento estratto,
@@ -85,23 +106,63 @@ export function Pannello({
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const orizzontale = width < 600 ? 16 : width <= 1024 ? 24 : 36;
+  const scrollRef = useRef<ScrollView | null>(null);
+  const scrollYRef = useRef(0);
+  const [altezzaTastiera, setAltezzaTastiera] = useState(0);
+
+  React.useEffect(() => {
+    if (Platform.OS === 'web') return;
+    const mostraSub = Keyboard.addListener('keyboardDidShow', (e) => {
+      setAltezzaTastiera(e.endCoordinates.height);
+    });
+    const nascondiSub = Keyboard.addListener('keyboardDidHide', () => {
+      setAltezzaTastiera(0);
+    });
+    return () => {
+      mostraSub.remove();
+      nascondiSub.remove();
+    };
+  }, []);
+
+  const valoreContesto = React.useMemo<ScrollPannelloContesto>(
+    () => ({
+      scrollRef,
+      getScrollY: () => scrollYRef.current,
+      scrollaDi: (delta: number, animated = true) => {
+        const target = Math.max(0, scrollYRef.current + delta);
+        scrollRef.current?.scrollTo({ y: target, animated });
+      },
+      scrollToEnd: (animated = true) => {
+        scrollRef.current?.scrollToEnd({ animated });
+      },
+    }),
+    [],
+  );
+
   if (!attivo && !persistente) return null;
   return (
-    <ScrollView
-      style={{ flex: 1, display: attivo ? 'flex' : 'none' }}
-      contentContainerStyle={{
-        padding: orizzontale,
-        paddingBottom: 36 + insets.bottom,
-        width: '100%',
-        maxWidth: LARGHEZZA_MAX,
-        alignSelf: 'center',
-        gap: 24,
-      }}
-      keyboardShouldPersistTaps="handled"
-      keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-    >
-      {children}
-      {piede}
-    </ScrollView>
+    <ScrollContext.Provider value={valoreContesto}>
+      <ScrollView
+        ref={scrollRef}
+        style={{ flex: 1, display: attivo ? 'flex' : 'none' }}
+        contentContainerStyle={{
+          padding: orizzontale,
+          paddingBottom: 36 + insets.bottom + altezzaTastiera,
+          width: '100%',
+          maxWidth: LARGHEZZA_MAX,
+          alignSelf: 'center',
+          gap: 24,
+        }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        onScroll={(e) => {
+          scrollYRef.current = e.nativeEvent.contentOffset.y;
+        }}
+        scrollEventThrottle={16}
+      >
+        {children}
+        {piede}
+      </ScrollView>
+    </ScrollContext.Provider>
   );
 }

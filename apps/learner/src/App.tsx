@@ -18,6 +18,7 @@ import { Button, Card, colors, useUiStyles } from './components/ui';
 import { Avviso, InterruttoreTema } from './components/lettore';
 import { TemaIniziale } from './components/TemaIniziale';
 import { Guscio, Pannello } from './components/Guscio';
+import { CampoTesto } from './components/CampoTesto';
 import { useIndietro } from './components/useIndietro';
 import { ImportScreen } from './screens/ImportScreen';
 import { CourseScreen } from './screens/CourseScreen';
@@ -301,7 +302,7 @@ function Shell() {
                 Inserisci l’ID restituito dal server. Un corso JSON importato rimane una sola
                 anteprima locale.
               </Text>
-              <TextInput
+              <CampoTesto
                 accessibilityLabel="ID bozza salvata"
                 style={ui.input}
                 placeholderTextColor={dark ? C.textVeryDim : colors.muted}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { usePalette, useTheme } from '@formazione/civis-ui/src/ThemeProvider';
 import { Button, Card, colors, useUiStyles } from './ui';
 
@@ -32,6 +32,7 @@ interface ToggleOptionCardProps {
   softBg: string;
   badgeText?: string;
   toggleLabel: string;
+  compatto?: boolean;
   onToggle: () => void;
 }
 
@@ -46,6 +47,7 @@ function ToggleOptionCard({
   softBg,
   badgeText,
   toggleLabel,
+  compatto,
   onToggle,
 }: ToggleOptionCardProps) {
   const C = usePalette(), { dark } = useTheme();
@@ -56,6 +58,7 @@ function ToggleOptionCard({
     <View
       style={[
         localStyles.optionCard,
+        compatto && { width: '100%', minWidth: '100%', flex: undefined },
         active
           ? { borderColor: accent, backgroundColor: activeBg, borderWidth: 2 }
           : [localStyles.optionCardInactive, dark && { borderColor: C.border, backgroundColor: C.surface }],
@@ -112,6 +115,8 @@ export function StudyConfigCard({
   onNext,
 }: StudyConfigCardProps) {
   const C = usePalette(), { dark } = useTheme(), ui = useUiStyles();
+  const { width } = useWindowDimensions();
+  const compatto = width < 600;
   const activeModules: string[] = [];
   if (includeMap) activeModules.push('Mappa');
   if (includeCourse) activeModules.push('Corso');
@@ -141,7 +146,9 @@ export function StudyConfigCard({
             active={includeMap}
             accentColor="#2563eb"
             softBg="#eff6ff"
+            badgeText="Albero Logico"
             toggleLabel="Includi Mappa Concettuale"
+            compatto={compatto}
             onToggle={onToggleMap}
           />
           <ToggleOptionCard
@@ -153,12 +160,15 @@ export function StudyConfigCard({
             active={includeCourse}
             accentColor="#2563eb"
             softBg="#eff6ff"
+            badgeText="Slide Studio"
             toggleLabel="Includi Corso a Schede"
+            compatto={compatto}
             onToggle={onToggleCourse}
           />
           <View
             style={[
               localStyles.optionCard,
+              compatto && { width: '100%', minWidth: '100%', flex: undefined },
               localStyles.quizFixedCard,
               dark && { backgroundColor: 'rgba(16,185,129,0.14)', borderColor: '#34d399' },
             ]}
@@ -214,6 +224,7 @@ export function StudyConfigCard({
             softBg="#eef2ff"
             badgeText="Gamification"
             toggleLabel="Includi Ripasso Dinamico"
+            compatto={compatto}
             onToggle={onToggleGamify}
           />
           <ToggleOptionCard
@@ -227,12 +238,19 @@ export function StudyConfigCard({
             softBg="#fff1f2"
             badgeText="Coach Orale"
             toggleLabel="Includi Ripetizione a Voce"
+            compatto={compatto}
             onToggle={onToggleVoice}
           />
         </View>
       </View>
 
-      <View style={[localStyles.summaryBar, dark && { backgroundColor: C.surfaceDark, borderColor: C.border }]}>
+      <View
+        style={[
+          localStyles.summaryBar,
+          compatto && { flexDirection: 'column', alignItems: 'stretch' },
+          dark && { backgroundColor: C.surfaceDark, borderColor: C.border },
+        ]}
+      >
         <View style={localStyles.summaryTextWrap}>
           <Text style={[localStyles.summaryLabel, dark && { color: C.textMuted }]}>CONFIGURAZIONE ATTIVA</Text>
           <Text style={[localStyles.summaryValue, dark && { color: '#60a5fa' }]}>{activeModules.join(' + ')}</Text>
