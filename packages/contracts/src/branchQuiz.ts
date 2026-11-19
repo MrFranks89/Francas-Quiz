@@ -11,6 +11,11 @@ export const BranchQuizRequestSchema = z.object({
   idempotencyKey: z.string().trim().min(1).optional().nullable(),
 });
 
+export const BranchQuizCrossValidationSchema = z.object({
+  enabled: z.boolean(),
+  provider: z.string().nullable(),
+});
+
 export const BranchQuizEstimateSchema = z.object({
   blockIds: z.array(z.string()),
   estimatedInputTokens: z.number(),
@@ -20,6 +25,7 @@ export const BranchQuizEstimateSchema = z.object({
   fitsBudget: z.boolean(),
   remainingBudgetUsd: z.string(),
   warnings: z.array(z.string()),
+  crossValidation: BranchQuizCrossValidationSchema.optional(),
 });
 
 export const BranchQuizSourceSchema = z.object({
@@ -49,6 +55,7 @@ export const BranchQuizResponseSchema = z.object({
   createdAt: z.string(),
   cached: z.boolean().optional(),
   stale: z.boolean().optional(),
+  crossValidation: BranchQuizCrossValidationSchema.optional(),
 });
 
 export type BranchQuizRequest = z.infer<typeof BranchQuizRequestSchema>;
