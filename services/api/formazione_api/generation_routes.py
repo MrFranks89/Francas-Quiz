@@ -1,4 +1,5 @@
 """HTTP boundary for generation; provider is configured on the server only."""
+import uuid
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt
 
@@ -10,7 +11,15 @@ from .generation.concept_provider import extract_concept_tree
 from .pagine_non_lette import messaggio_blocco
 from .ripresa_generazione import cancella as cancella_ripresa
 from .routes import read_record
-from .spesa_generazione import SpesaRifiuto, configurazione_spesa, genera_con_tetto, preventivo_pubblico
+from .spesa_generazione import (
+    SpesaRifiuto,
+    configurazione_spesa,
+    fornitore_e_modello,
+    genera_con_tetto,
+    genera_mappa_con_tetto,
+    preventivo_pubblico,
+)
+from .spesa_mappa import calcola_impronta_mappa
 
 router = APIRouter()
 
@@ -122,12 +131,56 @@ def concept_tree(identifier: str, request: Request, body: ConceptTreeRequest | N
         gen_provider = getattr(request.app.state, 'generation_provider', None)
         if gen_provider is not None and hasattr(gen_provider, 'concept_tree'):
             provider = gen_provider
+
+    fornitore, modello = fornitore_e_modello(provider)
+    if provider is not None:
+        fornitore = fornitore or getattr(provider, 'provider_name', None) or 'anthropic'
+        modello = modello or getattr(provider, 'model', None) or 'claude-haiku-5-5'
+
+    if fornitore and modello:
+        try:
+            chunks = plan_chunks(da_generare.get('blocks', []))
+            impronta_attesa = calcola_impronta_mappa(fornitore, modello, chunks, escluse=exclude_pages)
+            record = store.read(identifier, 'concept-tree.json')
+            if record.get('impronta') == impronta_attesa:
+                tree = record.get('tree', {})
+                return {
+                    **tree,
+                    'complete': record.get('complete', True),
+                    'treeHash': record.get('treeHash', ''),
+                    'warnings': record.get('warnings', []),
+                }
+        except Exception:
+            pass
+
+    corsa_id = uuid.uuid4().hex
     try:
-        chunks = plan_chunks(da_generare['blocks'])
-        tree = extract_concept_tree(chunks[0], provider=provider)
+        esito = genera_mappa_con_tetto(extraction, provider, store, corsa_id=corsa_id, escluse=exclude_pages)
+    except SpesaRifiuto as rifiuto:
+        raise HTTPException(rifiuto.status, {'code': rifiuto.code, 'message': str(rifiuto)}) from rifiuto
     except GenerationError as error:
         raise _generation_http_error(error) from error
-    return tree.model_dump()
+
+    tree = esito.get('tree', {})
+    return {
+        **tree,
+        'complete': esito.get('complete', True),
+        'treeHash': esito.get('treeHash', ''),
+        'warnings': esito.get('warnings', []),
+    }
+
+
+@router.get('/extractions/{identifier}/concept-tree', status_code=200)
+def get_concept_tree(identifier: str, request: Request):
+    store = request.app.state.store
+    record = read_record(store, identifier, 'concept-tree.json')
+    tree = record.get('tree', {})
+    return {
+        **tree,
+        'complete': record.get('complete', True),
+        'treeHash': record.get('treeHash', ''),
+        'warnings': record.get('warnings', []),
+    }
 
 
 @router.get('/drafts/{identifier}')

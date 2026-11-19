@@ -71,28 +71,8 @@ def limiti_configurati() -> dict[str, Decimal]:
 
 def importo_regolato(usage: dict | None, limite: pv.LimiteBlocco, listino: Prezzo) -> Decimal | None:
     """Maggiorante della spesa reale di un blocco completato, al posto del suo limite prenotato.
-
-    Chiamata con i contatori dichiarati dal fornitore = l'ultimo tentativo, quello andato a buon fine.
-    Non si vedono i tentativi precedenti dello SDK (max_retries=MAX_RETRIES, generation/instructions.py):
-    - anthropic 1.15.0, anthropic/_base_client.py, SyncAPIClient.request: `for retries_taken in
-      range(max_retries + 1)` con `model_copy(input_options)`, cioè al più 1 + MAX_RETRIES invii della
-      stessa richiesta; openai 3.31.0, openai/_base_client.py, stesso ciclo;
-    - si ritenta anche su timeout e connessione interrotta (anthropic: `_should_retry_exception`,
-      APIConnectionError/APITimeoutError; openai: `timeout_exceptions()` e `request_exceptions()`),
-      quindi un tentativo precedente può essere stato completato e fatturato dal server con un'uscita
-      fino a max_tokens, anche maggiore di quella dell'ultimo tentativo.
-    Per questo NON basta costo effettivo × (1 + MAX_RETRIES): un primo tentativo scaduto dopo 6.000
-    token d'uscita e un secondo da 500 costerebbero più del doppio del secondo. Il maggiorante è:
-    - ultimo tentativo: token reali alle tariffe del preventivo (tariffa d'ingresso più alta e
-      moltiplicatore massimo, preventivo.costo_tentativo), così non dipende da come il fornitore
-      ripartisce l'ingresso fra cache, scrittura in cache e non cache;
-    - ogni tentativo precedente: il limite per tentativo del preventivo, che non dipende da ciò che
-      il fornitore ha dichiarato. Quanti: `retriesTaken` di usage quando c'è (tentativi ripetuti
-      davvero, da `retries_taken` dello SDK); quando manca, tutti i possibili (MAX_RETRIES).
-    Poiché ogni contatore reale è entro il limite per tentativo, il regolato non supera mai il
-    prenotato (tentativi × limite per tentativo). Contatori assenti o oltre il limite per tentativo
-    (maggiorante smentito, FornitoreSorvegliato.violazione) → None: resta il prenotato.
-    """
+    Include l'ultimo tentativo alle tariffe del preventivo e i tentativi precedenti (retriesTaken)
+    calcolati al limite per tentativo del preventivo. Contatori assenti o oltre soglia -> None."""
     if not usage:
         return None
     entrata, uscita = usage.get('inputTokens'), usage.get('outputTokens')
@@ -343,12 +323,8 @@ def preventivo_pubblico(extraction: dict, provider, store, escluse=()) -> dict:
 
 def genera_con_tetto(extraction: dict, provider, store, corsa_id: str, escluse=(), ricomincia: bool = False,
                      **opzioni) -> dict:
-    """Generazione con preventivo, limiti e registro. Il fornitore reale si crea solo dopo che i
-    limiti hanno autorizzato la generazione, come in measurement.corsa.esegui_selezione.
-
-    Ripresa: i blocchi salvati validi (valuta) non si pagano e non si chiamano; ogni blocco generato
-    si salva subito (generate(ripresa=...)). `ricomincia` scarta i blocchi salvati, dal disco solo
-    dopo che i limiti hanno autorizzato la generazione."""
+    """Generazione con preventivo, limiti e registro. Ripresa: i blocchi salvati validi
+    non si pagano e non si chiamano; ricomincia scarta i blocchi salvati dal disco."""
     stima = valuta(extraction, provider, store, escluse, ricomincia)
     decidi(stima, store)
     if not GENERAZIONE_IN_CORSO.acquire(blocking=False):
@@ -379,12 +355,10 @@ def genera_con_tetto(extraction: dict, provider, store, corsa_id: str, escluse=(
             return risultato
         except GenerationError as error:
             corsa['esito'] = 'arrestata' if error.code == 'budget_guard' else 'fallita'
-            # Anche il testo di un errore della generazione passa dal filtro dei segreti (generation/causa.py).
             corsa['errore'] = dict(code=error.code, message=oscura(str(error)))
             raise
-        except Exception as error:  # registrata comunque: anche le generazioni fallite costano
+        except Exception as error:
             corsa['esito'] = 'fallita'
-            # Testo di un'eccezione imprevista: può contenere una chiave (generation/causa.py).
             corsa['errore'] = dict(code=type(error).__name__, message=oscura(str(error)))
             raise
         finally:
@@ -394,3 +368,15 @@ def genera_con_tetto(extraction: dict, provider, store, corsa_id: str, escluse=(
             reg.aggiorna_corsa(corsa)
     finally:
         GENERAZIONE_IN_CORSO.release()
+
+
+def genera_mappa_con_tetto(extraction: dict, provider, store, corsa_id: str, escluse=()) -> dict:
+    from .spesa_mappa import genera_mappa_con_tetto as _genera_mappa
+    return _genera_mappa(extraction, provider, store, corsa_id, escluse=escluse)
+
+
+def trascrivi_con_tetto(store, durata_secondi: float, chiama, **kwargs):
+    from .spesa_trascrizione import trascrivi_con_tetto as _trascrivi
+    return _trascrivi(store, durata_secondi, chiama, **kwargs)
+
+

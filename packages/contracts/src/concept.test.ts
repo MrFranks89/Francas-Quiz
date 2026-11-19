@@ -133,4 +133,40 @@ describe('ConceptTreeSchema', () => {
     expect(conceptTreeJsonSchema).toBeDefined();
     expect(typeof conceptTreeJsonSchema).toBe('object');
   });
+
+  it('gestisce i campi additivi originBlocks, treeHash, complete e warnings (presenti e assenti)', () => {
+    // 1. Campi assenti (già coperto parzialmente da validTree e minimalTree)
+    const parsedDefault = ConceptTreeSchema.parse(validTree);
+    expect(parsedDefault.treeHash).toBeUndefined();
+    expect(parsedDefault.complete).toBeUndefined();
+    expect(parsedDefault.warnings).toBeUndefined();
+    expect(parsedDefault.branches[0].originBlocks).toBeUndefined();
+    expect(parsedDefault.branches[0].nodes[0].originBlocks).toBeUndefined();
+
+    // 2. Campi presenti
+    const treeWithAdditions = {
+      ...validTree,
+      treeHash: 'hash-abc-123',
+      complete: true,
+      warnings: ['WARN_1', 'BLOCK_FAILED:chunk-2'],
+      branches: [
+        {
+          ...validTree.branches[0],
+          originBlocks: ['b1', 'b2'],
+          nodes: [
+            {
+              ...validTree.branches[0].nodes[0],
+              originBlocks: ['b1'],
+            },
+          ],
+        },
+      ],
+    };
+    const parsed = ConceptTreeSchema.parse(treeWithAdditions);
+    expect(parsed.treeHash).toBe('hash-abc-123');
+    expect(parsed.complete).toBe(true);
+    expect(parsed.warnings).toEqual(['WARN_1', 'BLOCK_FAILED:chunk-2']);
+    expect(parsed.branches[0].originBlocks).toEqual(['b1', 'b2']);
+    expect(parsed.branches[0].nodes[0].originBlocks).toEqual(['b1']);
+  });
 });

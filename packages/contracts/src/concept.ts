@@ -9,6 +9,7 @@ export const ConceptNodeSchema = z.object({
   title: text,
   summary: text,
   sourceRefs: refs,
+  originBlocks: z.array(id).optional(),
   keyTerms: z.array(text).optional(),
 });
 
@@ -16,6 +17,7 @@ export const ConceptBranchSchema = z.object({
   id,
   title: text,
   description: text.optional(),
+  originBlocks: z.array(id).optional(),
   nodes: z.array(ConceptNodeSchema).min(1),
 });
 
@@ -25,6 +27,9 @@ export const ConceptTreeSchema = z.object({
   documentId: id.optional(),
   rootTitle: text,
   summary: text.optional(),
+  treeHash: z.string().optional(),
+  complete: z.boolean().optional(),
+  warnings: z.array(z.string()).optional(),
   branches: z.array(ConceptBranchSchema).min(1),
 });
 

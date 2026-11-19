@@ -102,15 +102,20 @@ type RawConceptTree = {
   documentId?: string;
   rootTitle: string;
   summary?: string;
+  treeHash?: string;
+  complete?: boolean;
+  warnings?: string[];
   branches: {
     id?: string;
     title: string;
     description?: string;
+    originBlocks?: string[];
     nodes: {
       id?: string;
       title: string;
       summary: string;
       sourceRefs: string[];
+      originBlocks?: string[];
       keyTerms?: string[];
     }[];
   }[];
@@ -143,15 +148,20 @@ export async function fetchConceptTree(
     ...(raw.documentId ? { documentId: raw.documentId } : {}),
     rootTitle: raw.rootTitle,
     ...(raw.summary ? { summary: raw.summary } : {}),
+    ...(raw.treeHash ? { treeHash: raw.treeHash } : {}),
+    ...(typeof raw.complete === 'boolean' ? { complete: raw.complete } : {}),
+    ...(raw.warnings ? { warnings: raw.warnings } : {}),
     branches: (raw.branches ?? []).map((branch, branchIdx) => ({
       id: branch.id || `branch-${branchIdx + 1}`,
       title: branch.title,
       ...(branch.description ? { description: branch.description } : {}),
+      ...(branch.originBlocks ? { originBlocks: branch.originBlocks } : {}),
       nodes: (branch.nodes ?? []).map((node, nodeIdx) => ({
         id: node.id || `node-${branchIdx + 1}-${nodeIdx + 1}`,
         title: node.title,
         summary: node.summary,
         sourceRefs: node.sourceRefs ?? [],
+        ...(node.originBlocks ? { originBlocks: node.originBlocks } : {}),
         ...(node.keyTerms ? { keyTerms: node.keyTerms } : {}),
       })),
     })),

@@ -32,20 +32,21 @@ MAX_CHUNKS = _PARAMETRI['max_chunks'].default
 TENTATIVI_PER_CHIAMATA = 1 + MAX_RETRIES
 
 
-def schema_inviato(fornitore: str) -> dict:
+def schema_inviato(fornitore: str, modello_bozza=None) -> dict:
     """Lo schema dell'output come lo costruisce lo SDK del fornitore, con la stessa funzione."""
+    modello = modello_bozza or ModuleDraft
     if fornitore == 'openai':
         # OpenAIProvider chiama responses.parse(text_format=ModuleDraft); parse() costruisce
         # text.format con type_to_text_format_param (openai/resources/responses/responses.py 3.31.0).
         from openai.lib._parsing._responses import type_to_text_format_param
-        return type_to_text_format_param(ModuleDraft)
+        return type_to_text_format_param(modello)
     if fornitore == 'anthropic':
-        from ..generation.anthropic_provider import _schema
-        return {'type': 'json_schema', 'schema': _schema()}
-    from ..generation.openai_compat_provider import COMPATIBILI, formato_risposta
+        from anthropic import transform_schema
+        return {'type': 'json_schema', 'schema': transform_schema(modello)}
+    from ..generation.openai_compat_provider import COMPATIBILI
     if fornitore in COMPATIBILI:
-        # OpenAICompatProvider invia response_format=formato_risposta() a chat.completions.create.
-        return formato_risposta()
+        from openai.lib._parsing._completions import type_to_response_format_param
+        return type_to_response_format_param(modello)
     raise ValueError(f'Fornitore sconosciuto: {fornitore}')
 
 
@@ -72,10 +73,14 @@ class LimiteBlocco:
         return self.sovraccarico is not None
 
 
-def limite_blocco(chunk: Chunk, fornitore: str, sovraccarico: int | None, schema_byte: int | None = None) -> LimiteBlocco:
+def limite_blocco(chunk, fornitore: str, sovraccarico: int | None, schema_byte: int | None = None, istruzioni: str | None = None) -> LimiteBlocco:
     if schema_byte is None:
         schema_byte = byte_utf8(json.dumps(schema_inviato(fornitore), ensure_ascii=False))
-    return LimiteBlocco(chunk.id, byte_utf8(ISTRUZIONI_DIDATTICHE), byte_utf8(materiale(chunk)), schema_byte,
+    istr = ISTRUZIONI_DIDATTICHE if istruzioni is None else istruzioni
+    byte_mat = getattr(chunk, 'byte_materiale', None)
+    if byte_mat is None:
+        byte_mat = byte_utf8(materiale(chunk))
+    return LimiteBlocco(chunk.id, byte_utf8(istr), byte_mat, schema_byte,
                         sovraccarico, MAX_OUTPUT_TOKENS, TENTATIVI_PER_CHIAMATA)
 
 

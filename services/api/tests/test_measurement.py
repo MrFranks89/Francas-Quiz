@@ -336,3 +336,21 @@ def test_la_corsa_di_misura_registra_gli_scarti(tmp_path, monkeypatch):
     assert registro.leggi()['corse'][0]['scarti']['numero'] == corsa['blocchi']
     bozza = json.loads((tmp_path / 'corse' / corsa['id'] / 'bozza.json').read_text(encoding='utf-8'))
     assert len(bozza['scarti']) == corsa['blocchi']
+
+
+def test_schema_inviato_e_limite_blocco_generalizzazione():
+    from formazione_api.generation.concept import ConceptTreeDraft, ISTRUZIONI_CONCEPT_TREE
+    from formazione_api.generation.models import ModuleDraft
+
+    schema_def = pv.schema_inviato('anthropic')
+    schema_mod = pv.schema_inviato('anthropic', ModuleDraft)
+    assert schema_def == schema_mod
+
+    schema_concept = pv.schema_inviato('anthropic', ConceptTreeDraft)
+    assert schema_concept != schema_def
+
+    chunk = pv.pianifica([{'id': 'b1', 'text': 'Testo didattico base per il blocco 1.'}])[0]
+    lim_default = pv.limite_blocco(chunk, 'anthropic', 100)
+    lim_concept = pv.limite_blocco(chunk, 'anthropic', 100, schema_byte=500, istruzioni=ISTRUZIONI_CONCEPT_TREE)
+    assert lim_default.byte_istruzioni != lim_concept.byte_istruzioni
+    assert lim_concept.byte_schema == 500
