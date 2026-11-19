@@ -4,7 +4,7 @@ import uuid
 from decimal import Decimal
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
 from .generation.branch_quiz import (
@@ -21,7 +21,6 @@ from .routes import read_record
 from .spesa_generazione import (
     SpesaRifiuto,
     _usd,
-    fornitore_e_modello,
     limiti_configurati,
     registro,
 )
@@ -32,6 +31,43 @@ from .spesa_quiz_ramo import (
 )
 
 router = APIRouter()
+
+
+class CrossValidation(BaseModel):
+    enabled: bool
+    provider: str | None = None
+
+
+class BranchQuizEstimate(BaseModel):
+    blockIds: list[str]
+    estimatedInputTokens: int
+    estimatedOutputTokens: int
+    expectedCostUsd: str
+    maxCostUsd: str
+    fitsBudget: bool
+    remainingBudgetUsd: str
+    warnings: list[str]
+    crossValidation: CrossValidation
+
+
+class BranchQuizResponse(BaseModel):
+    quizId: str
+    extractionId: str
+    idempotencyKey: str
+    branchId: str
+    nodeId: str | None = None
+    treeHash: str
+    attempt: int
+    questionCount: int
+    questions: list[dict]
+    sources: list[dict]
+    validation: dict | None = None
+    costUsd: str
+    warnings: list[str]
+    createdAt: str
+    crossValidation: CrossValidation = Field(default_factory=lambda: CrossValidation(enabled=False, provider=None))
+    cached: bool = False
+    stale: bool = False
 
 
 class BranchQuizPreviewRequest(BaseModel):
@@ -51,7 +87,7 @@ class BranchQuizRequest(BaseModel):
     idempotencyKey: str | None = None
 
 
-@router.post('/extractions/{identifier}/concept-tree/quiz/preview', status_code=200)
+@router.post('/extractions/{identifier}/concept-tree/quiz/preview', response_model=BranchQuizEstimate, status_code=200)
 def preview_quiz(identifier: str, request: Request, body: BranchQuizPreviewRequest) -> dict[str, Any]:
     store = request.app.state.store
     extraction = read_record(store, identifier, 'extraction.json')
@@ -90,14 +126,20 @@ def preview_quiz(identifier: str, request: Request, body: BranchQuizPreviewReque
     except SpesaRifiuto as rifiuto:
         raise HTTPException(rifiuto.status, {'code': rifiuto.code, 'message': str(rifiuto)}) from rifiuto
 
-    limiti = limiti_configurati()
-    massimo = limiti['GENERATION_MAX_USD_PER_COURSE']
-    budget = limiti['GENERATION_BUDGET_USD']
-    speso = registro(store).speso()
-    limite = stima['limiteSuperioreUSD']
+    try:
+        decidi_quiz(stima, store)
+        fits_budget = True
+    except SpesaRifiuto:
+        fits_budget = False
 
-    fits_budget = (limite <= massimo) and (speso + limite <= budget)
+    budget = limiti_configurati()['GENERATION_BUDGET_USD']
+    speso = registro(store).speso()
     remaining_budget = max(budget - speso, Decimal(0))
+
+    warnings = list(selezione.get('warnings', []))
+    has_val = bool(stima['validatore'])
+    if not has_val:
+        warnings.append('NO_CROSS_VALIDATION')
 
     return {
         'blockIds': [b['id'] for b in selezione['blocks']],
@@ -107,12 +149,16 @@ def preview_quiz(identifier: str, request: Request, body: BranchQuizPreviewReque
         'maxCostUsd': _usd(stima['limiteSuperioreUSD']),
         'fitsBudget': fits_budget,
         'remainingBudgetUsd': _usd(remaining_budget),
-        'warnings': selezione.get('warnings', []),
+        'warnings': warnings,
+        'crossValidation': {
+            'enabled': has_val,
+            'provider': (stima['validatore'] or {}).get('fornitore'),
+        },
     }
 
 
-@router.post('/extractions/{identifier}/concept-tree/quiz', status_code=201)
-def generate_quiz(identifier: str, request: Request, body: BranchQuizRequest) -> dict[str, Any]:
+@router.post('/extractions/{identifier}/concept-tree/quiz', response_model=BranchQuizResponse, status_code=201)
+def generate_quiz(identifier: str, request: Request, body: BranchQuizRequest, response: Response) -> dict[str, Any]:
     store = request.app.state.store
     extraction = read_record(store, identifier, 'extraction.json')
 
@@ -123,9 +169,8 @@ def generate_quiz(identifier: str, request: Request, body: BranchQuizRequest) ->
     quiz_esistenti = leggi_quiz(store.root, identifier)
     for q in quiz_esistenti:
         if q.get('idempotencyKey') == key:
-            # L'albero può essere cambiato dopo la creazione del quiz: la risposta resta valida
-            # per la chiave richiesta (idempotenza), ma va marcata stale come fa la GET
-            # (rilievo 4 della review Sezione C).
+            if q.get('branchId') != body.branchId or (q.get('nodeId') or None) != (body.nodeId or None):
+                raise HTTPException(409, {'code': 'IDEMPOTENCY_KEY_CONFLICT', 'message': 'Chiave già usata per un altro ramo o nodo.'})
             stale = False
             try:
                 record_tree = store.read(identifier, 'concept-tree.json')
@@ -133,6 +178,7 @@ def generate_quiz(identifier: str, request: Request, body: BranchQuizRequest) ->
                 stale = bool(hash_corrente) and q.get('treeHash') != hash_corrente
             except Exception:
                 pass
+            response.status_code = 200
             return {**q, 'cached': True, 'stale': stale}
 
     # 2. Controllo mappa concettuale esistente e valida
@@ -167,6 +213,13 @@ def generate_quiz(identifier: str, request: Request, body: BranchQuizRequest) ->
     provider = getattr(request.app.state, 'generation_provider', None)
     corsa_id = uuid.uuid4().hex
     quiz_id = uuid.uuid4().hex
+
+    nodi_prompt = ([n for n in target_branch.get('nodes', []) if n.get('id') == body.nodeId]
+                   if body.nodeId else target_branch.get('nodes', []))
+    titolo = target_branch.get('title', '')
+    if body.nodeId and nodi_prompt:
+        titolo = f"{titolo} — {nodi_prompt[0].get('title', '')}"
+
     try:
         esito = genera_quiz_ramo_con_tetto(
             extraction,
@@ -177,14 +230,30 @@ def generate_quiz(identifier: str, request: Request, body: BranchQuizRequest) ->
             node_id=body.nodeId,
             tree_hash=body.treeHash,
             question_count=body.questionCount,
-            nodi_ramo=target_branch.get('nodes', []),
-            titolo_ramo=target_branch.get('title', ''),
+            nodi_ramo=nodi_prompt,
+            titolo_ramo=titolo,
             corsa_id=corsa_id,
+            extraction_id=identifier,
+            idempotency_key=key,
         )
     except SpesaRifiuto as rifiuto:
         raise HTTPException(rifiuto.status, {'code': rifiuto.code, 'message': str(rifiuto)}) from rifiuto
     except GenerationError as error:
+        if error.code == 'generation_in_progress':
+            raise HTTPException(409, {'code': 'generation_in_progress', 'message': str(error)}) from error
         raise _generation_http_error(error) from error
+
+    if 'cached_record' in esito:
+        cached_rec = esito['cached_record']
+        stale = False
+        try:
+            record_tree = store.read(identifier, 'concept-tree.json')
+            hash_corrente = record_tree.get('treeHash', '')
+            stale = bool(hash_corrente) and cached_rec.get('treeHash') != hash_corrente
+        except Exception:
+            pass
+        response.status_code = 200
+        return {**cached_rec, 'cached': True, 'stale': stale}
 
     # 5. Costruzione del record da persistere
     sources = [
@@ -210,13 +279,14 @@ def generate_quiz(identifier: str, request: Request, body: BranchQuizRequest) ->
         'costUsd': esito.get('costUsd', '0'),
         'warnings': [*selezione.get('warnings', []), *esito.get('warnings', [])],
         'createdAt': adesso(),
+        'crossValidation': esito.get('crossValidation', {'enabled': False, 'provider': None}),
     }
 
     aggiungi_quiz(store.root, identifier, record_quiz)
     return record_quiz
 
 
-@router.get('/extractions/{identifier}/concept-tree/quiz', status_code=200)
+@router.get('/extractions/{identifier}/concept-tree/quiz', response_model=list[BranchQuizResponse], status_code=200)
 def list_quizzes(
     identifier: str,
     request: Request,
@@ -245,6 +315,7 @@ def list_quizzes(
 @router.delete('/extractions/{identifier}/concept-tree/quiz/{quiz_id}', status_code=200)
 def delete_quiz(identifier: str, quiz_id: str, request: Request) -> dict[str, bool]:
     store = request.app.state.store
+    read_record(store, identifier, 'extraction.json')
     rimosso = elimina_quiz(store.root, identifier, quiz_id)
     if not rimosso:
         raise HTTPException(404, {'code': 'QUIZ_NOT_FOUND', 'message': f'Quiz {quiz_id} non trovato.'})

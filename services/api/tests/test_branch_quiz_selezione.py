@@ -98,9 +98,8 @@ def test_seleziona_blocchi_troncamento_a_tre_con_warning(sample_tree, sample_blo
     assert len(res['blocks']) == 3
     assert any('BLOCKS_TRUNCATED:4' in w for w in res['warnings'])
     b_ids = [b['id'] for b in res['blocks']]
-    # Devono essere tra b1, b2, b3, b4 e ordinati secondo sample_blocks
-    assert all(bid in ['b1', 'b2', 'b3', 'b4'] for bid in b_ids)
-    assert b_ids == sorted(b_ids, key=lambda x: [b['id'] for b in sample_blocks].index(x))
+    # Gli id esatti sopravvissuti per rank e ordine documento
+    assert b_ids == ['b1', 'b2', 'b3']
 
 
 def test_seleziona_blocchi_zero_blocchi_solleva_errore(sample_tree, sample_blocks):
@@ -165,11 +164,14 @@ def test_persistenza_quiz_roundtrip_e_file_rovinato(tmp_path):
     assert len(leggi_quiz(store_root, ext_id)) == 1
     assert elimina_quiz(store_root, ext_id, 'inesistente') is False
 
-    # File rovinato (non valido)
+    # File rovinato (non valido): leggi_quiz tollera, aggiungi_quiz rinomina in .corrotto
     path = os.path.join(store_root, f'{ext_id}.branch-quizzes.json')
     with open(path, 'w', encoding='utf-8') as f:
         f.write('NOT VALID JSON {{{')
     assert leggi_quiz(store_root, ext_id) == []
+    aggiungi_quiz(store_root, ext_id, {'quizId': 'quiz-recovered', 'branchId': 'b1', 'treeHash': 'th', 'questionCount': 3})
+    assert os.path.exists(f'{path}.corrotto')
+    assert [q['quizId'] for q in leggi_quiz(store_root, ext_id)] == ['quiz-recovered']
 
 
 def test_prompt_quiz_ramo_struttura(sample_blocks):
@@ -178,5 +180,13 @@ def test_prompt_quiz_ramo_struttura(sample_blocks):
     prompt = prompt_quiz_ramo('Ramo Test', nodi, blocchi, 4)
     assert 'Ramo concettuale: Ramo Test' in prompt
     assert '- [n1] Titolo N: Sommario N' in prompt
-    assert '### Blocco b1 (Pagina 1):' in prompt
+    assert '### Blocco b1 (p. 1):' in prompt
     assert 'esattamente 4 domande' in prompt
+
+
+def test_prompt_quiz_ramo_blocco_senza_pagina():
+    nodi = [{'id': 'n1', 'title': 'Titolo N', 'summary': 'Sommario N'}]
+    blocchi = [{'id': 'b1', 'page': None, 'text': 'Testo blocco 1'}]
+    prompt = prompt_quiz_ramo('Ramo Test', nodi, blocchi, 3)
+    assert '### Blocco b1:\nTesto blocco 1' in prompt
+    assert '### Blocco b1 (' not in prompt

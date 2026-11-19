@@ -129,7 +129,8 @@ def test_percorso_felice_201_e_preview_senza_registro(tmp_path):
     prev_data = preview_res.json()
     assert prev_data['blockIds'] == ['b1']
     assert prev_data['fitsBudget'] is True
-    assert prev_data['warnings'] == []
+    assert prev_data['warnings'] == ['NO_CROSS_VALIDATION']
+    assert prev_data['crossValidation'] == {'enabled': False, 'provider': None}
 
     # Verifica: preview non ha scritto sul registro
     assert len(registro(store).leggi()['corse']) == 0
@@ -148,6 +149,15 @@ def test_percorso_felice_201_e_preview_senza_registro(tmp_path):
     assert quiz_data['questions'][0]['id'] == 'question-p1'
     assert quiz_data['questions'][1]['id'] == 'question-p2'
     assert quiz_data['questions'][2]['id'] == 'question-p3'
+    assert quiz_data['crossValidation'] == {'enabled': False, 'provider': None}
+
+    # Seconda chiamata identica: status 200 cached
+    res2 = client.post(
+        f'/extractions/{ext_id}/concept-tree/quiz',
+        json={'branchId': 'branch-1', 'treeHash': 'hash_albero_valido', 'questionCount': 3},
+    )
+    assert res2.status_code == 200
+    assert res2.json()['cached'] is True
 
     # Registro aggiornato con la corsa
     corse = registro(store).leggi()['corse']
@@ -275,9 +285,116 @@ def test_cached_con_albero_cambiato_marcato_stale(tmp_path):
         json={'branchId': 'branch-1', 'treeHash': 'hash_albero_valido', 'questionCount': 3,
               'idempotencyKey': 'chiave-stale'},
     )
-    assert res2.status_code == 201
+    assert res2.status_code == 200
     data2 = res2.json()
     assert data2['cached'] is True
     assert data2['stale'] is True
     # Nessuna nuova chiamata al provider
     assert len(provider.calls) == 1
+
+
+def test_source_refs_filtrati_sottoinsieme_blocchi(tmp_path):
+    app = create_app(tmp_path)
+    provider = FakeBranchQuizProvider(questions=[
+        QuestionDraft(
+            kind='single', prompt='D1', situation='', sentence='', wrong='',
+            options=['A', 'B'], correctIndex=0, correctIndexes=[], correct=False,
+            pairTerms=[], rationales=['R1', 'R2'], explanation='Exp',
+            sourceRefs=['p. 1', 'b1:10-20', 'inventato'], difficulty='base',
+        ),
+        QuestionDraft(
+            kind='single', prompt='D2', situation='', sentence='', wrong='',
+            options=['A', 'B'], correctIndex=0, correctIndexes=[], correct=False,
+            pairTerms=[], rationales=['R1', 'R2'], explanation='Exp',
+            sourceRefs=['b1'], difficulty='base',
+        ),
+        QuestionDraft(
+            kind='single', prompt='D3', situation='', sentence='', wrong='',
+            options=['A', 'B'], correctIndex=0, correctIndexes=[], correct=False,
+            pairTerms=[], rationales=['R1', 'R2'], explanation='Exp',
+            sourceRefs=['b1'], difficulty='base',
+        ),
+    ])
+    app.state.generation_provider = provider
+    client = TestClient(app)
+    store = app.state.store
+    ext_id = _prepara_ambiente_con_albero(client, store)
+
+    prev_res = client.post(
+        f'/extractions/{ext_id}/concept-tree/quiz/preview',
+        json={'branchId': 'branch-1', 'treeHash': 'hash_albero_valido', 'questionCount': 3},
+    )
+    assert prev_res.status_code == 200, prev_res.text
+    preview_block_ids = set(prev_res.json()['blockIds'])
+
+    gen_res = client.post(
+        f'/extractions/{ext_id}/concept-tree/quiz',
+        json={'branchId': 'branch-1', 'treeHash': 'hash_albero_valido', 'questionCount': 3},
+    )
+    assert gen_res.status_code == 201, gen_res.text
+    for q in gen_res.json()['questions']:
+        assert set(q['sourceRefs']).issubset(preview_block_ids)
+
+
+def test_prompt_rispetta_node_id(tmp_path):
+    app = create_app(tmp_path)
+    provider = FakeBranchQuizProvider()
+    app.state.generation_provider = provider
+    client = TestClient(app)
+    store = app.state.store
+    ext_id = _prepara_ambiente_con_albero(client, store)
+
+    res = client.post(
+        f'/extractions/{ext_id}/concept-tree/quiz',
+        json={'branchId': 'branch-1', 'nodeId': 'node-1-1', 'treeHash': 'hash_albero_valido', 'questionCount': 3},
+    )
+    assert res.status_code == 201
+    prompt = provider.calls[0]
+    assert 'Concetti Introduttivi — Nodo Uno' in prompt
+    assert 'node-1-1' in prompt
+
+
+def test_conflitto_chiave_idempotenza_409(tmp_path):
+    app = create_app(tmp_path)
+    provider = FakeBranchQuizProvider()
+    app.state.generation_provider = provider
+    client = TestClient(app)
+    store = app.state.store
+    ext_id = _prepara_ambiente_con_albero(client, store)
+
+    res1 = client.post(
+        f'/extractions/{ext_id}/concept-tree/quiz',
+        json={'branchId': 'branch-1', 'treeHash': 'hash_albero_valido', 'questionCount': 3, 'idempotencyKey': 'chiave-fissa'},
+    )
+    assert res1.status_code == 201
+
+    res2 = client.post(
+        f'/extractions/{ext_id}/concept-tree/quiz',
+        json={'branchId': 'branch-senza-blocchi', 'treeHash': 'hash_albero_valido', 'questionCount': 3, 'idempotencyKey': 'chiave-fissa'},
+    )
+    assert res2.status_code == 409
+    assert res2.json()['detail']['code'] == 'IDEMPOTENCY_KEY_CONFLICT'
+
+
+def test_delete_identificatore_malformato_404(tmp_path):
+    app = create_app(tmp_path)
+    client = TestClient(app)
+    res = client.delete('/extractions/non-hex-id-malformato/concept-tree/quiz/quiz-1')
+    assert res.status_code == 404
+
+
+def test_generazione_in_corso_409(tmp_path):
+    from formazione_api.spesa_generazione import GENERAZIONE_IN_CORSO
+    app = create_app(tmp_path)
+    app.state.generation_provider = FakeBranchQuizProvider()
+    client = TestClient(app)
+    store = app.state.store
+    ext_id = _prepara_ambiente_con_albero(client, store)
+
+    with GENERAZIONE_IN_CORSO:
+        res = client.post(
+            f'/extractions/{ext_id}/concept-tree/quiz',
+            json={'branchId': 'branch-1', 'treeHash': 'hash_albero_valido', 'questionCount': 3},
+        )
+        assert res.status_code == 409
+        assert res.json()['detail']['code'] == 'generation_in_progress'

@@ -60,8 +60,8 @@ ISTRUZIONI_QUIZ_RAMO = (
 
 
 class BranchQuizDraft(Model):
-    """Busta per i quiz mirati di ramo (E6): sole domande, da 3 a 6."""
-    questions: list[QuestionDraft] = Field(min_length=3, max_length=6)
+    """Busta per i quiz mirati di ramo (E6): sole domande, da 1 in su (M2)."""
+    questions: list[QuestionDraft] = Field(min_length=1)
 
 
 def prompt_quiz_ramo(titolo_ramo: str, nodi: list[dict], blocchi: list[dict], numero_domande: int) -> str:
@@ -77,9 +77,9 @@ def prompt_quiz_ramo(titolo_ramo: str, nodi: list[dict], blocchi: list[dict], nu
     linee_blocchi = []
     for b in blocchi:
         bid = b.get('id', '')
-        page_ref = b.get('label') or (f"p. {b['page']}" if b.get('page') is not None else bid)
+        page_ref = f"p. {b['page']}" if b.get('page') is not None else None
         text = b.get('text', '').strip()
-        linee_blocchi.append(f"### Blocco {bid} ({page_ref}):\n{text}")
+        linee_blocchi.append(f"### Blocco {bid}" + (f" ({page_ref})" if page_ref else "") + f":\n{text}")
     testo_blocchi = '\n\n'.join(linee_blocchi)
 
     return (
@@ -176,7 +176,21 @@ def aggiungi_quiz(store_root: str, extraction_id: str, record: dict) -> None:
     """Aggiunge atomicamente un record quiz al file branch-quizzes.json dell'estrazione."""
     with _LOCK_QUIZ:
         path = _percorso_quiz(store_root, extraction_id)
-        quiz_esistenti = leggi_quiz(store_root, extraction_id)
+        quiz_esistenti = []
+        if os.path.exists(path):
+            try:
+                with open(path, 'r', encoding='utf-8') as f:
+                    dati = json.load(f)
+                    quiz_esistenti = dati if isinstance(dati, list) else []
+            except Exception as error:
+                corrotto = f'{path}.corrotto'
+                logger.warning('File quiz corrotto per %s, rinominato in %s: %s', extraction_id, corrotto, error)
+                try:
+                    os.replace(path, corrotto)
+                except Exception:
+                    pass
+                quiz_esistenti = []
+
         qid = record.get('quizId')
         aggiornati = [q for q in quiz_esistenti if q.get('quizId') != qid]
         aggiornati.append(record)
@@ -346,9 +360,14 @@ class GeneratoreQuizRamo:
         choices = getattr(response, 'choices', None) or []
         if not choices:
             raise GenerationError('provider_empty', 'Risposta AI priva di contenuti strutturati')
-        message = getattr(choices[0], 'message', None)
-        if getattr(message, 'refusal', None):
+        choice = choices[0]
+        message = getattr(choice, 'message', None)
+        finish_reason = getattr(choice, 'finish_reason', None)
+        if getattr(message, 'refusal', None) or finish_reason == 'content_filter':
             raise GenerationError('provider_refusal', 'Il fornitore AI ha rifiutato il contenuto')
+        if finish_reason != 'stop':
+            raise GenerationError('provider_incomplete',
+                                  f'Risposta AI incompleta (finish_reason={finish_reason}); nessun quiz generato')
         content = getattr(message, 'content', None) or ''
         if not content.strip():
             raise GenerationError('provider_empty', 'Risposta AI priva di contenuti strutturati')
