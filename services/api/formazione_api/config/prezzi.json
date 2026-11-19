@@ -169,5 +169,19 @@
         }
       }
     }
+  },
+  "audio": {
+    "groq": {
+      "whisper-large-v3-turbo": {
+        "usdPerSecondo": 0,
+        "piano": "gratuito",
+        "nota": "Free tier Groq: 20 richieste/min, 2.000/giorno, 7.200 s/ora, 28.800 s/giorno, file ≤ 25 MB (GroqDocs speech-to-text, verificato il 18/11/2026). Con fatturazione attiva: 0,04 $/ora e il tetto non lo vede."
+      },
+      "whisper-large-v3": {
+        "usdPerSecondo": 0,
+        "piano": "gratuito",
+        "nota": "Stessi limiti; a pagamento 0,111 $/ora."
+      }
+    }
   }
 }

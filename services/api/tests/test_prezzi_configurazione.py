@@ -20,8 +20,9 @@ TOOLS = Path(__file__).resolve().parents[1] / 'tools'
 
 # Contenuto del file: nessun valore può cambiare senza aggiornare qui (spostamento: 05ff2707…;
 # 2026-11-03: aggiunti i modelli Gemini a prezzo 0 del piano gratuito;
-# 2026-11-16: aggiunti Groq e OpenRouter, solo modelli gratuiti).
-SHA256_LISTINO = '949f9f7326aaa2b05ff6c8929edd039779652cf5e602a7c965d6c5121f073431'
+# 2026-11-16: aggiunti Groq e OpenRouter, solo modelli gratuiti;
+# 2026-11-18: aggiunta sezione audio per Groq Whisper free tier).
+SHA256_LISTINO = 'a6636eaaa6b1d60d84cab8fcb1e0cbd96959c7053052f055ae71bbd29ba34a37'
 
 # (fornitore, modello, ingresso, uscita, ingressoCache, altriIngressi, moltiplicatore, soglia, quota per chiamata)
 ATTESI = [

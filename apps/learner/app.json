@@ -44,6 +44,12 @@
           "photosPermission": "L'app richiede l'accesso alle foto per caricare documenti da digitalizzare.",
           "cameraPermission": "L'app richiede l'accesso alla fotocamera per scattare foto ai documenti da digitalizzare."
         }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "L'app richiede l'accesso al microfono per registrare lezioni e appunti da trascrivere."
+        }
       ]
     ],
     "ios": {

@@ -15,7 +15,9 @@ from .documents import (
     inspect_document,
 )
 from .extractors import native_extract
+from .generation.errors import GenerationError
 from .models import ExtractionRequest, selected_pages
+from .spesa_generazione import SpesaRifiuto, trascrivi_con_tetto
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -51,7 +53,7 @@ async def upload(request: Request, file: UploadFile = File(...)):
             raise ValueError('Il file è vuoto.')
         kind, count = inspect_document(path, filename)
         chapters = extract_outline(path, count) if kind == 'pdf' else []
-        has_digital = has_digital_text(path, count) if kind == 'pdf' else (False if kind == 'image' else True)
+        has_digital = has_digital_text(path, count) if kind == 'pdf' else (False if kind in ('image', 'audio') else True)
         result = {
             'id': identifier,
             'name': filename,
@@ -118,13 +120,36 @@ def extract(identifier: str, body: ExtractionRequest, request: Request):
         start, end = selected_pages(body.selection, document['pageCount'], document['kind'])
     except ValueError as error:
         raise HTTPException(422, str(error)) from error
+    if document['kind'] == 'audio':
+        engine = 'trascrizione'
+    elif document['kind'] == 'image':
+        engine = 'docling'
+    else:
+        engine = body.engine
     try:
-        engine = 'docling' if document['kind'] == 'image' else body.engine
-        if engine == 'native':
+        if engine == 'trascrizione':
+            import mutagen
+            from .trascrizione import trascrivi
+            audio_path = store.path(identifier, 'source')
+            audio_info = mutagen.File(audio_path)
+            durata = getattr(audio_info.info, 'length', 0) if audio_info and audio_info.info else 0
+            client_audio = getattr(request.app.state, 'groq_client', None)
+            provider_audio = getattr(request.app.state, 'transcription_provider', None)
+            blocks, warnings, status, _ = trascrivi_con_tetto(
+                store,
+                durata,
+                lambda: trascrivi(audio_path, client=client_audio, provider=provider_audio),
+            )
+        elif engine == 'native':
             blocks, warnings, status = native_extract(store.path(identifier, 'source'), document['kind'], start, end)
         else:
             from .docling_adapter import docling_extract
             blocks, warnings, status = docling_extract(store.path(identifier, 'source'), document['kind'], start, end)
+    except SpesaRifiuto as rifiuto:
+        raise HTTPException(rifiuto.status, {'code': rifiuto.code, 'message': str(rifiuto)}) from rifiuto
+    except GenerationError as error:
+        status_code = 503 if error.code == 'not_configured' else 422
+        raise HTTPException(status_code, {'code': error.code, 'message': str(error)}) from error
     except RuntimeError as error:
         logger.warning('Extraction unavailable: %s', type(error).__name__)
         raise HTTPException(503, str(error)) from error

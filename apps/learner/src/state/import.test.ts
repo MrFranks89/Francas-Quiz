@@ -98,3 +98,15 @@ it('selects docling and disables page range for image uploads', () => {
   expect(state.to).toBe('');
   expect(state.document?.kind).toBe('image');
 });
+
+it('selects trascrizione and disables page range for audio uploads', () => {
+  const state = importReducer(initialImport, {
+    type: 'document',
+    value: { id: 'aud1', name: 'registrazione.m4a', kind: 'audio', pageCount: null, hasDigitalText: false },
+  });
+  expect(state.engine).toBe('trascrizione');
+  expect(state.range).toBe(false);
+  expect(state.from).toBe('');
+  expect(state.to).toBe('');
+  expect(state.document?.kind).toBe('audio');
+});

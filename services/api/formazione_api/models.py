@@ -18,7 +18,7 @@ class RangeSelection(BaseModel):
 class ExtractionRequest(BaseModel):
     model_config = ConfigDict(extra='forbid')
     selection: Annotated[AllSelection | RangeSelection, Field(discriminator='mode')]
-    engine: Literal['native', 'docling'] = 'native'
+    engine: Literal['native', 'docling', 'trascrizione'] = 'native'
 
 
 def selected_pages(selection, count, kind):

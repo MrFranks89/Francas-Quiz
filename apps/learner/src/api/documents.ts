@@ -70,7 +70,7 @@ export async function uploadDocument(asset: DocumentPickerAsset): Promise<Docume
 export function extractDocument(
   id: string,
   selection: PageSelection,
-  engine: 'native' | 'docling',
+  engine: 'native' | 'docling' | 'trascrizione',
 ) {
   return request<Extraction>(`/documents/${id}/extract`, {
     method: 'POST',

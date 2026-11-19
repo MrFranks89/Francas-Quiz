@@ -15,6 +15,7 @@ import { ExtractionProgressCard } from '../components/ExtractionProgressCard';
 import { StudyConfigCard } from '../components/StudyConfigCard';
 import { StudyExperienceView } from '../components/StudyExperienceView';
 import { FotoPicker, type PickedAsset } from '../components/FotoPicker';
+import { AudioPicker } from '../components/AudioPicker';
 import type { Draft } from '../api/generation';
 
 export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
@@ -50,7 +51,7 @@ export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
 
   const selectionInfo = useMemo(() => {
     if (!document) return { valid: false, pages: [] as number[], count: 0, error: null };
-    if (document.kind === 'image') return { valid: true, pages: [1], count: 1, error: null };
+    if (document.kind === 'image' || document.kind === 'audio') return { valid: true, pages: [1], count: 1, error: null };
     if (document.kind !== 'pdf' || !document.pageCount) {
       return { valid: false, pages: [] as number[], count: 0, error: null };
     }
@@ -184,6 +185,7 @@ export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
               disabled={busy}
             />
             <FotoPicker onPick={accetta} onError={setError} disabled={busy} />
+            <AudioPicker onPick={accetta} onError={setError} disabled={busy} />
             {document && (
               <View
                 style={[
@@ -209,9 +211,11 @@ export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
                 <Text style={s.muted}>
                   {document.kind === 'image'
                     ? 'Foto o immagine (1 pagina)'
-                    : document.pageCount
-                      ? `${document.pageCount} pagine originali rilevate`
-                      : 'Documento senza paginazione fissa'}
+                    : document.kind === 'audio'
+                      ? 'File audio (trascrizione automatica)'
+                      : document.pageCount
+                        ? `${document.pageCount} pagine originali rilevate`
+                        : 'Documento senza paginazione fissa'}
                 </Text>
               </View>
             )}
@@ -220,15 +224,21 @@ export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
           {document && (
             <Card>
               <Text style={s.subtitle}>
-                {document.kind === 'image' ? '02 · Elaborazione immagine' : '02 · Scegli cosa studiare'}
+                {document.kind === 'image'
+                  ? '02 · Elaborazione immagine'
+                  : document.kind === 'audio'
+                    ? '02 · Trascrizione audio'
+                    : '02 · Scegli cosa studiare'}
               </Text>
               <Text style={s.muted}>
                 {document.kind === 'image'
                   ? 'La foto verrà letta con riconoscimento ottico del testo (OCR).'
-                  : 'Scegli se analizzare l’intero documento o un intervallo di pagine.'}
+                  : document.kind === 'audio'
+                    ? 'Verrà trascritto automaticamente con riconoscimento vocale. Controlla il testo prima di generare: nomi propri e numeri possono essere imprecisi.'
+                    : 'Scegli se analizzare l’intero documento o un intervallo di pagine.'}
               </Text>
 
-              {document.kind !== 'image' && (
+              {document.kind !== 'image' && document.kind !== 'audio' && (
                 <>
                   <View style={s.row}>
                     <Button
@@ -299,11 +309,11 @@ export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
                 </>
               )}
 
-              {document.kind !== 'image' && (
+              {document.kind !== 'image' && document.kind !== 'audio' && (
                 <>
                   <Text style={s.subtitle}>03 · Metodo di lettura</Text>
                   <ReadingMethodSelector
-                    engine={engine}
+                    engine={engine as 'native' | 'docling'}
                     onChange={(value) => dispatch({ type: 'engine', value })}
                     disabled={busy}
                     hasDigitalText={document?.hasDigitalText}

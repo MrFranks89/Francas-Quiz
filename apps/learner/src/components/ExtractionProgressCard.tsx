@@ -4,7 +4,7 @@ import { usePalette, useTheme } from '@formazione/civis-ui/src/ThemeProvider';
 import { Card, colors } from './ui';
 
 interface ExtractionProgressCardProps {
-  engine: 'native' | 'docling';
+  engine: 'native' | 'docling' | 'trascrizione';
   pageCount: number | null;
   selectedPagesCount: number;
 }
@@ -15,8 +15,9 @@ function formatElapsed(totalSeconds: number): string {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
-function getPhaseLabel(engine: 'native' | 'docling', elapsed: number): string {
+function getPhaseLabel(engine: 'native' | 'docling' | 'trascrizione', elapsed: number): string {
   if (elapsed < 5) return 'Inizializzazione pipeline';
+  if (engine === 'trascrizione') return 'Riconoscimento vocale e timestamp';
   if (engine === 'docling' && elapsed < 25) return 'Riconoscimento caratteri e layout';
   return 'Strutturazione blocchi e fonti';
 }
@@ -38,14 +39,18 @@ export function ExtractionProgressCard({
   }, [engine]);
 
   const engineMessage =
-    engine === 'native'
-      ? 'Estrazione istantanea del testo nativo in corso…'
-      : 'Riconoscimento ottico caratteri (OCR) in corso… ~10-15s a pagina';
+    engine === 'trascrizione'
+      ? 'Trascrizione audio con riconoscimento vocale in corso…'
+      : engine === 'native'
+        ? 'Estrazione istantanea del testo nativo in corso…'
+        : 'Riconoscimento ottico caratteri (OCR) in corso… ~10-15s a pagina';
 
   const pagesSummary =
-    pageCount === null
-      ? 'Documento intero in elaborazione'
-      : `${selectedPagesCount} ${selectedPagesCount === 1 ? 'pagina' : 'pagine'} su ${pageCount}`;
+    engine === 'trascrizione'
+      ? 'Traccia audio in elaborazione'
+      : pageCount === null
+        ? 'Documento intero in elaborazione'
+        : `${selectedPagesCount} ${selectedPagesCount === 1 ? 'pagina' : 'pagine'} su ${pageCount}`;
 
   return (
     <Card>

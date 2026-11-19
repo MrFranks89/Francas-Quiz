@@ -18,6 +18,13 @@ KINDS = {
     '.jpg': 'image',
     '.jpeg': 'image',
     '.png': 'image',
+    '.mp3': 'audio',
+    '.m4a': 'audio',
+    '.wav': 'audio',
+    '.ogg': 'audio',
+    '.webm': 'audio',
+    '.mp4': 'audio',
+    '.flac': 'audio',
 }
 
 # Decisione del 29 ottobre 2026 (docs/decisions/004-niente-fogli-di-calcolo.md): i fogli di calcolo
@@ -53,7 +60,7 @@ def inspect_document(path, filename):
         raise ValueError(MESSAGGIO_FOGLI)
     kind = KINDS.get(Path(filename).suffix.lower())
     if kind is None:
-        raise ValueError('Formato non supportato: PDF, DOCX, TXT, MD, JPG o PNG.')
+        raise ValueError('Formato non supportato: PDF, DOCX, TXT, MD, JPG, PNG o audio (MP3, M4A, WAV, OGG, WEBM, MP4, FLAC).')
     count = None
     if kind == 'pdf':
         with path.open('rb') as source:
@@ -90,6 +97,31 @@ def inspect_document(path, filename):
         except Exception as error:
             raise ValueError("Il file non è un'immagine JPEG o PNG valida.") from error
         count = 1
+    elif kind == 'audio':
+        # Validazione per magic bytes e lettura durata.
+        # Il file MP4 video è accettato di proposito: il provider trascrive la prima traccia audio.
+        data = path.read_bytes()
+        is_mp3 = data[:3] == b'ID3' or (len(data) >= 2 and data[0] == 0xFF and (data[1] & 0xE0) == 0xE0)
+        is_m4a_mp4 = len(data) >= 8 and data[4:8] == b'ftyp'
+        is_wav = len(data) >= 12 and data[:4] == b'RIFF' and data[8:12] == b'WAVE'
+        is_ogg = data[:4] == b'OggS'
+        is_webm = data[:4] == b'\x1a\x45\xdf\xa3'
+        is_flac = data[:4] == b'fLaC'
+        if not (is_mp3 or is_m4a_mp4 or is_wav or is_ogg or is_webm or is_flac):
+            raise ValueError('Il file non corrisponde a un formato audio supportato.')
+        import mutagen
+        try:
+            audio_info = mutagen.File(path)
+            if audio_info is None or audio_info.info is None:
+                raise ValueError('Il file audio non è leggibile.')
+            durata = getattr(audio_info.info, 'length', 0)
+            if not durata or durata <= 0:
+                raise ValueError('Il file audio non è leggibile.')
+        except Exception as error:
+            if isinstance(error, ValueError):
+                raise
+            raise ValueError('Il file audio non è leggibile.') from error
+        count = None
     else:
         content = path.read_bytes()
         if b'\x00' in content:

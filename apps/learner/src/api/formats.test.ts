@@ -9,7 +9,7 @@ it('il selettore non propone fogli di calcolo, né sul web né su dispositivo', 
   }
   expect(FORMATI_AMMESSI).not.toMatch(fogli);
 });
-it('il selettore propone ancora PDF, DOCX, TXT, Markdown e immagini JPG/PNG', () => {
+it('il selettore propone ancora PDF, DOCX, TXT, Markdown, immagini JPG/PNG e audio', () => {
   expect(tipiSelettore(true)).toEqual(
     expect.arrayContaining([
       'application/pdf',
@@ -18,6 +18,15 @@ it('il selettore propone ancora PDF, DOCX, TXT, Markdown e immagini JPG/PNG', ()
       'text/markdown',
       'image/jpeg',
       'image/png',
+      'audio/mpeg',
+      'audio/mp4',
+      'audio/x-m4a',
+      'audio/wav',
+      'audio/x-wav',
+      'audio/ogg',
+      'audio/webm',
+      'audio/flac',
+      'video/mp4',
       '.pdf',
       '.docx',
       '.txt',
@@ -25,7 +34,15 @@ it('il selettore propone ancora PDF, DOCX, TXT, Markdown e immagini JPG/PNG', ()
       '.jpg',
       '.jpeg',
       '.png',
+      '.mp3',
+      '.m4a',
+      '.wav',
+      '.ogg',
+      '.webm',
+      '.mp4',
+      '.flac',
     ]),
   );
   expect(tipiSelettore(false).every((t) => t.includes('/'))).toBe(true);
+  expect(FORMATI_AMMESSI).toContain('audio (MP3, M4A, WAV, OGG, WEBM, MP4, FLAC)');
 });

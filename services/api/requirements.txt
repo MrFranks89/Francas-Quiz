@@ -8,3 +8,4 @@ pypdfium2==5.14.0
 pillow==12.3.0
 openai==3.31.0
 anthropic==1.15.0
+mutagen==1.47.0
