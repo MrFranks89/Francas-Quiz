@@ -246,3 +246,38 @@ def test_get_lista_con_stale_e_delete(tmp_path):
     # Delete 404 per id non trovato
     del_404 = client.delete(f'/extractions/{ext_id}/concept-tree/quiz/{quiz_id}')
     assert del_404.status_code == 404
+
+
+def test_cached_con_albero_cambiato_marcato_stale(tmp_path):
+    """Stessa chiave dopo una nuova mappa: il quiz resta in cache ma va marcato stale."""
+    app = create_app(tmp_path)
+    provider = FakeBranchQuizProvider()
+    app.state.generation_provider = provider
+    client = TestClient(app)
+    store = app.state.store
+
+    ext_id = _prepara_ambiente_con_albero(client, store)
+    res1 = client.post(
+        f'/extractions/{ext_id}/concept-tree/quiz',
+        json={'branchId': 'branch-1', 'treeHash': 'hash_albero_valido', 'questionCount': 3,
+              'idempotencyKey': 'chiave-stale'},
+    )
+    assert res1.status_code == 201
+    assert len(provider.calls) == 1
+
+    # La mappa viene rigenerata: treeHash cambia
+    record = store.read(ext_id, 'concept-tree.json')
+    record['treeHash'] = 'hash_nuovo'
+    store.save(ext_id, 'concept-tree.json', record)
+
+    res2 = client.post(
+        f'/extractions/{ext_id}/concept-tree/quiz',
+        json={'branchId': 'branch-1', 'treeHash': 'hash_albero_valido', 'questionCount': 3,
+              'idempotencyKey': 'chiave-stale'},
+    )
+    assert res2.status_code == 201
+    data2 = res2.json()
+    assert data2['cached'] is True
+    assert data2['stale'] is True
+    # Nessuna nuova chiamata al provider
+    assert len(provider.calls) == 1

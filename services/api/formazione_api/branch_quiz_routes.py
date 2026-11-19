@@ -123,7 +123,17 @@ def generate_quiz(identifier: str, request: Request, body: BranchQuizRequest) ->
     quiz_esistenti = leggi_quiz(store.root, identifier)
     for q in quiz_esistenti:
         if q.get('idempotencyKey') == key:
-            return {**q, 'cached': True}
+            # L'albero può essere cambiato dopo la creazione del quiz: la risposta resta valida
+            # per la chiave richiesta (idempotenza), ma va marcata stale come fa la GET
+            # (rilievo 4 della review Sezione C).
+            stale = False
+            try:
+                record_tree = store.read(identifier, 'concept-tree.json')
+                hash_corrente = record_tree.get('treeHash', '')
+                stale = bool(hash_corrente) and q.get('treeHash') != hash_corrente
+            except Exception:
+                pass
+            return {**q, 'cached': True, 'stale': stale}
 
     # 2. Controllo mappa concettuale esistente e valida
     try:

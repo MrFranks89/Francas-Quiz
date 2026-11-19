@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import re
+import threading
 import uuid
 from typing import Any
 
@@ -21,6 +22,11 @@ from .telemetry import chiama_con_tentativi
 logger = logging.getLogger(__name__)
 
 MAX_BLOCCHI_RAMO = 3
+
+# Serializza lettura-modifica-scrittura dell'indice dei quiz di ramo: le rotte girano nel
+# thread pool di FastAPI e un DELETE concorrente a una POST non deve perdere aggiornamenti
+# (rilievo 2 della review Sezione C). La scrittura del file resta atomica (tmp + os.replace).
+_LOCK_QUIZ = threading.Lock()
 
 # Prompt didattico validato (TASK-03B_prompt_quiz_ramo_chatgpt.md) con patch D2
 ISTRUZIONI_QUIZ_RAMO = (
@@ -168,32 +174,34 @@ def leggi_quiz(store_root: str, extraction_id: str) -> list[dict]:
 
 def aggiungi_quiz(store_root: str, extraction_id: str, record: dict) -> None:
     """Aggiunge atomicamente un record quiz al file branch-quizzes.json dell'estrazione."""
-    path = _percorso_quiz(store_root, extraction_id)
-    quiz_esistenti = leggi_quiz(store_root, extraction_id)
-    qid = record.get('quizId')
-    aggiornati = [q for q in quiz_esistenti if q.get('quizId') != qid]
-    aggiornati.append(record)
+    with _LOCK_QUIZ:
+        path = _percorso_quiz(store_root, extraction_id)
+        quiz_esistenti = leggi_quiz(store_root, extraction_id)
+        qid = record.get('quizId')
+        aggiornati = [q for q in quiz_esistenti if q.get('quizId') != qid]
+        aggiornati.append(record)
 
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    tmp_path = f'{path}.{uuid.uuid4().hex}.tmp'
-    with open(tmp_path, 'w', encoding='utf-8') as f:
-        json.dump(aggiornati, f, ensure_ascii=False, indent=2)
-    os.replace(tmp_path, path)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        tmp_path = f'{path}.{uuid.uuid4().hex}.tmp'
+        with open(tmp_path, 'w', encoding='utf-8') as f:
+            json.dump(aggiornati, f, ensure_ascii=False, indent=2)
+        os.replace(tmp_path, path)
 
 
 def elimina_quiz(store_root: str, extraction_id: str, quiz_id: str) -> bool:
     """Rimuove atomicamente un quiz dal file branch-quizzes.json. Restituisce True se eliminato."""
-    path = _percorso_quiz(store_root, extraction_id)
-    quiz_esistenti = leggi_quiz(store_root, extraction_id)
-    filtrati = [q for q in quiz_esistenti if q.get('quizId') != quiz_id]
-    if len(filtrati) == len(quiz_esistenti):
-        return False
+    with _LOCK_QUIZ:
+        path = _percorso_quiz(store_root, extraction_id)
+        quiz_esistenti = leggi_quiz(store_root, extraction_id)
+        filtrati = [q for q in quiz_esistenti if q.get('quizId') != quiz_id]
+        if len(filtrati) == len(quiz_esistenti):
+            return False
 
-    tmp_path = f'{path}.{uuid.uuid4().hex}.tmp'
-    with open(tmp_path, 'w', encoding='utf-8') as f:
-        json.dump(filtrati, f, ensure_ascii=False, indent=2)
-    os.replace(tmp_path, path)
-    return True
+        tmp_path = f'{path}.{uuid.uuid4().hex}.tmp'
+        with open(tmp_path, 'w', encoding='utf-8') as f:
+            json.dump(filtrati, f, ensure_ascii=False, indent=2)
+        os.replace(tmp_path, path)
+        return True
 
 
 def chiave_idempotenza(extraction_id: str, branch_id: str, node_id: str | None, tree_hash: str, question_count: int) -> str:
