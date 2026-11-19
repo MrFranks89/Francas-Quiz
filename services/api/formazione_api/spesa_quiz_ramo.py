@@ -201,10 +201,11 @@ def genera_quiz_ramo_con_tetto(
         finally:
             regolato._regola(chunk, prima)
 
-        # 2. Catena di qualità e validazione (M2: tetto duro 6 prima di rigenerare)
+        # 2. Catena di qualità e validazione (M2: tetto duro 6 prima di rigenerare).
+        # Il taglio avviene PRIMA della validazione incrociata: il validatore non deve
+        # spendere token su domande che verrebbero comunque scartate per il tetto.
         scarti = []
-        accettate = _valida_e_filtra_domande(draft.questions, blocchi, verifica, scarti)
-        accettate = accettate[:6]
+        accettate = _valida_e_filtra_domande(draft.questions[:6], blocchi, verifica, scarti)
 
         # 3. Se superstiti < question_count, un solo giro di rigenerazione del deficit
         warnings = []
@@ -254,7 +255,10 @@ def genera_quiz_ramo_con_tetto(
         reg.aggiorna_corsa(corsa)
 
         if not bool(stima['validatore']):
-            warnings.append('NO_CROSS_VALIDATION')
+            if con_validatore:
+                warnings.append('VALIDATION_MISCONFIGURED')
+            else:
+                warnings.append('NO_CROSS_VALIDATION')
 
         return {
             'questions': domande_finali,

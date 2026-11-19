@@ -50,6 +50,16 @@ class BranchQuizEstimate(BaseModel):
     crossValidation: CrossValidation
 
 
+class BranchQuizSource(BaseModel):
+    blockId: str
+    ref: str | None = None
+
+
+class BranchQuizValidation(BaseModel):
+    passed: int
+    discarded: int
+
+
 class BranchQuizResponse(BaseModel):
     quizId: str
     extractionId: str
@@ -60,8 +70,8 @@ class BranchQuizResponse(BaseModel):
     attempt: int
     questionCount: int
     questions: list[dict]
-    sources: list[dict]
-    validation: dict | None = None
+    sources: list[BranchQuizSource]
+    validation: BranchQuizValidation | None = None
     costUsd: str
     warnings: list[str]
     createdAt: str
@@ -139,7 +149,12 @@ def preview_quiz(identifier: str, request: Request, body: BranchQuizPreviewReque
     warnings = list(selezione.get('warnings', []))
     has_val = bool(stima['validatore'])
     if not has_val:
-        warnings.append('NO_CROSS_VALIDATION')
+        if con_validatore:
+            # VALIDATION_PROVIDER è configurata ma il preventivo del validatore non è
+            # disponibile: la POST fallirebbe con 503, la preview lo segnala prima.
+            warnings.append('VALIDATION_MISCONFIGURED')
+        else:
+            warnings.append('NO_CROSS_VALIDATION')
 
     return {
         'blockIds': [b['id'] for b in selezione['blocks']],

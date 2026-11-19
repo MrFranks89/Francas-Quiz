@@ -197,3 +197,56 @@ def test_fallimento_provider_registra_errore(tmp_path, fake_mutagen):
     ultima = corse[-1]
     assert ultima['esito'] == 'fallita'
     assert ultima['chiamate'][0]['esito'] == 'errore'
+
+
+def test_nome_senza_estensione_ricostruito_dai_magic_bytes(tmp_path, fake_mutagen):
+    # Il file salvato nello storage si chiama «<id>.source»: l'API Groq rifiuta
+    # nomi senza estensione, che va ricostruita dal contenuto (E5).
+    mock_client = MagicMock()
+    mock_client.audio.transcriptions.create.return_value = {'text': 'Testo.', 'segments': []}
+
+    audio_file = tmp_path / 'abc123.source'
+    audio_file.write_bytes(b'RIFF\x24\x00\x00\x00WAVEfmt ' + b'\x00' * 50)
+
+    gt = GroqTrascrizione(client=mock_client)
+    gt.trascrivi(audio_file)
+
+    nome_inviato = mock_client.audio.transcriptions.create.call_args.kwargs['file'][0]
+    assert nome_inviato.endswith('.wav')
+
+
+def test_nome_originale_con_estensione_preservato(tmp_path, fake_mutagen):
+    mock_client = MagicMock()
+    mock_client.audio.transcriptions.create.return_value = {'text': 'Testo.', 'segments': []}
+
+    audio_file = tmp_path / 'abc123.source'
+    audio_file.write_bytes(b'ID3\x03\x00\x00\x00\x00\x00\x00' + b'\x00' * 50)
+
+    gt = GroqTrascrizione(client=mock_client)
+    gt.trascrivi(audio_file, nome='registrazione lezione.ogg')
+
+    nome_inviato = mock_client.audio.transcriptions.create.call_args.kwargs['file'][0]
+    assert nome_inviato == 'registrazione lezione.ogg'
+
+
+def test_rotta_passa_nome_originale_al_provider(tmp_path, fake_mutagen):
+    app = create_app(tmp_path)
+    mock_provider = MagicMock()
+    mock_provider.trascrivi.return_value = (
+        [{'id': 'b1', 'text': 'Testo trascritto.', 'page': None, 'label': '00:00–02:00', 'kind': 'text'}],
+        [],
+        'needs_review',
+        120.0,
+    )
+    app.state.transcription_provider = mock_provider
+    client = TestClient(app)
+
+    audio_bytes = b'ID3\x03\x00\x00\x00\x00\x00\x00' + b'\x00' * 100
+    doc = upload(client, 'lezione audio.mp3', audio_bytes)
+
+    res = client.post(
+        f"/documents/{doc['id']}/extract",
+        json={'selection': {'mode': 'all'}},
+    )
+    assert res.status_code == 201, res.text
+    assert mock_provider.trascrivi.call_args.kwargs['nome'] == 'lezione audio.mp3'

@@ -138,7 +138,7 @@ def extract(identifier: str, body: ExtractionRequest, request: Request):
             blocks, warnings, status, _ = trascrivi_con_tetto(
                 store,
                 durata,
-                lambda: trascrivi(audio_path, client=client_audio, provider=provider_audio),
+                lambda: trascrivi(audio_path, nome=document.get('name'), client=client_audio, provider=provider_audio),
             )
         elif engine == 'native':
             blocks, warnings, status = native_extract(store.path(identifier, 'source'), document['kind'], start, end)

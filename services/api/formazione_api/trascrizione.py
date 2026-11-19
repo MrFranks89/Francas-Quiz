@@ -11,6 +11,27 @@ DURATA_MASSIMA_SECOND = 7200          # 2 ore: limite orario del free tier Groq
 BLOCCO_TARGET_SECOND = 120            # un blocco di testo ogni ~2 minuti di audio
 MODELLO_PREDEFINITO = 'whisper-large-v3-turbo'
 
+# Estensioni che l'API Groq riconosce: il file salvato nello storage si chiama
+# «<id>.source» senza estensione, quindi il nome va ricostruito prima dell'invio.
+ESTENSIONI_AUDIO = {'.wav', '.mp3', '.m4a', '.ogg', '.webm', '.flac', '.mp4', '.mpeg', '.mpga', '.opus'}
+
+
+def _estensione_dai_magic_bytes(dati: bytes) -> str:
+    """Deduce l'estensione dal contenuto quando il nome del file non la dichiara."""
+    if len(dati) >= 12 and dati[:4] == b'RIFF' and dati[8:12] == b'WAVE':
+        return '.wav'
+    if dati[:3] == b'ID3' or (len(dati) >= 2 and dati[0] == 0xFF and (dati[1] & 0xE0) == 0xE0):
+        return '.mp3'
+    if len(dati) >= 8 and dati[4:8] == b'ftyp':
+        return '.m4a'
+    if dati[:4] == b'OggS':
+        return '.ogg'
+    if dati[:4] == b'\x1a\x45\xdf\xa3':
+        return '.webm'
+    if dati[:4] == b'fLaC':
+        return '.flac'
+    return '.mp3'  # ultima risorsa: l'estensione più comunemente accettata
+
 
 def formatta_tempo(secondi: float) -> str:
     """Formatta i secondi in mm:ss."""
@@ -53,6 +74,8 @@ class GroqTrascrizione:
 
         file_name = nome or path.name
         dati = path.read_bytes()
+        if Path(file_name).suffix.lower() not in ESTENSIONI_AUDIO:
+            file_name = f'{Path(file_name).stem}{_estensione_dai_magic_bytes(dati)}'
         language = os.getenv('TRANSCRIPTION_LANGUAGE', 'it').strip() or None
 
         kwargs = {
@@ -155,7 +178,7 @@ class GroqTrascrizione:
             raise ValueError('Il file audio non è leggibile.') from error
 
 
-def trascrivi(file_path: Path | str, client=None, provider=None) -> tuple[list[dict], list[str], str, float]:
+def trascrivi(file_path: Path | str, client=None, provider=None, nome: str | None = None) -> tuple[list[dict], list[str], str, float]:
     """Funzione di alto livello per la trascrizione audio."""
     p = provider or GroqTrascrizione(client=client)
-    return p.trascrivi(file_path)
+    return p.trascrivi(file_path, nome=nome)

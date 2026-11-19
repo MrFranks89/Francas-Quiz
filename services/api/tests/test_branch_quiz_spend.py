@@ -259,3 +259,81 @@ def test_m7_listino_senza_sovraccarico_preview_fits_budget_false(tmp_path, monke
     )
     assert res.status_code == 200
     assert res.json()['fitsBudget'] is False
+
+
+def _bozza_singola(k: int) -> QuestionDraft:
+    return QuestionDraft(
+        kind='single',
+        prompt=f'Quale affermazione numero {k} è corretta sul blocco?',
+        situation='',
+        sentence='',
+        wrong='',
+        options=['Opzione A', 'Opzione B'],
+        correctIndex=0,
+        correctIndexes=[],
+        correct=False,
+        pairTerms=[],
+        rationales=['Spiegazione A', 'Spiegazione B'],
+        explanation='Spiegazione estesa',
+        sourceRefs=['b1'],
+        difficulty='base',
+    )
+
+
+def test_taglio_a_6_prima_della_validazione_incrociata(tmp_path, monkeypatch):
+    # N1: il tetto duro di 6 domande si applica PRIMA del validatore, che non deve
+    # spendere token su domande destinate comunque allo scarto.
+    monkeypatch.setenv('VALIDATION_PROVIDER', 'groq')
+    monkeypatch.setenv('GROQ_MODEL', 'openai/gpt-oss-120b')
+    app = create_app(tmp_path)
+    provider = FakeBranchQuizProvider(questions=[_bozza_singola(k) for k in range(1, 9)])
+    app.state.generation_provider = provider
+    client = TestClient(app)
+    store = app.state.store
+
+    ext_id = _prepara_ambiente_con_albero(client, store)
+
+    ricevute = []
+
+    class FakeValidator:
+        provider_name = 'groq'
+        model = 'openai/gpt-oss-120b'
+
+        def verifica(self, chunk, domande):
+            ricevute.append(len(domande))
+            return []
+
+    monkeypatch.setattr('formazione_api.spesa_quiz_ramo.create_validator', lambda: FakeValidator())
+
+    res = client.post(
+        f'/extractions/{ext_id}/concept-tree/quiz',
+        json={'branchId': 'branch-1', 'treeHash': 'hash_albero_valido', 'questionCount': 3},
+    )
+    assert res.status_code == 201, res.text
+    data = res.json()
+    assert len(data['questions']) == 6
+    assert ricevute == [6]
+    assert data['validation'] == {'passed': 6, 'discarded': 0}
+
+
+def test_preview_segnala_validatore_configurato_ma_senza_modello(tmp_path, monkeypatch):
+    # N6: VALIDATION_PROVIDER impostata ma modello assente -> il preventivo non è
+    # disponibile e la preview avverte che la POST fallirebbe (VALIDATION_MISCONFIGURED).
+    monkeypatch.setenv('VALIDATION_PROVIDER', 'groq')
+    monkeypatch.delenv('GROQ_MODEL', raising=False)
+    app = create_app(tmp_path)
+    provider = FakeBranchQuizProvider()
+    app.state.generation_provider = provider
+    client = TestClient(app)
+    store = app.state.store
+
+    ext_id = _prepara_ambiente_con_albero(client, store)
+
+    res = client.post(
+        f'/extractions/{ext_id}/concept-tree/quiz/preview',
+        json={'branchId': 'branch-1', 'treeHash': 'hash_albero_valido', 'questionCount': 3},
+    )
+    assert res.status_code == 200, res.text
+    data = res.json()
+    assert 'VALIDATION_MISCONFIGURED' in data['warnings']
+    assert 'NO_CROSS_VALIDATION' not in data['warnings']
