@@ -17,7 +17,7 @@ export function ConceptTreeSection({
   excludedPages: number[];
   hasBlocks: boolean;
   onPracticeVoice?: (node: ConceptNode) => void;
-  onPracticeQuiz?: (node: ConceptNode) => void;
+  onPracticeQuiz?: (node: ConceptNode, branch: { id: string; title: string }, treeHash?: string) => void;
 }) {
   const C = usePalette(), { dark } = useTheme(), s = useUiStyles();
   const [conceptTree, setConceptTree] = useState<ConceptTree | null>(null);
@@ -62,11 +62,25 @@ export function ConceptTreeSection({
         {conceptBusy && <ActivityIndicator color={dark ? C.teal : colors.teal} size="small" />}
       </View>
       {!!conceptError && <Notice text={conceptError} error />}
+      {conceptTree && conceptTree.complete === false && (
+        <View style={localStyles.partialBanner}>
+          <Notice text="⚠️ La mappa è parziale: alcuni blocchi non sono stati elaborati." />
+          <Button
+            label="Riprendi la mappa"
+            disabled={conceptBusy}
+            onPress={generateConceptTree}
+          />
+        </View>
+      )}
       {conceptTree && (
         <ConceptTreeViewer
           tree={conceptTree}
           onPracticeVoice={onPracticeVoice}
-          onPracticeQuiz={onPracticeQuiz}
+          onPracticeQuiz={
+            onPracticeQuiz
+              ? (node, branch) => onPracticeQuiz(node, branch, conceptTree?.treeHash)
+              : undefined
+          }
         />
       )}
     </View>
@@ -86,5 +100,8 @@ const localStyles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: colors.navy,
+  },
+  partialBanner: {
+    gap: 8,
   },
 });

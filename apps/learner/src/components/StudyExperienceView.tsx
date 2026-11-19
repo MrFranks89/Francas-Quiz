@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { usePalette, useTheme } from '@formazione/civis-ui/src/ThemeProvider';
-import type { ConceptNode } from '@formazione/contracts';
+import type { ConceptNode, Course } from '@formazione/contracts';
 import type { Extraction } from '../api/documents';
 import type { Draft } from '../api/generation';
 import { Card, Notice, colors, useUiStyles } from './ui';
@@ -10,6 +10,7 @@ import { ConceptTreeSection } from './ConceptTreeSection';
 import { GenerationPanel } from './GenerationPanel';
 import { GamificationCard } from './GamificationCard';
 import { VoiceRecallCard } from './VoiceRecallCard';
+import { BranchQuizSheet } from './BranchQuizSheet';
 
 type StudioTab = 'all' | 'map' | 'course' | 'quiz' | 'gamify' | 'voice';
 
@@ -24,6 +25,7 @@ export interface StudyExperienceViewProps {
   onTogglePage: (pageNumber: number) => void;
   onExcludedPagesChange: (pages: number[]) => void;
   onDraft: (draft: Draft) => void;
+  onStartPractice?: (course: Course) => void;
   onBackToMaterial: () => void;
   onBackToConfig: () => void;
 }
@@ -39,12 +41,18 @@ export function StudyExperienceView({
   onTogglePage,
   onExcludedPagesChange,
   onDraft,
+  onStartPractice,
   onBackToMaterial,
   onBackToConfig,
 }: StudyExperienceViewProps) {
   const C = usePalette(), { dark } = useTheme(), ui = useUiStyles();
   const [activeTab, setActiveTab] = useState<StudioTab>('all');
   const [focusedNode, setFocusedNode] = useState<ConceptNode | null>(null);
+  const [quizBranchTarget, setQuizBranchTarget] = useState<{
+    branch: { id: string; title: string };
+    node: ConceptNode;
+    treeHash?: string;
+  } | null>(null);
 
   const activeLabels: string[] = [];
   if (includeMap) activeLabels.push('Mappa');
@@ -183,9 +191,25 @@ export function StudyExperienceView({
                   }
                 : undefined
             }
-            onPracticeQuiz={(node) => {
+            onPracticeQuiz={(node, branch, treeHash) => {
               setFocusedNode(node);
-              setActiveTab('quiz');
+              setQuizBranchTarget({ branch, node, treeHash });
+            }}
+          />
+        )}
+
+        {quizBranchTarget && (
+          <BranchQuizSheet
+            extractionId={extraction.id}
+            branch={quizBranchTarget.branch}
+            node={quizBranchTarget.node}
+            treeHash={quizBranchTarget.treeHash}
+            onClose={() => setQuizBranchTarget(null)}
+            onStartPractice={(course) => {
+              setQuizBranchTarget(null);
+              if (onStartPractice) {
+                onStartPractice(course);
+              }
             }}
           />
         )}

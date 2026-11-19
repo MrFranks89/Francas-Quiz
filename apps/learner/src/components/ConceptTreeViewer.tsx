@@ -18,7 +18,7 @@ export function ConceptTreeViewer({
 }: {
   tree: ConceptTree;
   onPracticeVoice?: (node: ConceptNode) => void;
-  onPracticeQuiz?: (node: ConceptNode) => void;
+  onPracticeQuiz?: (node: ConceptNode, branch: { id: string; title: string }) => void;
 }) {
   const C = usePalette(), { dark } = useTheme();
   const localStyles = useMemo(() => buildTreeStyles(C, dark), [C, dark]);
@@ -171,6 +171,7 @@ export function ConceptTreeViewer({
 
       {selected && (
         <ConceptNodeDetailCard
+          branchId={selected.branchId}
           branchTitle={selected.branchTitle}
           node={selected.node}
           formatSourceRef={formatSourceRef}

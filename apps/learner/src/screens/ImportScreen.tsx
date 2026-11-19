@@ -1,7 +1,7 @@
 import React, { useState, useReducer, useMemo, useEffect } from 'react';
 import { Text, View, StyleSheet, Platform, Pressable } from 'react-native';
 import * as Picker from 'expo-document-picker';
-import { parsePageSelection, selectedPages } from '@formazione/contracts';
+import { parsePageSelection, selectedPages, type Course } from '@formazione/contracts';
 import { apiUrl, uploadDocument, extractDocument, type DocumentChapter } from '../api/documents';
 import { FORMATI_AMMESSI, tipiSelettore } from '../api/formats';
 import { usePalette, useTheme } from '@formazione/civis-ui/src/ThemeProvider';
@@ -18,7 +18,10 @@ import { FotoPicker, type PickedAsset } from '../components/FotoPicker';
 import { AudioPicker } from '../components/AudioPicker';
 import type { Draft } from '../api/generation';
 
-export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
+export function ImportScreen({ onDraft, onStartPractice }: {
+  onDraft: (draft: Draft) => void;
+  onStartPractice?: (course: Course) => void;
+}) {
   const C = usePalette(), { dark } = useTheme(), s = useUiStyles();
   const [state, dispatch] = useReducer(importReducer, initialImport);
   const { document, range, from, to, engine, result, step } = state;
@@ -357,6 +360,7 @@ export function ImportScreen({ onDraft }: { onDraft: (draft: Draft) => void }) {
           includeGamify={includeGamify} includeVoice={includeVoice}
           excludedPages={excludedPages} onTogglePage={togglePageExclusion}
           onExcludedPagesChange={setExcludedPages} onDraft={onDraft}
+          onStartPractice={onStartPractice}
           onBackToMaterial={() => dispatch({ type: 'step', value: 'material' })}
           onBackToConfig={() => dispatch({ type: 'step', value: 'config' })}
         />

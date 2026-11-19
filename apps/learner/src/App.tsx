@@ -291,7 +291,10 @@ function Shell() {
       <Guscio sfondo={C.bg} testata={testata}>
         <Pannello attivo={screen === 'import'} persistente piede={piede}>
           <View style={corniceStrumenti}>
-            <ImportScreen onDraft={(draft) => dispatch({ type: 'draft', draft })} />
+            <ImportScreen
+              onDraft={(draft) => dispatch({ type: 'draft', draft })}
+              onStartPractice={(course) => dispatch({ type: 'practice', course })}
+            />
             <Card>
               <Text style={ui.subtitle}>Riprendi una bozza salvata</Text>
               <Text style={ui.muted}>

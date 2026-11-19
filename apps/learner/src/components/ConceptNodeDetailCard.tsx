@@ -5,12 +5,13 @@ import type { ConceptNode } from '@formazione/contracts';
 import { colors } from './ui';
 
 export interface ConceptNodeDetailCardProps {
+  branchId?: string;
   branchTitle: string;
   node: ConceptNode;
   formatSourceRef: (ref: string) => string;
   onClose: () => void;
   onPracticeVoice?: (node: ConceptNode) => void;
-  onPracticeQuiz?: (node: ConceptNode) => void;
+  onPracticeQuiz?: (node: ConceptNode, branch: { id: string; title: string }) => void;
 }
 
 function buildKeyPoints(node: ConceptNode): string[] {
@@ -25,6 +26,7 @@ function buildKeyPoints(node: ConceptNode): string[] {
 }
 
 export function ConceptNodeDetailCard({
+  branchId,
   branchTitle,
   node,
   formatSourceRef,
@@ -119,7 +121,7 @@ export function ConceptNodeDetailCard({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`Mettiti alla prova con i quiz su ${node.title}`}
-              onPress={() => onPracticeQuiz(node)}
+              onPress={() => onPracticeQuiz(node, { id: branchId || '', title: branchTitle })}
               style={({ pressed }) => [
                 localStyles.quizBtn,
                 dark && { backgroundColor: C.greenBg, borderColor: C.green },

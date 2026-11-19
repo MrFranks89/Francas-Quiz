@@ -32,7 +32,7 @@ export function CourseScreen({
   kind = 'demo',
 }: {
   currentCourse?: Course;
-  kind?: 'demo' | 'draft' | 'published' | 'imported';
+  kind?: 'demo' | 'draft' | 'published' | 'imported' | 'practice';
 }) {
   const course = currentCourse;
   const C = usePalette(),
@@ -106,13 +106,15 @@ export function CourseScreen({
     }
   }
   const notice =
-    kind === 'demo'
-      ? 'Corso dimostrativo sintetico · contenuti e fonti di esempio. Serve a provare lezioni, autovalutazione e sbarramento; non deriva dai tuoi documenti.'
-      : kind === 'published'
-        ? 'Corso pubblicato sul server locale · contenuto revisionato.'
-        : kind === 'draft'
-          ? 'Bozza AI da revisionare · non pubblicata. Verifica testi, risposte e riferimenti alle fonti.'
-          : 'Corso importato da JSON · contenuto fornito dall’utente, non generato durante questa sessione.';
+    kind === 'practice'
+      ? '🧭 Esercitazione mirata su un ramo della mappa concettuale. Non fa parte del corso; i progressi restano separati.'
+      : kind === 'demo'
+        ? 'Corso dimostrativo sintetico · contenuti e fonti di esempio. Serve a provare lezioni, autovalutazione e sbarramento; non deriva dai tuoi documenti.'
+        : kind === 'published'
+          ? 'Corso pubblicato sul server locale · contenuto revisionato.'
+          : kind === 'draft'
+            ? 'Bozza AI da revisionare · non pubblicata. Verifica testi, risposte e riferimenti alle fonti.'
+            : 'Corso importato da JSON · contenuto fornito dall’utente, non generato durante questa sessione.';
   return (
     <View style={{ gap: 18, width: '100%', maxWidth: 760, alignSelf: 'center' }}>
       <View style={{ gap: 6 }}>
@@ -124,7 +126,7 @@ export function CourseScreen({
       </View>
       <Avviso
         testo={notice}
-        colore={kind === 'draft' ? C.scenario : kind === 'demo' ? C.indigoLight : C.teal}
+        colore={kind === 'draft' ? C.scenario : (kind === 'demo' || kind === 'practice') ? C.indigoLight : C.teal}
       />
       <View style={{ gap: 4 }}>
         <ProgressBar

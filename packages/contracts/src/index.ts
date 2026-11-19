@@ -4,4 +4,5 @@ export * from './soglia';
 export * from './pages';
 export * from './tipi';
 export * from './concept';
+export * from './branchQuiz';
 
