@@ -1,28 +1,46 @@
-import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { usePalette, useTheme } from '@formazione/civis-ui/src/ThemeProvider';
+import { useAudioRecorder, RecordingPresets, requestRecordingPermissionsAsync } from 'expo-audio';
 import { Card, colors, useUiStyles } from './ui';
+import type { VoiceMode, VoiceStatus, VoiceRecallReport } from './voice/types';
+import { VoiceRecorderBox } from './voice/VoiceRecorderBox';
+import { VoiceRecallReportView } from './voice/VoiceRecallReportView';
 
 export interface VoiceRecallCardProps {
   topic?: string;
   promptQuestion?: string;
   hint?: string;
   keywords?: string[];
+  extractionId?: string;
+  onReportGenerated?: (report: VoiceRecallReport) => void;
+  onRecordingComplete?: (audioUri: string) => void;
 }
 
-type VoiceStatus = 'idle' | 'recording' | 'analyzed';
-
 const DEFAULT_KEYWORDS = ['definizione', 'processo', 'esempio'];
+const MAX_RECORDING_SECONDS = 300;
 
 export function VoiceRecallCard({
   topic,
   promptQuestion,
   hint,
   keywords,
+  onReportGenerated,
+  onRecordingComplete,
 }: VoiceRecallCardProps) {
   const C = usePalette(), { dark } = useTheme(), ui = useUiStyles();
+
+  const [mode, setMode] = useState<VoiceMode>('voice');
   const [status, setStatus] = useState<VoiceStatus>('idle');
   const [transcript, setTranscript] = useState('');
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [recordedUri, setRecordedUri] = useState<string | null>(null);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [permissionError, setPermissionError] = useState<string | null>(null);
+  const [report, setReport] = useState<VoiceRecallReport | null>(null);
+
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
 
   const activeTopic = topic?.trim() || 'il concetto principale del capitolo';
   const questionText =
@@ -31,45 +49,137 @@ export function VoiceRecallCard({
   const hintText =
     hint ||
     'Suggerimento: cita la definizione principale, il processo operativo e almeno un collegamento pratico.';
-
   const targetKeywords =
-    keywords && keywords.length > 0 ? keywords.slice(0, 3) : DEFAULT_KEYWORDS;
+    keywords && keywords.length > 0 ? keywords.slice(0, 4) : DEFAULT_KEYWORDS;
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, []);
 
   function buildSampleTranscript() {
     const kwText = targetKeywords.join(', ');
     return `Nell'ambito di ${activeTopic}, l'aspetto fondamentale riguarda ${kwText}, collegando teoria e applicazione pratica secondo le fonti del testo.`;
   }
 
-  function toggleRecording() {
-    if (status === 'recording') {
-      if (!transcript.trim()) {
-        setTranscript(buildSampleTranscript());
+  function evaluateTranscript(rawText: string): VoiceRecallReport {
+    const content = rawText.trim() || buildSampleTranscript();
+    const normalized = content.toLowerCase();
+    const covered: string[] = [];
+    const missing: string[] = [];
+
+    targetKeywords.forEach((kw) => {
+      if (normalized.includes(kw.toLowerCase())) {
+        covered.push(kw);
+      } else {
+        missing.push(kw);
       }
-      setStatus('analyzed');
-    } else {
-      setStatus('recording');
+    });
+
+    const coveredRatio = targetKeywords.length > 0 ? covered.length / targetKeywords.length : 1;
+    const score = Math.min(100, Math.max(55, Math.round(coveredRatio * 45 + 55)));
+    const advice =
+      missing.length > 0
+        ? `Buona fluidità nell'esposizione su ${activeTopic}. Per raggiungere il 100%, integra esplicitamente il concetto "${missing[0]}".`
+        : `Esposizione completa e ben strutturata su ${activeTopic}: tutte le parole chiave principali sono state citate con chiarezza.`;
+
+    return {
+      score,
+      transcript: content,
+      covered,
+      missing,
+      advice,
+    };
+  }
+
+  async function startRecording() {
+    setPermissionError(null);
+    setStatus('recording');
+    setElapsedSeconds(0);
+    setRecordedUri(null);
+
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setElapsedSeconds((prev) => {
+        const next = prev + 1;
+        if (next >= MAX_RECORDING_SECONDS) {
+          stopRecording();
+        }
+        return next;
+      });
+    }, 1000);
+
+    try {
+      const perm = await requestRecordingPermissionsAsync();
+      if (!perm?.granted) {
+        setPermissionError('Permesso microfono non concesso. Modalità digitazione attiva.');
+        setMode('text');
+        setStatus('idle');
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+        return;
+      }
+
+      if (typeof recorder.prepareToRecordAsync === 'function') {
+        await recorder.prepareToRecordAsync();
+      }
+      recorder.record();
+    } catch {
+      setPermissionError('Impossibile accedere al microfono. Passaggio a modalità testo.');
+      setMode('text');
+      setStatus('idle');
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
     }
   }
 
-  function analyzeTypedText() {
-    if (!transcript.trim()) {
-      setTranscript(buildSampleTranscript());
+  function stopRecording() {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
     }
+
+    try {
+      void recorder.stop();
+    } catch {
+      // Ignora errori stop
+    }
+
+    const uri = recorder.uri || 'file:///mock-audio.m4a';
+    setRecordedUri(uri);
+    onRecordingComplete?.(uri);
+
+    const generated = evaluateTranscript(transcript);
+    setTranscript(generated.transcript);
+    setReport(generated);
     setStatus('analyzed');
+    onReportGenerated?.(generated);
   }
 
-  const normalized = transcript.toLowerCase();
-  const checklist = targetKeywords.map((kw) => {
-    const covered = normalized.includes(kw.toLowerCase());
-    return { keyword: kw, covered };
-  });
-  const coveredCount = checklist.filter((c) => c.covered).length;
-  const score =
-    status === 'analyzed'
-      ? Math.min(100, Math.max(55, Math.round((coveredCount / checklist.length) * 45 + 55)))
-      : 88;
-  const scoreLabel = score >= 85 ? 'Ottimo' : score >= 65 ? 'Buono' : 'Da approfondire';
-  const missingItem = checklist.find((c) => !c.covered);
+  function handleAnalyzeText() {
+    const generated = evaluateTranscript(transcript);
+    setTranscript(generated.transcript);
+    setReport(generated);
+    setStatus('analyzed');
+    onReportGenerated?.(generated);
+  }
+
+  function handleRetry() {
+    setStatus('idle');
+    setTranscript('');
+    setReport(null);
+    setRecordedUri(null);
+    setElapsedSeconds(0);
+    setIsPlayingAudio(false);
+  }
 
   return (
     <Card>
@@ -81,7 +191,7 @@ export function VoiceRecallCard({
               Simulatore di Esposizione Orale
             </Text>
             <Text style={ui.muted}>
-              Ripeti il concetto a parole tue con il microfono: l'AI valuta completezza e precisione
+              Ripeti a parole tue con microfono o testo: l'AI valuta completezza e chiarezza
             </Text>
           </View>
         </View>
@@ -112,138 +222,77 @@ export function VoiceRecallCard({
         <Text style={[localStyles.stimulusHint, dark && { color: C.textMuted }]}>{hintText}</Text>
       </View>
 
-      <View
-        style={[
-          localStyles.recorderBox,
-          dark && { backgroundColor: C.surfaceDark, borderColor: C.border },
-        ]}
-      >
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={
-            status === 'recording' ? 'Ferma registrazione vocale' : 'Avvia registrazione vocale'
-          }
-          accessibilityState={{ selected: status === 'recording' }}
-          onPress={toggleRecording}
-          style={({ pressed }) => [
-            localStyles.micBtn,
-            status === 'recording' && localStyles.micBtnRecording,
-            pressed && { opacity: 0.85 },
-          ]}
-        >
-          <Text style={localStyles.micIcon}>{status === 'recording' ? '⏹️' : '🎙️'}</Text>
-        </Pressable>
-
-        {status === 'idle' && (
-          <View style={localStyles.statusTexts}>
-            <Text style={[localStyles.statusMain, dark && { color: C.text }]}>
-              Premi per iniziare l'esposizione vocale
-            </Text>
-            <Text style={[localStyles.statusSub, dark && { color: C.textMuted }]}>
-              Parla con naturalezza; il sistema trascriverà e analizzerà i punti chiave
-            </Text>
-          </View>
-        )}
-
-        {status === 'recording' && (
-          <View style={localStyles.statusTexts}>
-            <Text style={[localStyles.statusMain, { color: dark ? '#fb7185' : '#e11d48' }]}>
-              ● Ascolto in corso... Parla pure
-            </Text>
-            <Text style={[localStyles.statusSub, dark && { color: C.textMuted }]}>
-              Premi di nuovo per fermare e analizzare
-            </Text>
-          </View>
-        )}
-
-        {status === 'analyzed' && (
-          <View style={localStyles.statusTexts}>
-            <Text style={[localStyles.statusMain, { color: dark ? C.greenText : '#059669' }]}>
-              ✓ Esposizione registrata e analizzata con successo
-            </Text>
-            <Text style={[localStyles.statusSub, dark && { color: C.textMuted }]}>
-              Leggi sotto la trascrizione e il report
-            </Text>
-          </View>
-        )}
-
-        <TextInput
-          accessibilityLabel="Trascrizione esposizione orale"
-          style={[
-            localStyles.transcriptInput,
-            dark && { backgroundColor: C.inputBg, borderColor: C.border, color: C.text },
-          ]}
-          multiline
-          placeholder="Qui apparirà la trascrizione (oppure scrivi una bozza di risposta orale)..."
-          placeholderTextColor={dark ? C.textVeryDim : colors.muted}
-          value={transcript}
-          onChangeText={setTranscript}
-        />
-
-        {status !== 'recording' && transcript.trim().length > 0 && status !== 'analyzed' && (
-          <Pressable onPress={analyzeTypedText} style={localStyles.analyzeBtn}>
-            <Text style={localStyles.analyzeBtnText}>Analizza esposizione</Text>
-          </Pressable>
-        )}
-      </View>
-
-      {status === 'analyzed' && (
-        <View style={localStyles.reportBox}>
-          <View style={localStyles.reportHeader}>
-            <Text style={[localStyles.reportEyebrow, dark && { color: C.textMuted }]}>
-              VALUTAZIONE AI SULL'ESPOSIZIONE
-            </Text>
-            <View
-              style={[
-                localStyles.scoreBadge,
-                dark && { backgroundColor: C.greenBg, borderColor: C.green },
-              ]}
-            >
-              <Text style={[localStyles.scoreText, dark && { color: C.greenText }]}>
-                {`Punteggio: ${score}% (${scoreLabel})`}
-              </Text>
-            </View>
-          </View>
-
-          <View style={localStyles.checklistGrid}>
-            {checklist.map((item) => (
-              <View
-                key={item.keyword}
-                style={[
-                  localStyles.checkItem,
-                  item.covered
-                    ? [localStyles.checkItemOk, dark && { backgroundColor: C.greenBg, borderColor: C.green }]
-                    : [localStyles.checkItemWarn, dark && { backgroundColor: C.yellowBg, borderColor: C.yellow }],
-                ]}
-              >
-                <Text
-                  style={[
-                    item.covered ? localStyles.checkItemOkText : localStyles.checkItemWarnText,
-                    dark && { color: item.covered ? C.greenText : C.yellow },
-                  ]}
-                >
-                  {`${item.covered ? '✓' : '⚠️'} ${item.keyword}`}
-                </Text>
-              </View>
-            ))}
-          </View>
-
-          <View
+      {status !== 'analyzed' && (
+        <View style={localStyles.modeTabs}>
+          <Pressable
+            accessibilityRole="tab"
+            accessibilityLabel="Modalità Microfono"
+            onPress={() => setMode('voice')}
             style={[
-              localStyles.tutorBox,
-              dark && { backgroundColor: 'rgba(59,130,246,0.14)', borderColor: 'rgba(96,165,250,0.35)' },
+              localStyles.modeTab,
+              mode === 'voice' && localStyles.modeTabActive,
+              dark && { borderColor: C.border },
+              mode === 'voice' && dark && { backgroundColor: C.surfaceHover },
             ]}
           >
-            <Text style={[localStyles.tutorTitle, dark && { color: '#93c5fd' }]}>
-              Consiglio del Tutor per l'Orale:
+            <Text
+              style={[
+                localStyles.modeTabText,
+                mode === 'voice' && localStyles.modeTabTextActive,
+                dark && mode !== 'voice' && { color: C.textMuted },
+              ]}
+            >
+              🎙️ Microfono
             </Text>
-            <Text style={[localStyles.tutorBody, dark && { color: C.lightText }]}>
-              {missingItem
-                ? `Buona fluidità nell'esposizione su ${activeTopic}. Per raggiungere il 100%, integra esplicitamente il concetto "${missingItem.keyword}".`
-                : `Esposizione completa e ben strutturata su ${activeTopic}: tutte le parole chiave principali sono state citate con chiarezza.`}
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="tab"
+            accessibilityLabel="Modalità Digita esposizione"
+            onPress={() => setMode('text')}
+            style={[
+              localStyles.modeTab,
+              mode === 'text' && localStyles.modeTabActive,
+              dark && { borderColor: C.border },
+              mode === 'text' && dark && { backgroundColor: C.surfaceHover },
+            ]}
+          >
+            <Text
+              style={[
+                localStyles.modeTabText,
+                mode === 'text' && localStyles.modeTabTextActive,
+                dark && mode !== 'text' && { color: C.textMuted },
+              ]}
+            >
+              ✍️ Digita esposizione
             </Text>
-          </View>
+          </Pressable>
         </View>
+      )}
+
+      {!!permissionError && (
+        <View style={[localStyles.alertBox, dark && { backgroundColor: 'rgba(239,68,68,0.15)', borderColor: '#ef4444' }]}>
+          <Text style={[localStyles.alertText, dark && { color: '#fca5a5' }]}>
+            ⚠️ {permissionError}
+          </Text>
+        </View>
+      )}
+
+      {status !== 'analyzed' ? (
+        <VoiceRecorderBox
+          mode={mode}
+          status={status}
+          elapsedSeconds={elapsedSeconds}
+          transcript={transcript}
+          recordedUri={recordedUri}
+          isPlayingAudio={isPlayingAudio}
+          onToggleRecording={status === 'recording' ? stopRecording : startRecording}
+          onChangeTranscript={setTranscript}
+          onAnalyzeText={handleAnalyzeText}
+          onTogglePlayAudio={() => setIsPlayingAudio(!isPlayingAudio)}
+        />
+      ) : (
+        report && <VoiceRecallReportView report={report} onRetry={handleRetry} />
       )}
     </Card>
   );
@@ -279,94 +328,50 @@ const localStyles = StyleSheet.create({
     borderRadius: 12,
     padding: 14,
     gap: 6,
+    marginTop: 8,
   },
   stimulusEyebrow: { fontSize: 10, fontWeight: '800', color: '#be123c', letterSpacing: 0.7 },
   stimulusQuestion: { fontSize: 15, fontWeight: '700', color: colors.navy, lineHeight: 22 },
   stimulusHint: { fontSize: 12, color: colors.muted },
-  recorderBox: {
-    backgroundColor: '#f8fafc',
-    borderColor: colors.line,
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 16,
-    alignItems: 'center',
-    gap: 12,
-  },
-  micBtn: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#e11d48',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  micBtnRecording: {
-    backgroundColor: '#9f1239',
-    borderWidth: 4,
-    borderColor: '#fda4af',
-  },
-  micIcon: { fontSize: 26 },
-  statusTexts: { alignItems: 'center', gap: 3 },
-  statusMain: { fontSize: 13, fontWeight: '700', color: colors.navy, textAlign: 'center' },
-  statusSub: { fontSize: 12, color: colors.muted, textAlign: 'center' },
-  transcriptInput: {
-    width: '100%',
-    minHeight: 74,
-    backgroundColor: 'white',
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 13,
-    color: colors.navy,
-    textAlignVertical: 'top',
-  },
-  analyzeBtn: {
-    backgroundColor: '#e11d48',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-  },
-  analyzeBtnText: { color: 'white', fontSize: 12, fontWeight: '700' },
-  reportBox: { gap: 12 },
-  reportHeader: {
+  modeTabs: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     gap: 8,
+    marginTop: 6,
   },
-  reportEyebrow: { fontSize: 11, fontWeight: '800', color: colors.muted, letterSpacing: 0.7 },
-  scoreBadge: {
-    backgroundColor: '#dcfce7',
-    borderColor: '#86efac',
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  scoreText: { color: '#15803d', fontSize: 12, fontWeight: '800' },
-  checklistGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  checkItem: {
+  modeTab: {
     flex: 1,
-    minWidth: 150,
-    borderRadius: 10,
-    borderWidth: 1,
-    paddingHorizontal: 10,
     paddingVertical: 8,
-  },
-  checkItemOk: { backgroundColor: '#ecfdf5', borderColor: '#a7f3d0' },
-  checkItemWarn: { backgroundColor: '#fffbeb', borderColor: '#fde68a' },
-  checkItemOkText: { color: '#065f46', fontSize: 12, fontWeight: '700' },
-  checkItemWarnText: { color: '#92400e', fontSize: 12, fontWeight: '700' },
-  tutorBox: {
-    backgroundColor: '#eff6ff',
-    borderColor: '#bfdbfe',
+    paddingHorizontal: 12,
+    borderRadius: 8,
     borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
-    gap: 4,
+    borderColor: '#e2e8f0',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
   },
-  tutorTitle: { fontSize: 13, fontWeight: '700', color: '#1e3a8a' },
-  tutorBody: { fontSize: 12, lineHeight: 19, color: colors.ink },
+  modeTabActive: {
+    borderColor: '#e11d48',
+    backgroundColor: '#fff1f2',
+  },
+  modeTabText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  modeTabTextActive: {
+    color: '#be123c',
+    fontWeight: '700',
+  },
+  alertBox: {
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fca5a5',
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 6,
+  },
+  alertText: {
+    color: '#b91c1c',
+    fontSize: 12,
+    fontWeight: '600',
+  },
 });

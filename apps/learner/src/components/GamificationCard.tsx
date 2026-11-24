@@ -1,382 +1,214 @@
-import React, { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import { usePalette, useTheme } from '@formazione/civis-ui/src/ThemeProvider';
-import { Card, colors } from './ui';
-
-type ActiveMode = 'idle' | 'speed' | 'recovery' | 'flashcard';
+import { Card } from './ui';
+import type {
+  ActiveGamifyMode,
+  FlashcardItem,
+  GameQuestion,
+  GamificationState,
+} from './gamification/types';
+import { DEFAULT_FLASHCARDS, DEFAULT_QUESTIONS } from './gamification/defaults';
+import { GamificationBanner } from './gamification/GamificationBanner';
+import { ModesGrid } from './gamification/ModesGrid';
+import { SurvivalGame } from './gamification/SurvivalGame';
+import { TimeAttackGame } from './gamification/TimeAttackGame';
+import { FlashcardDeck } from './gamification/FlashcardDeck';
+import { RecoveryGame } from './gamification/RecoveryGame';
+import { ProModesCard } from './gamification/ProModesCard';
 
 export interface GamificationCardProps {
   initialXp?: number;
   streakDays?: number;
   topicHint?: string;
+  extractionId?: string;
+  questions?: GameQuestion[];
+  flashcards?: FlashcardItem[];
+  onXpEarned?: (xp: number) => void;
 }
-
-const FLASHCARDS = [
-  {
-    front: 'Qual è l’obiettivo della verifica preventiva dei concetti chiave?',
-    back: 'Individuare subito definizioni portanti e nessi logici prima di passare ai quiz.',
-  },
-  {
-    front: 'Perché la ripetizione spaziata migliora la memoria a lungo termine?',
-    back: 'Richiama il concetto vicino alla curva dell’oblio, rafforzando il recupero attivo.',
-  },
-];
 
 export function GamificationCard({
   initialXp = 740,
   streakDays = 4,
-  topicHint = 'materiale selezionato',
+  questions = DEFAULT_QUESTIONS,
+  flashcards = DEFAULT_FLASHCARDS,
+  onXpEarned,
 }: GamificationCardProps) {
   const C = usePalette(), { dark } = useTheme();
-  const [xp, setXp] = useState(initialXp);
-  const [mode, setMode] = useState<ActiveMode>('idle');
-  const [secondsLeft, setSecondsLeft] = useState(60);
-  const [cardFlipped, setCardFlipped] = useState(false);
-  const [cardIndex, setCardIndex] = useState(0);
-  const [statusMessage, setStatusMessage] = useState('');
 
-  const cardSurface = dark ? { backgroundColor: C.surfaceHover, borderColor: C.border } : null;
-  const secBtn = dark ? { backgroundColor: C.surfaceDark, borderColor: C.border } : null;
-  const secBtnTxt = dark ? { color: C.text } : null;
-  const boxStyle = dark ? { backgroundColor: C.surfaceDark, borderColor: C.selBorder } : null;
-  const titleStyle = dark ? { color: C.text } : null;
-  const descStyle = dark ? { color: C.textMuted } : null;
+  const [state, setState] = useState<GamificationState>({
+    xp: initialXp,
+    livello: initialXp >= 1000 ? 'Oro' : 'Argento',
+    streak: { days: streakDays },
+    recordSopravvivenza: 5,
+    recordTimeAttack: 80,
+    mastery: { default: 65 },
+    poteri: { fiftyFifty: 3, salta: 2 },
+    erroriRecenti: [
+      {
+        id: 'err-1',
+        prompt: 'Qual è la funzione del ripasso dinamico ad intervalli crescenti?',
+        options: [
+          { id: 'o1', text: 'Consolidare la traccia mnestica prima della dimenticanza' },
+          { id: 'o2', text: 'Cancellare le risposte sbagliate dall’archivio' },
+        ],
+        correctOptionId: 'o1',
+        explanation: 'Il richiamo temporizzato intercetta la curva dell’oblio di Ebbinghaus.',
+      },
+    ],
+  });
 
-  const level = xp >= 1000 ? 'Oro' : 'Argento';
-  const nextGoal = xp >= 1000 ? 'Livello Oro raggiunto' : 'Prossimo Livello a 1.000 XP';
+  const [mode, setMode] = useState<ActiveGamifyMode>('idle');
+  const [toastMessage, setToastMessage] = useState('');
 
-  useEffect(() => {
-    if (mode !== 'speed') return;
-    const timer = setInterval(() => {
-      setSecondsLeft((prev) => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [mode]);
+  const nextGoal = state.xp >= 1000 ? 'Livello Oro raggiunto' : 'Prossimo Livello a 1.000 XP';
 
-  function startSpeedChallenge() {
-    setSecondsLeft(60);
-    setMode('speed');
-    setStatusMessage('');
+  function awardXp(amount: number, message: string) {
+    setState((prev) => {
+      const nextXp = prev.xp + amount;
+      const nextLevel = nextXp >= 1000 ? 'Oro' : 'Argento';
+      return { ...prev, xp: nextXp, livello: nextLevel };
+    });
+    setToastMessage(message);
+    onXpEarned?.(amount);
   }
 
-  function completeSpeedStep() {
-    setXp((v) => v + 50);
-    setStatusMessage('+50 XP guadagnati nella sfida a tempo!');
+  function handleUsePower(power: 'fiftyFifty' | 'salta') {
+    setState((prev) => ({
+      ...prev,
+      poteri: {
+        ...prev.poteri,
+        [power]: Math.max(0, prev.poteri[power] - 1),
+      },
+    }));
+  }
+
+  function handleSurvivalFinish(result: { newRecord: number; xpGained: number; failedQuestion?: GameQuestion }) {
+    setState((prev) => {
+      const newErrors = result.failedQuestion
+        ? [...prev.erroriRecenti.filter((e) => e.id !== result.failedQuestion?.id), result.failedQuestion]
+        : prev.erroriRecenti;
+      return {
+        ...prev,
+        recordSopravvivenza: Math.max(prev.recordSopravvivenza, result.newRecord),
+        erroriRecenti: newErrors,
+      };
+    });
+    if (result.xpGained > 0) {
+      awardXp(result.xpGained, `+${result.xpGained} XP da Sopravvivenza!`);
+    }
     setMode('idle');
   }
 
-  function completeRecovery() {
-    setXp((v) => v + 25);
-    setStatusMessage('+25 XP! Concetto debole ripassato.');
+  function handleTimeAttackFinish(result: { score: number; newRecord: number; xpGained: number }) {
+    setState((prev) => ({
+      ...prev,
+      recordTimeAttack: Math.max(prev.recordTimeAttack, result.newRecord),
+    }));
+    awardXp(result.xpGained, `+${result.xpGained} XP dalla Corsa contro il Tempo!`);
     setMode('idle');
   }
 
-  function rateFlashcard(bonus: number) {
-    setXp((v) => v + bonus);
-    setCardFlipped(false);
-    setCardIndex((i) => (i + 1) % FLASHCARDS.length);
-    setStatusMessage(`+${bonus} XP dalla sessione flashcard.`);
+  function handleRateFlashcard(_cardId: string, _rating: 'easy' | 'medium' | 'hard', bonus: number) {
+    awardXp(bonus, `+${bonus} XP dalla sessione flashcard.`);
   }
 
-  const card = FLASHCARDS[cardIndex];
+  function handleRecoveryQuestion(questionId: string, xpGained: number) {
+    setState((prev) => ({
+      ...prev,
+      erroriRecenti: prev.erroriRecenti.filter((e) => e.id !== questionId),
+    }));
+    awardXp(xpGained, `+${xpGained} XP! Concetto debole recuperato.`);
+  }
 
   return (
     <Card>
-      <View style={localStyles.banner}>
-        <View style={localStyles.bannerLeft}>
-          <View style={localStyles.boltBox}>
-            <Text style={localStyles.boltIcon}>⚡</Text>
-          </View>
-          <View>
-            <Text style={localStyles.levelEyebrow}>{`Livello Padronanza: ${level}`}</Text>
-            <Text style={localStyles.xpTitle}>{`${xp} XP accumulati`}</Text>
-          </View>
-        </View>
+      <GamificationBanner
+        xp={state.xp}
+        level={state.livello}
+        streakDays={state.streak.days}
+        nextGoal={nextGoal}
+        masteryPercentage={state.mastery.default ?? 65}
+        poteri={state.poteri}
+      />
 
-        <View style={localStyles.badgesRow}>
-          <View style={localStyles.statBadge}>
-            <Text style={localStyles.statBadgeText}>{`🔥 ${streakDays} Giorni di Serie`}</Text>
-          </View>
-          <View style={localStyles.statBadge}>
-            <Text style={localStyles.statBadgeText}>{`🏆 ${nextGoal}`}</Text>
-          </View>
-        </View>
-      </View>
-
-      {!!statusMessage && (
-        <View style={[localStyles.toastBox, dark && { backgroundColor: C.greenBg, borderColor: C.green }]}>
-          <Text style={[localStyles.toastText, dark && { color: C.greenText }]}>{statusMessage}</Text>
+      {!!toastMessage && (
+        <View style={[styles.toastBox, dark && { backgroundColor: C.greenBg, borderColor: C.green }]}>
+          <Text style={[styles.toastText, dark && { color: C.greenText }]}>{toastMessage}</Text>
         </View>
       )}
 
-      <View style={localStyles.modesGrid}>
-        <View
-          style={[
-            localStyles.modeCard,
-            localStyles.speedCard,
-            dark && { backgroundColor: 'rgba(99,102,241,0.16)', borderColor: '#818cf8' },
-          ]}
-        >
-          <View style={localStyles.modeTop}>
-            <Text style={localStyles.modeIcon}>⏱️</Text>
-            <View style={localStyles.xpChip}>
-              <Text style={localStyles.xpChipText}>+50 XP</Text>
-            </View>
-          </View>
-          <Text style={[localStyles.modeTitle, titleStyle]}>Sfida a Tempo (60 Secondi)</Text>
-          <Text style={[localStyles.modeDesc, descStyle]}>
-            Rispondi al maggior numero di domande lampo prima che scada il tempo.
-          </Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Avvia Sfida Rapida"
-            onPress={startSpeedChallenge}
-            style={({ pressed }) => [localStyles.primaryAction, pressed && { opacity: 0.8 }]}
-          >
-            <Text style={localStyles.primaryActionText}>Avvia Sfida Rapida</Text>
-          </Pressable>
-        </View>
+      {/* Griglia modalità sempre accessibile per consentire cambio modalità e retrocompatibilità */}
+      <ModesGrid
+        state={state}
+        flashcardCount={flashcards.length}
+        onSelectMode={(m) => {
+          setMode(m);
+          setToastMessage('');
+        }}
+      />
 
-        <View style={[localStyles.modeCard, cardSurface]}>
-          <View style={localStyles.modeTop}>
-            <Text style={localStyles.modeIcon}>🩹</Text>
-            <View style={[localStyles.amberChip, dark && { backgroundColor: C.yellowBg }]}>
-              <Text style={[localStyles.amberChipText, dark && { color: C.yellow }]}>3 da recuperare</Text>
-            </View>
-          </View>
-          <Text style={[localStyles.modeTitle, titleStyle]}>Recupero Concetti Deboli</Text>
-          <Text style={[localStyles.modeDesc, descStyle]}>
-            Rivedi solo i concetti su cui hai sbagliato nelle precedenti verifiche.
-          </Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Avvia Recupero Errori"
-            onPress={() => {
-              setMode('recovery');
-              setStatusMessage('');
-            }}
-            style={({ pressed }) => [localStyles.secondaryAction, secBtn, pressed && { opacity: 0.8 }]}
-          >
-            <Text style={[localStyles.secondaryActionText, secBtnTxt]}>Avvia Recupero Errori</Text>
-          </Pressable>
-        </View>
+      {mode === 'idle' && <ProModesCard />}
 
-        <View style={[localStyles.modeCard, cardSurface]}>
-          <View style={localStyles.modeTop}>
-            <Text style={localStyles.modeIcon}>🗂️</Text>
-            <View style={[localStyles.blueChip, dark && { backgroundColor: 'rgba(59,130,246,0.2)' }]}>
-              <Text style={[localStyles.blueChipText, dark && { color: '#93c5fd' }]}>12 Carte</Text>
-            </View>
-          </View>
-          <Text style={[localStyles.modeTitle, titleStyle]}>Flashcard Intelligenti</Text>
-          <Text style={[localStyles.modeDesc, descStyle]}>
-            Gira le carte e valuta la tua memoria (Facile, Medio, Difficile).
-          </Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Apri Mazzo Flashcard"
-            onPress={() => {
-              setMode('flashcard');
-              setCardFlipped(false);
-              setStatusMessage('');
-            }}
-            style={({ pressed }) => [localStyles.secondaryAction, secBtn, pressed && { opacity: 0.8 }]}
-          >
-            <Text style={[localStyles.secondaryActionText, secBtnTxt]}>Apri Mazzo Flashcard</Text>
-          </Pressable>
-        </View>
-      </View>
+      {mode === 'survival' && (
+        <SurvivalGame
+          questions={questions}
+          record={state.recordSopravvivenza}
+          poteri={state.poteri}
+          onUsePower={handleUsePower}
+          onFinish={handleSurvivalFinish}
+          onClose={() => setMode('idle')}
+        />
+      )}
 
       {mode === 'speed' && (
-        <View style={[localStyles.interactiveBox, boxStyle]}>
-          <View style={localStyles.interactiveHeader}>
-            <Text style={[localStyles.interactiveTitle, titleStyle]}>⏱️ Sfida a Tempo attiva</Text>
-            <Text style={[localStyles.timerBadge, dark && { color: C.indigoLight }]}>
-              {`${secondsLeft}s rimanenti`}
-            </Text>
-          </View>
-          <Text style={[localStyles.modeDesc, descStyle]}>
-            {`Domanda lampo su ${topicHint}: identifica il punto chiave principale prima dello scadere del timer.`}
-          </Text>
-          <View style={localStyles.interactiveActions}>
-            <Pressable onPress={completeSpeedStep} style={localStyles.primaryAction}>
-              <Text style={localStyles.primaryActionText}>Completa serie (+50 XP)</Text>
-            </Pressable>
-            <Pressable onPress={() => setMode('idle')} style={[localStyles.secondaryAction, secBtn]}>
-              <Text style={[localStyles.secondaryActionText, secBtnTxt]}>Chiudi</Text>
-            </Pressable>
-          </View>
-        </View>
-      )}
-
-      {mode === 'recovery' && (
-        <View style={[localStyles.interactiveBox, boxStyle]}>
-          <Text style={[localStyles.interactiveTitle, titleStyle]}>🩹 Focus Concetti Deboli</Text>
-          <Text style={[localStyles.modeDesc, descStyle]}>
-            {`Rivedi le definizioni principali di ${topicHint} e confrontale con le fonti originali.`}
-          </Text>
-          <View style={localStyles.interactiveActions}>
-            <Pressable onPress={completeRecovery} style={localStyles.primaryAction}>
-              <Text style={localStyles.primaryActionText}>Segna come ripassato (+25 XP)</Text>
-            </Pressable>
-            <Pressable onPress={() => setMode('idle')} style={[localStyles.secondaryAction, secBtn]}>
-              <Text style={[localStyles.secondaryActionText, secBtnTxt]}>Chiudi</Text>
-            </Pressable>
-          </View>
-        </View>
+        <TimeAttackGame
+          questions={questions}
+          record={state.recordTimeAttack}
+          poteri={state.poteri}
+          onUsePower={handleUsePower}
+          onFinish={handleTimeAttackFinish}
+          onClose={() => setMode('idle')}
+        />
       )}
 
       {mode === 'flashcard' && (
-        <View style={[localStyles.interactiveBox, boxStyle]}>
-          <Text style={[localStyles.interactiveTitle, titleStyle]}>🗂️ Flashcard Spaziata</Text>
-          <Text style={[localStyles.flashcardText, titleStyle]}>{cardFlipped ? card.back : card.front}</Text>
-          <View style={localStyles.interactiveActions}>
-            {!cardFlipped ? (
-              <Pressable onPress={() => setCardFlipped(true)} style={localStyles.primaryAction}>
-                <Text style={localStyles.primaryActionText}>Gira la carta</Text>
-              </Pressable>
-            ) : (
-              <>
-                <Pressable onPress={() => rateFlashcard(20)} style={localStyles.primaryAction}>
-                  <Text style={localStyles.primaryActionText}>Facile (+20 XP)</Text>
-                </Pressable>
-                <Pressable onPress={() => rateFlashcard(15)} style={[localStyles.secondaryAction, secBtn]}>
-                  <Text style={[localStyles.secondaryActionText, secBtnTxt]}>Medio (+15 XP)</Text>
-                </Pressable>
-                <Pressable onPress={() => rateFlashcard(10)} style={[localStyles.secondaryAction, secBtn]}>
-                  <Text style={[localStyles.secondaryActionText, secBtnTxt]}>Difficile (+10 XP)</Text>
-                </Pressable>
-              </>
-            )}
-            <Pressable onPress={() => setMode('idle')} style={[localStyles.secondaryAction, secBtn]}>
-              <Text style={[localStyles.secondaryActionText, secBtnTxt]}>Chiudi</Text>
-            </Pressable>
-          </View>
-        </View>
+        <FlashcardDeck
+          cards={flashcards}
+          onRateCard={handleRateFlashcard}
+          onFinishDeck={(xp) => {
+            awardXp(xp, `Sessione flashcard conclusa: +${xp} XP.`);
+            setMode('idle');
+          }}
+          onClose={() => setMode('idle')}
+        />
+      )}
+
+      {mode === 'recovery' && (
+        <RecoveryGame
+          errors={state.erroriRecenti}
+          onRecoverQuestion={handleRecoveryQuestion}
+          onClose={() => setMode('idle')}
+        />
       )}
     </Card>
   );
 }
 
-const localStyles = StyleSheet.create({
-  banner: {
-    backgroundColor: '#4f46e5',
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  bannerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  boltBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  boltIcon: { fontSize: 22 },
-  levelEyebrow: {
-    color: '#c7d2fe',
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  xpTitle: { color: 'white', fontSize: 18, fontWeight: '800' },
-  badgesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  statBadge: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  statBadgeText: { color: 'white', fontSize: 12, fontWeight: '700' },
+const styles = StyleSheet.create({
   toastBox: {
     backgroundColor: '#ecfdf5',
-    borderColor: '#a7f3d0',
     borderWidth: 1,
-    borderRadius: 10,
-    padding: 10,
-  },
-  toastText: { color: '#065f46', fontSize: 13, fontWeight: '700' },
-  modesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  modeCard: {
-    flex: 1,
-    minWidth: 210,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: '#ffffff',
-    padding: 14,
-    gap: 10,
-    justifyContent: 'space-between',
-  },
-  speedCard: { borderWidth: 2, borderColor: '#6366f1', backgroundColor: '#eef2ff' },
-  modeTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  modeIcon: { fontSize: 20 },
-  xpChip: {
-    backgroundColor: '#4f46e5',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  xpChipText: { color: 'white', fontSize: 11, fontWeight: '700' },
-  amberChip: {
-    backgroundColor: '#fef3c7',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  amberChipText: { color: '#b45309', fontSize: 11, fontWeight: '700' },
-  blueChip: {
-    backgroundColor: '#dbeafe',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  blueChipText: { color: '#1d4ed8', fontSize: 11, fontWeight: '700' },
-  modeTitle: { fontSize: 14, fontWeight: '700', color: colors.navy },
-  modeDesc: { fontSize: 12, lineHeight: 18, color: colors.muted },
-  primaryAction: {
-    backgroundColor: '#4f46e5',
-    borderRadius: 10,
+    borderColor: '#10b981',
+    borderRadius: 8,
+    paddingVertical: 8,
     paddingHorizontal: 12,
-    paddingVertical: 9,
-    alignItems: 'center',
+    marginBottom: 8,
   },
-  primaryActionText: { color: 'white', fontSize: 12, fontWeight: '700' },
-  secondaryAction: {
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    alignItems: 'center',
+  toastText: {
+    color: '#065f46',
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
   },
-  secondaryActionText: { color: colors.navy, fontSize: 12, fontWeight: '600' },
-  interactiveBox: {
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#c7d2fe',
-    borderRadius: 14,
-    padding: 14,
-    gap: 10,
-  },
-  interactiveHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  interactiveTitle: { fontSize: 14, fontWeight: '700', color: colors.navy },
-  timerBadge: { fontSize: 12, fontWeight: '800', color: '#4f46e5' },
-  flashcardText: { fontSize: 14, fontWeight: '600', color: colors.navy, lineHeight: 21 },
-  interactiveActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 });
