@@ -14,6 +14,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit && tsc --noEmit -p packages/civis-ui/tsconfig.json",
+    "dev": "node scripts/dev.mjs",
     "dev:web": "expo start apps/learner --web",
     "export:web": "npm run export:web --workspace @formazione/learner",
     "web": "expo start apps/learner --web",

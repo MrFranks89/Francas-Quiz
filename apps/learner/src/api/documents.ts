@@ -78,3 +78,15 @@ export function extractDocument(
     body: JSON.stringify({ selection, engine }),
   });
 }
+export async function deleteDocument(id: string): Promise<void> {
+  let response: Response;
+  try {
+    response = await fetch(`${apiUrl}/documents/${id}`, { method: 'DELETE' });
+  } catch {
+    throw new Error(`Server non raggiungibile (${apiUrl}).`);
+  }
+  if (!response.ok && response.status !== 204) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(apiErrorMessage(data, 'Impossibile eliminare il documento.'));
+  }
+}

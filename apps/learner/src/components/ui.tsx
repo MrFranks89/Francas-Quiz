@@ -9,6 +9,12 @@ export const colors = {
   ink: '#263f50',
   muted: '#637b88',
   line: '#d9e4e8',
+  tierBase: '#2563eb',
+  tierBaseBg: '#eff6ff',
+  tierPro: '#d97706',
+  tierProBg: '#fffbeb',
+  tierUltra: '#7c3aed',
+  tierUltraBg: '#faf5ff',
 };
 export function Button({
   label,

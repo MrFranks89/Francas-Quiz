@@ -317,6 +317,13 @@ describe('ImportScreen anteprima persistente e navigazione', () => {
       await chooseBtn?.props.onPress();
     });
 
+    const rangeBtn = renderer.root
+      .findAllByType(Button)
+      .find((b) => b.props.label === 'Da pagina… a pagina…');
+    await act(async () => {
+      rangeBtn?.props.onPress();
+    });
+
     const capBtn = renderer.root
       .findAllByProps({ accessibilityLabel: 'Seleziona Capitolo 1 · pp. 1–28' })[0];
     expect(capBtn).toBeDefined();

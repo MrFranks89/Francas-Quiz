@@ -75,7 +75,7 @@ export function Guscio({
 }
 
 export interface ScrollPannelloContesto {
-  scrollRef: RefObject<ScrollView | null>;
+  scrollRef: RefObject<any>;
   getScrollY: () => number;
   scrollaDi: (delta: number, animated?: boolean) => void;
   scrollToEnd: (animated?: boolean) => void;
@@ -106,7 +106,7 @@ export function Pannello({
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const orizzontale = width < 600 ? 16 : width <= 1024 ? 24 : 36;
-  const scrollRef = useRef<ScrollView | null>(null);
+  const scrollRef = useRef<any>(null);
   const scrollYRef = useRef(0);
   const [altezzaTastiera, setAltezzaTastiera] = useState(0);
 

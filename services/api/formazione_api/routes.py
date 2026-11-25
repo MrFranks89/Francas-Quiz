@@ -1,11 +1,18 @@
+import json
 import logging
+from io import BytesIO
 from pathlib import PurePosixPath
 
 import pypdfium2 as pdfium
-from fastapi import APIRouter, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import Response
-from io import BytesIO
 
+from .account.auth import utente_corrente
+from .account.config import is_auth_required
+from .account.db import db_transaction, open_db, resolve_db_path
+from .account.limiti import CourseLimitReached, slot_corso
+from .account.modelli import Utente
+from .account.spesa_scope import scope_spesa
 from .documents import (
     MAX_BYTES,
     MESSAGGIO_FOGLI,
@@ -17,9 +24,6 @@ from .documents import (
 from .extractors import native_extract
 from .generation.errors import GenerationError
 from .models import ExtractionRequest, selected_pages
-from .account.db import resolve_db_path
-from .account.limiti import CourseLimitReached, slot_corso
-from .account.spesa_scope import scope_spesa
 from .spesa_generazione import SpesaRifiuto, trascrivi_con_tetto
 
 router = APIRouter()
@@ -82,6 +86,93 @@ async def upload(request: Request, file: UploadFile = File(...)):
         await file.close()
 
 
+@router.delete('/documents/{identifier}', status_code=204)
+def delete_document(
+    identifier: str,
+    request: Request,
+    utente: Utente = Depends(utente_corrente),
+):
+    store = request.app.state.store
+    if is_auth_required() and utente and utente.user_id != 'local':
+        store = store.per_utente(utente.user_id)
+
+    try:
+        doc_path = store.path(identifier, 'document.json')
+    except (FileNotFoundError, ValueError):
+        raise HTTPException(404, 'Documento non trovato.')
+
+    if not doc_path.exists():
+        raise HTTPException(404, 'Documento non trovato.')
+
+    # 1. Trova tutte le estrazioni che referenziano questo documento
+    extractions_to_delete = []
+    for ext_file in store.root.glob('*.extraction.json'):
+        try:
+            ext_data = json.loads(ext_file.read_text(encoding='utf-8'))
+            if isinstance(ext_data, dict) and ext_data.get('documentId') == identifier:
+                ext_id = ext_data.get('id') or ext_file.name.split('.')[0]
+                extractions_to_delete.append(ext_id)
+        except (json.JSONDecodeError, OSError):
+            continue
+
+    # 2. Verifica se esiste un corso pubblicato collegato al documento o alle sue estrazioni
+    for course_file in store.root.glob('*.course.json'):
+        try:
+            course_data = json.loads(course_file.read_text(encoding='utf-8'))
+            course_obj = course_data.get('course') if isinstance(course_data, dict) else None
+            doc_id = None
+            if isinstance(course_obj, dict):
+                doc_id = course_obj.get('documentId')
+            elif isinstance(course_data, dict):
+                doc_id = course_data.get('documentId')
+
+            ext_id = None
+            if isinstance(course_data, dict):
+                ext_id = course_data.get('extractionId') or course_data.get('id')
+
+            if doc_id == identifier or (ext_id and ext_id in extractions_to_delete):
+                raise HTTPException(
+                    409,
+                    detail={
+                        'code': 'DOCUMENT_HAS_COURSE',
+                        'message': 'Impossibile eliminare: esiste un corso pubblicato collegato al documento.',
+                    },
+                )
+        except HTTPException:
+            raise
+        except (json.JSONDecodeError, OSError):
+            continue
+
+    # 3. Elimina le estrazioni e pulisci DB corsi_utente
+    base_dir = getattr(store, 'base_root', None)
+    db_path = resolve_db_path(base_dir)
+    conn = None
+    if is_auth_required() and utente and utente.user_id != 'local':
+        try:
+            conn = open_db(db_path)
+        except Exception:
+            conn = None
+
+    for ext_id in extractions_to_delete:
+        for f in store.root.glob(f'{ext_id}.*'):
+            f.unlink(missing_ok=True)
+        if conn is not None:
+            try:
+                with db_transaction(conn):
+                    conn.execute(
+                        "DELETE FROM corsi_utente WHERE extraction_id = ? AND user_id = ?",
+                        (ext_id, utente.user_id),
+                    )
+            except Exception as e:
+                logger.warning('Errore pulizia corsi_utente per %s: %s', ext_id, e)
+
+    # 4. Elimina file sorgente, document.json e correlati al documento
+    for f in store.root.glob(f'{identifier}.*'):
+        f.unlink(missing_ok=True)
+
+    return Response(status_code=204)
+
+
 @router.get('/documents/{identifier}/pages/{page}/preview')
 def preview(identifier: str, page: int, request: Request):
     store = request.app.state.store
@@ -123,7 +214,13 @@ def extract(identifier: str, body: ExtractionRequest, request: Request):
     if not fonte_ammessa(document):
         raise HTTPException(422, MESSAGGIO_FOGLI)
     try:
-        start, end = selected_pages(body.selection, document['pageCount'], document['kind'])
+        pages_res = selected_pages(body.selection, document['pageCount'], document['kind'])
+        if isinstance(pages_res, list):
+            pages = pages_res
+            start, end = (pages[0], pages[-1]) if pages else (None, None)
+        else:
+            start, end = pages_res
+            pages = list(range(start, end + 1)) if start and end else None
     except ValueError as error:
         raise HTTPException(422, str(error)) from error
 
@@ -156,12 +253,13 @@ def extract(identifier: str, body: ExtractionRequest, request: Request):
                     scope=scope,
                 )
             elif engine == 'native':
-                blocks, warnings, status = native_extract(store.path(identifier, 'source'), document['kind'], start, end)
+                blocks, warnings, status = native_extract(store.path(identifier, 'source'), document['kind'], start, end, pages=pages)
             else:
                 from .docling_adapter import docling_extract
                 blocks, warnings, status = docling_extract(store.path(identifier, 'source'), document['kind'], start, end)
 
-            result = {'id': extraction_id, 'documentId': identifier, 'selection': body.selection.model_dump(), 'pageCount': end - start + 1 if start else None, 'blocks': blocks, 'warnings': warnings, 'status': status, 'engine': engine}
+            page_count = len(pages) if pages is not None else (end - start + 1 if start else None)
+            result = {'id': extraction_id, 'documentId': identifier, 'selection': body.selection.model_dump(), 'pageCount': page_count, 'blocks': blocks, 'warnings': warnings, 'status': status, 'engine': engine}
             store.save(extraction_id, 'extraction.json', result)
             return result
     except CourseLimitReached as limit_err:

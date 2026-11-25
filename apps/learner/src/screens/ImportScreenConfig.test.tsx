@@ -143,6 +143,14 @@ describe('ImportScreen flusso config-materiale-studio e scheda nodo', () => {
       renderer = ReactTestRenderer.create(<ImportScreen onDraft={jest.fn()} />);
     });
 
+    const expandBtn = renderer.root
+      .findAllByProps({ accessibilityLabel: 'Personalizza la modalità di studio' })[0];
+    if (expandBtn) {
+      await act(async () => {
+        expandBtn.props.onPress();
+      });
+    }
+
     const toggleMap = renderer.root
       .findAllByProps({ accessibilityLabel: 'Includi Mappa Concettuale' })[0];
     const toggleVoice = renderer.root

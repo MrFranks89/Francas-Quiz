@@ -1,8 +1,8 @@
 import React, { useState, useReducer, useMemo, useEffect } from 'react';
 import { Text, View, Platform, Pressable } from 'react-native';
 import * as Picker from 'expo-document-picker';
-import { parsePageSelection, selectedPages, type Course, type UtenteVista } from '@formazione/contracts';
-import { apiUrl, uploadDocument, extractDocument, type DocumentChapter } from '../api/documents';
+import { parsePageSelection, selectedPages, mergeIntervals, type PageSelection, type Course, type UtenteVista } from '@formazione/contracts';
+import { apiUrl, uploadDocument, extractDocument, deleteDocument, type DocumentChapter } from '../api/documents';
 import { FORMATI_AMMESSI, tipiSelettore } from '../api/formats';
 import { usePalette, useTheme } from '@formazione/civis-ui/src/ThemeProvider';
 import { Button, Card, Notice, colors, useUiStyles } from '../components/ui';
@@ -14,6 +14,7 @@ import { PageRangeCard } from '../components/PageRangeCard';
 import { ExtractionProgressCard } from '../components/ExtractionProgressCard';
 import { StudyConfigCard } from '../components/StudyConfigCard';
 import { StudyExperienceView } from '../components/StudyExperienceView';
+import { UploadedDocCard } from '../components/UploadedDocCard';
 import { FotoPicker, type PickedAsset } from '../components/FotoPicker';
 import { AudioPicker } from '../components/AudioPicker';
 import { CourseLimitBanner } from '../components/account';
@@ -42,18 +43,21 @@ export function ImportScreen({
   const [excludedPages, setExcludedPages] = useState<number[]>([]);
   const [rangeHighlighted, setRangeHighlighted] = useState(false);
 
+  const [selectedIntervals, setSelectedIntervals] = useState<{ fromPage: number; toPage: number }[]>([]);
+
   useEffect(() => {
     getMe().then(setUtente).catch(() => {});
   }, []);
 
   const setRange = (v: boolean) => { setRangeHighlighted(false); dispatch({ type: 'range', value: v }); };
-  const setFrom = (v: string) => { setRangeHighlighted(false); dispatch({ type: 'from', value: v }); };
-  const setTo = (v: string) => { setRangeHighlighted(false); dispatch({ type: 'to', value: v }); };
+  const setFrom = (v: string) => { setSelectedIntervals([]); setRangeHighlighted(false); dispatch({ type: 'from', value: v }); };
+  const setTo = (v: string) => { setSelectedIntervals([]); setRangeHighlighted(false); dispatch({ type: 'to', value: v }); };
 
   function selectChapter(ch: DocumentChapter) {
     dispatch({ type: 'range', value: true });
     dispatch({ type: 'from', value: String(ch.fromPage) });
     dispatch({ type: 'to', value: String(ch.toPage) });
+    setSelectedIntervals([{ fromPage: ch.fromPage, toPage: ch.toPage }]);
     setRangeHighlighted(true);
   }
 
@@ -64,24 +68,37 @@ export function ImportScreen({
   }
 
   const selectionInfo = useMemo(() => {
-    if (!document) return { valid: false, pages: [] as number[], count: 0, error: null };
-    if (document.kind === 'image' || document.kind === 'audio') return { valid: true, pages: [1], count: 1, error: null };
+    if (!document) return { valid: false, pages: [] as number[], count: 0, error: null, sel: { mode: 'all' as const } };
+    if (document.kind === 'image' || document.kind === 'audio') return { valid: true, pages: [1], count: 1, error: null, sel: { mode: 'all' as const } };
     if (document.kind !== 'pdf' || !document.pageCount) {
-      return { valid: false, pages: [] as number[], count: 0, error: null };
+      return { valid: false, pages: [] as number[], count: 0, error: null, sel: { mode: 'all' as const } };
     }
     try {
-      const sel = range
-        ? parsePageSelection({ mode: 'range', fromPage: from, toPage: to }, document.pageCount)
-        : { mode: 'all' as const };
+      let sel: PageSelection;
+      if (!range) {
+        sel = { mode: 'all' };
+      } else if (selectedIntervals.length > 0) {
+        const merged = mergeIntervals(selectedIntervals);
+        if (merged.length === 1 && merged[0].fromPage === 1 && merged[0].toPage === document.pageCount) {
+          sel = { mode: 'all' };
+        } else if (merged.length === 1) {
+          sel = { mode: 'range', fromPage: merged[0].fromPage, toPage: merged[0].toPage };
+        } else {
+          sel = { mode: 'ranges', intervals: merged };
+        }
+      } else {
+        sel = parsePageSelection({ mode: 'range', fromPage: from, toPage: to }, document.pageCount);
+      }
       const pages = selectedPages(sel, document.pageCount);
-      return { valid: true, pages, count: pages.length, error: null };
+      return { valid: true, pages, count: pages.length, error: null, sel };
     } catch {
       return {
         valid: false, pages: [] as number[], count: 0,
         error: `Intervallo non valido: inserisci numeri interi tra 1 e ${document.pageCount}.`,
+        sel: { mode: 'all' as const },
       };
     }
-  }, [document, range, from, to]);
+  }, [document, range, from, to, selectedIntervals]);
 
   useEffect(() => {
     if (selectionInfo.valid && selectionInfo.pages.length > 0) {
@@ -131,10 +148,7 @@ export function ImportScreen({
     setBusy(true);
     setError('');
     try {
-      const sel =
-        range && document.kind === 'pdf'
-          ? parsePageSelection({ mode: 'range', fromPage: from, toPage: to }, document.pageCount!)
-          : { mode: 'all' as const };
+      const sel = range && document.kind === 'pdf' ? selectionInfo.sel : { mode: 'all' as const };
       dispatch({ type: 'result', value: await extractDocument(document.id, sel, engine) });
       setExcludedPages([]);
     } catch (e) {
@@ -151,6 +165,21 @@ export function ImportScreen({
       setError('');
     } else {
       setError(selectionInfo.error || 'Controlla l’intervallo: servono numeri interi tra 1 e il totale.');
+    }
+  }
+
+  async function handleDelete() {
+    if (!document) return;
+    try {
+      await deleteDocument(document.id);
+      dispatch({ type: 'resetDocument' });
+      setShowPreview(false);
+      setActivePageIndex(0);
+      setLastValidPages([]);
+      setExcludedPages([]);
+      setRangeHighlighted(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Eliminazione non riuscita.');
     }
   }
 
@@ -183,6 +212,7 @@ export function ImportScreen({
           onToggleGamify={() => dispatch({ type: 'toggleGamify' })}
           onToggleVoice={() => dispatch({ type: 'toggleVoice' })}
           onNext={() => dispatch({ type: 'step', value: result ? 'study' : 'material' })}
+          defaultExpanded={false}
         />
       )}
 
@@ -213,48 +243,18 @@ export function ImportScreen({
             <FotoPicker onPick={accetta} onError={setError} disabled={busy} />
             <AudioPicker onPick={accetta} onError={setError} disabled={busy} />
             {document && (
-              <View
-                style={[
-                  localStyles.docCard,
-                  dark && { backgroundColor: C.surface, borderColor: C.border },
-                ]}
-              >
-                <View style={localStyles.docHeader}>
-                  <View
-                    style={[
-                      localStyles.formatBadge,
-                      dark && { backgroundColor: C.surfaceHover, borderColor: C.border },
-                    ]}
-                  >
-                    <Text style={[localStyles.formatBadgeText, dark && { color: C.teal }]}>
-                      {document.kind}
-                    </Text>
-                  </View>
-                  <Text style={[localStyles.docName, dark && { color: C.text }]} numberOfLines={1}>
-                    {document.name}
-                  </Text>
-                </View>
-                <Text style={s.muted}>
-                  {document.kind === 'image'
-                    ? 'Foto o immagine (1 pagina)'
-                    : document.kind === 'audio'
-                      ? 'File audio (trascrizione automatica)'
-                      : document.pageCount
-                        ? `${document.pageCount} pagine originali rilevate`
-                        : 'Documento senza paginazione fissa'}
-                </Text>
-              </View>
+              <UploadedDocCard
+                document={document}
+                onDelete={handleDelete}
+                disabled={busy}
+              />
             )}
           </Card>
 
           {document && (
             <Card>
               <Text style={s.subtitle}>
-                {document.kind === 'image'
-                  ? '02 · Elaborazione immagine'
-                  : document.kind === 'audio'
-                    ? '02 · Trascrizione audio'
-                    : '02 · Scegli cosa studiare'}
+                {document.kind === 'image' ? '02 · Elaborazione immagine' : document.kind === 'audio' ? '02 · Trascrizione audio' : '02 · Scegli cosa analizzare'}
               </Text>
               <Text style={s.muted}>
                 {document.kind === 'image'
@@ -267,44 +267,47 @@ export function ImportScreen({
               {document.kind !== 'image' && document.kind !== 'audio' && (
                 <>
                   <View style={s.row}>
-                    <Button
-                      label="Tutto il volume"
-                      disabled={busy}
-                      secondary={range}
-                      onPress={() => setRange(false)}
-                    />
-                    <Button
-                      label="Da pagina… a pagina…"
-                      secondary={!range}
-                      disabled={busy || document.kind !== 'pdf'}
-                      onPress={() => setRange(true)}
-                    />
+                    <Button label="Tutto il volume" disabled={busy} secondary={range} onPress={() => setRange(false)} />
+                    <Button label="Da pagina… a pagina…" secondary={!range} disabled={busy || document.kind !== 'pdf'} onPress={() => setRange(true)} />
                   </View>
 
-                  {document.kind !== 'pdf' && (
-                    <Text style={s.muted}>
-                      La selezione per pagina richiede un PDF. Per gli altri formati si elabora tutto.
-                    </Text>
-                  )}
+                  {!range ? (
+                    <Text style={s.muted}>Verrà analizzato l'intero documento.</Text>
+                  ) : (
+                    <>
+                      {document.kind !== 'pdf' && (
+                        <Text style={s.muted}>
+                          La selezione per pagina richiede un PDF. Per gli altri formati si elabora tutto.
+                        </Text>
+                      )}
 
-                  {document.chapters && document.chapters.length > 0 && (
-                    <ChaptersSelector
-                      chapters={document.chapters}
-                      range={range}
-                      from={from}
-                      to={to}
-                      disabled={busy}
-                      onSelect={selectChapter}
-                    />
-                  )}
+                      {document.kind === 'pdf' && document.pageCount !== null && (
+                        <PageRangeCard
+                          pageCount={document.pageCount} range={range} from={from} to={to}
+                          busy={busy} highlighted={rangeHighlighted} valid={selectionInfo.valid}
+                          selectedCount={selectionInfo.count} error={selectionInfo.error}
+                          onChangeFrom={setFrom} onChangeTo={setTo}
+                        />
+                      )}
 
-                  {document.kind === 'pdf' && document.pageCount !== null && (
-                    <PageRangeCard
-                      pageCount={document.pageCount} range={range} from={from} to={to}
-                      busy={busy} highlighted={rangeHighlighted} valid={selectionInfo.valid}
-                      selectedCount={selectionInfo.count} error={selectionInfo.error}
-                      onChangeFrom={setFrom} onChangeTo={setTo}
-                    />
+                      {document.chapters && document.chapters.length > 0 && (
+                        <ChaptersSelector
+                          chapters={document.chapters}
+                          range={range}
+                          from={from}
+                          to={to}
+                          disabled={busy}
+                          onSelect={selectChapter}
+                          onSelectionChange={(intervals) => {
+                            setSelectedIntervals(intervals);
+                            if (intervals.length === 1) {
+                              dispatch({ type: 'from', value: String(intervals[0].fromPage) });
+                              dispatch({ type: 'to', value: String(intervals[0].toPage) });
+                            }
+                          }}
+                        />
+                      )}
+                    </>
                   )}
                 </>
               )}

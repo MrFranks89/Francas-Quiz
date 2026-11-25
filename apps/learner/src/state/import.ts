@@ -32,6 +32,7 @@ export const initialImport: ImportState = {
 
 export type ImportAction =
   | { type: 'document'; value: Document }
+  | { type: 'resetDocument' }
   | { type: 'range'; value: boolean }
   | { type: 'from' | 'to'; value: string }
   | { type: 'engine'; value: 'native' | 'docling' | 'trascrizione' }
@@ -62,6 +63,15 @@ export function importReducer(state: ImportState, action: ImportAction): ImportS
         document: action.value,
       };
     }
+    case 'resetDocument':
+      return {
+        ...initialImport,
+        includeMap: state.includeMap,
+        includeCourse: state.includeCourse,
+        includeGamify: state.includeGamify,
+        includeVoice: state.includeVoice,
+        step: 'material',
+      };
     case 'result':
       return { ...state, result: action.value, step: 'study' };
     case 'step':

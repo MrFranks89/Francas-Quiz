@@ -8,6 +8,10 @@ module.exports = {
   preset: '@react-native/jest-preset',
   testMatch: ['<rootDir>/src/**/*.test.tsx'],
   testPathIgnorePatterns: ['/node_modules/'],
+  moduleNameMapper: {
+    '^react$': '<rootDir>/../../node_modules/react',
+    '^react/(.*)$': '<rootDir>/../../node_modules/react/$1',
+  },
   transform: {
     '\.[jt]sx?$': [
       'babel-jest',

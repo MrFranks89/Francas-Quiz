@@ -89,7 +89,7 @@ export function ProModesCard({ onNavigateDuels, onNavigateReferral }: ProModesCa
 
       <View style={[styles.disabledNotice, dark && { backgroundColor: C.surfaceHover }]}>
         <Text style={[styles.disabledNoticeText, dark && { color: C.textMuted }]}>
-          🔒 Funzionalità riservate all'abilitazione del modulo Pro & Cloud Sync.
+          ✨ In questa versione beta le modalità Pro sono attive per tutti gli utenti.
         </Text>
       </View>
     </View>

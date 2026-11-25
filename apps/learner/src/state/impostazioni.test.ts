@@ -95,10 +95,15 @@ it('i fornitori gratuiti sono riconoscibili nell’elenco e nel prezzo', () => {
   expect(testoPrezzo(gemini.models[0])).toBe('gratuito (piano gratuito del fornitore)');
 });
 
-it('la schermata mostra l’avviso sui dati del fornitore scelto', () => {
+// Rilievo 7 del Committente (25/11): la schermata impostazioni non deve MAI
+// menzionare API, provider o AI di generazione — riguardano il backend.
+it('la schermata impostazioni non menziona mai API, provider o AI di generazione', () => {
   const schermata = readFileSync(new URL('../screens/SettingsScreen.tsx', import.meta.url), 'utf8');
-  expect(schermata).toMatch(/voce\.dataNotice\s*&&\s*<Avviso\s+testo=\{voce\.dataNotice\}/);
-  expect(schermata).toMatch(/etichettaFornitore\(f\)/);
+  const corpo = schermata
+    .split('\n')
+    .filter((riga) => !riga.trimStart().startsWith('*') && !riga.trimStart().startsWith('//'))
+    .join('\n');
+  expect(corpo).not.toMatch(/\b(Groq|OpenAI|Anthropic|Gemini|provider|providers|apiKey|API key|secureTextEntry|testoChiave|etichettaFornitore|avvisaImpostazioniSalvate)\b/i);
 });
 
 it('il campo chiave vuoto non manda la chiave; rimuovere è un’azione esplicita', () => {
@@ -144,25 +149,6 @@ it('avvisa chi segue le impostazioni e smette dopo l’annullamento', () => {
   smetti();
   avvisaImpostazioniSalvate();
   expect(ricevuti).toEqual([1]);
-});
-
-// Consegne inerti da escludere: il pannello che non si aggiorna, la schermata che non avvisa,
-// l'app che non apre le impostazioni all'avvio, una chiave rimostrata o in chiaro.
-it('il pannello di generazione rilegge configurazione e preventivo dopo il salvataggio', () => {
-  const pannello = readFileSync(
-    new URL('../components/GenerationPanel.tsx', import.meta.url),
-    'utf8',
-  );
-  expect(pannello).toMatch(/seguiImpostazioni\(\s*\(\)\s*=>\s*\{\s*void refresh\(\);\s*\},?\s*\)/);
-  const schermata = readFileSync(new URL('../screens/SettingsScreen.tsx', import.meta.url), 'utf8');
-  expect(schermata).toMatch(/avvisaImpostazioniSalvate\(\)/);
-});
-
-it('la schermata maschera la chiave e la svuota dopo il salvataggio', () => {
-  const schermata = readFileSync(new URL('../screens/SettingsScreen.tsx', import.meta.url), 'utf8');
-  expect(schermata).toMatch(/secureTextEntry/);
-  expect(schermata).toMatch(/setChiave\(''\)/);
-  expect(schermata).toMatch(/testoChiave\(/);
 });
 
 it('l’app apre le impostazioni all’avvio e le rende raggiungibili', () => {

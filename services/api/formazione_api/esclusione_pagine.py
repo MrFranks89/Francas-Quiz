@@ -28,12 +28,18 @@ def avviso_esclusione(pagine: list[int]) -> str:
     return f"Escluse dal corso su richiesta: {'pagina' if len(ordinate) == 1 else 'pagine'} {_elenco(ordinate)}"
 
 
-def pagine_selezionate(extraction: dict) -> range | None:
+def pagine_selezionate(extraction: dict) -> range | list[int] | None:
     """Pagine dell'estrazione secondo la selezione salvata da routes.extract (models.selected_pages).
     None per i documenti senza pagine (testo, Word)."""
     selezione = extraction.get('selection') or {}
     if selezione.get('mode') == 'range':
         return range(selezione['fromPage'], selezione['toPage'] + 1)
+    if selezione.get('mode') == 'ranges':
+        intervals = selezione.get('intervals') or []
+        res = []
+        for it in intervals:
+            res.extend(range(it['fromPage'], it['toPage'] + 1))
+        return sorted(set(res))
     if selezione.get('mode') == 'all' and extraction.get('pageCount'):
         return range(1, extraction['pageCount'] + 1)
     return None
@@ -51,7 +57,8 @@ def applica_esclusione(extraction: dict, pagine: list[int]) -> dict:
     if selezionate is None:
         raise EsclusioneNonValida('Questo documento non ha pagine numerate: tutte le pagine indicate sono fuori dalla selezione.')
     if fuori := sorted(p for p in pagine if p not in selezionate):
-        raise EsclusioneNonValida(f'Pagine da escludere fuori dalla selezione ({selezionate.start}–{selezionate.stop - 1}): '
+        limiti = f"{selezionate.start}–{selezionate.stop - 1}" if isinstance(selezionate, range) else (f"{selezionate[0]}–{selezionate[-1]}" if selezionate else "")
+        raise EsclusioneNonValida(f'Pagine da escludere fuori dalla selezione ({limiti}): '
                                   f'{_elenco(fuori)}.')
     escluse = set(pagine)
     blocchi = [b for b in extraction.get('blocks', []) if b.get('page') not in escluse]

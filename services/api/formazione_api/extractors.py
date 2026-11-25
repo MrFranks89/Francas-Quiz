@@ -127,7 +127,7 @@ def scansioni(path, start, end):
     return risultato
 
 
-def native_extract(path, kind, start, end):
+def native_extract(path, kind, start, end, *, pages=None):
     blocks, warnings = [], []
     current_section = None
 
@@ -166,7 +166,8 @@ def native_extract(path, kind, start, end):
         reader = PdfReader(path)
         rendered = pdfium.PdfDocument(str(path))
         try:
-            for page in range(start, end + 1):
+            page_iter = pages if pages is not None else range(start, end + 1)
+            for page in page_iter:
                 text = reader.pages[page - 1].extract_text() or ''
                 add(text, page, f'Pagina {page}')
                 if len(text.strip()) >= SCAN_MAX_CHARS:

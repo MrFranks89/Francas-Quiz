@@ -14,22 +14,22 @@
     "@formazione/contracts": "0.1.0",
     "@formazione/learning-engine": "0.1.0",
     "@react-native-async-storage/async-storage": "2.2.0",
-    "expo": "~57.0.28",
-    "expo-audio": "~57.0.5",
-    "expo-document-picker": "~57.0.3",
-    "expo-file-system": "~57.0.7",
-    "expo-image-manipulator": "~57.0.22",
-    "expo-image-picker": "~57.0.21",
-    "expo-navigation-bar": "~57.0.3",
-    "expo-splash-screen": "~57.0.11",
-    "expo-status-bar": "~57.0.1",
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
-    "react-native": "0.86.3",
-    "react-native-safe-area-context": "~5.7.0",
+    "expo": "58",
+    "expo-audio": "~58.0.12",
+    "expo-document-picker": "~58.0.5",
+    "expo-file-system": "~58.0.14",
+    "expo-image-manipulator": "~58.0.16",
+    "expo-image-picker": "~58.0.10",
+    "expo-navigation-bar": "~58.0.4",
+    "expo-splash-screen": "~58.0.14",
+    "expo-status-bar": "~58.0.5",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-native": "0.88.1",
+    "react-native-safe-area-context": "~5.11.1",
     "react-native-web": "^0.21.2"
   },
   "devDependencies": {
-    "@types/react": "~19.2.2"
+    "@types/react": "~19.3.0"
   }
 }
