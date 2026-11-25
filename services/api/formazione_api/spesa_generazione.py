@@ -26,6 +26,7 @@ from .measurement import preventivo as pv
 from .measurement.guardia import FornitoreSorvegliato, GuardiaRifiuto, Registro, adesso, verifica_avvio
 from .measurement.prezzi import PREZZI, Prezzo, PrezzoMancante, carica, prezzo
 from .ripresa_generazione import Ripresa, impronta_comune
+from .account.percorsi import radice_utente
 
 # Unico punto dei valori predefiniti, in USD; documentati in docs/GENERAZIONE.md e restituiti da
 # GET /generation/config (campo `spending`).
@@ -166,15 +167,23 @@ class ValidatoreRegolato(FornitoreRegolato):
             self._regola(chunk, prima)
 
 
-def registro(store) -> RegistroApp:
-    return RegistroApp(Path(store.root) / NOME_REGISTRO)
+def registro(store, scope: str = 'local') -> RegistroApp:
+    base = getattr(store, 'base_root', getattr(store, 'root', store))
+    if scope == 'local':
+        file_path = Path(getattr(store, 'root', base)) / NOME_REGISTRO
+    elif scope.startswith('user:'):
+        uid = scope.split(':', 1)[1]
+        file_path = radice_utente(uid, base) / NOME_REGISTRO
+    elif scope == 'global':
+        file_path = Path(base) / f'global_{NOME_REGISTRO}'
+    else:
+        file_path = Path(getattr(store, 'root', base)) / f'{scope}_{NOME_REGISTRO}'
+    return RegistroApp(file_path)
 
 
-def configurazione_spesa(store) -> dict:
-    """Parte `spending` di GET /generation/config. `spentUsd` è la spesa regolata, la stessa che
-    sommano i controlli del tetto; `reservedUsd` la somma dei prenotati, per confronto; `remainingUsd`
-    quanto resta del budget rispetto alla spesa regolata (mai negativo)."""
-    reg = registro(store)
+def configurazione_spesa(store, scope: str = 'local') -> dict:
+    """Parte `spending` di GET /generation/config."""
+    reg = registro(store, scope=scope)
     speso = reg.speso()
     voce = {'defaults': {k: _usd(v) for k, v in PREDEFINITI.items()}, 'spentUsd': _usd(speso),
             'reservedUsd': _usd(reg.prenotato())}
@@ -283,7 +292,7 @@ def valuta(extraction: dict, provider, store, escluse=(), ricomincia: bool = Fal
     return {**stima, 'listino': listino}
 
 
-def decidi(stima: dict, store) -> dict:
+def decidi(stima: dict, store, scope: str = 'local') -> dict:
     """Limiti del server sulla stima: per corso, poi cumulativo con verifica_avvio della guardia."""
     limiti = limiti_configurati()
     massimo, budget = limiti['GENERATION_MAX_USD_PER_COURSE'], limiti['GENERATION_BUDGET_USD']
@@ -292,7 +301,7 @@ def decidi(stima: dict, store) -> dict:
         raise SpesaRifiuto('over_course_limit', f'Costo massimo {per_eccesso(limite)} USD oltre il limite per corso '
                                                 f'di {massimo} USD (GENERATION_MAX_USD_PER_COURSE). '
                                                 'Ridurre le pagine selezionate.')
-    speso = registro(store).speso()
+    speso = registro(store, scope=scope).speso()
     try:
         verifica_avvio(budget, speso, limite, stima['limiteCompleto'])
     except GuardiaRifiuto as error:
@@ -302,10 +311,8 @@ def decidi(stima: dict, store) -> dict:
     return {'maxUsdPerCourse': massimo, 'budgetUsd': budget, 'spentUsd': speso}
 
 
-def preventivo_pubblico(extraction: dict, provider, store, escluse=()) -> dict:
-    """Risposta di GET /extractions/{id}/generation-estimate: ciò che il pannello mostra.
-    `chunks`: blocchi da generare (quelli che si pagano); `savedChunks`: blocchi salvati da una
-    generazione interrotta, riusati senza chiamare il fornitore; `totalChunks`: tutti."""
+def preventivo_pubblico(extraction: dict, provider, store, escluse=(), scope: str = 'local') -> dict:
+    """Risposta di GET /extractions/{id}/generation-estimate."""
     try:
         stima = valuta(extraction, provider, store, escluse)
     except SpesaRifiuto as rifiuto:
@@ -315,27 +322,24 @@ def preventivo_pubblico(extraction: dict, provider, store, escluse=()) -> dict:
             'maxCalls': stima['chiamateMassime'], 'upperBoundUsd': _usd(stima['limiteSuperioreUSD']),
             'maxCostUsd': _usd(per_eccesso(stima['limiteSuperioreUSD']))}
     try:
-        limiti = decidi(stima, store)
+        limiti = decidi(stima, store, scope=scope)
     except SpesaRifiuto as rifiuto:
         return {**voce, 'allowed': False, 'refusal': {'code': rifiuto.code, 'message': str(rifiuto)}}
     return {**voce, 'allowed': True, 'limits': {k: _usd(v) for k, v in limiti.items()}}
 
 
 def genera_con_tetto(extraction: dict, provider, store, corsa_id: str, escluse=(), ricomincia: bool = False,
-                     **opzioni) -> dict:
-    """Generazione con preventivo, limiti e registro. Ripresa: i blocchi salvati validi
-    non si pagano e non si chiamano; ricomincia scarta i blocchi salvati dal disco."""
+                     scope: str = 'local', **opzioni) -> dict:
+    """Generazione con preventivo, limiti e registro."""
     stima = valuta(extraction, provider, store, escluse, ricomincia)
-    decidi(stima, store)
+    decidi(stima, store, scope=scope)
     if not GENERAZIONE_IN_CORSO.acquire(blocking=False):
         raise SpesaRifiuto('generation_in_progress', "Un'altra generazione è in corso: attendere che finisca.", 409)
     try:
-        # Ricontrollo sotto il lucchetto: la spesa registrata può essere cambiata nel frattempo.
-        limiti = decidi(stima, store)
+        limiti = decidi(stima, store, scope=scope)
         if ricomincia:
             stima['ripresa'].ricomincia()
-        reg = registro(store)
-        # `blocchi`: blocchi da generare, quelli prenotati; `blocchiRiusati`: salvati da una corsa precedente.
+        reg = registro(store, scope=scope)
         corsa = dict(id=corsa_id, inizio=adesso(), documento=extraction.get('documentId'), fornitore=stima['fornitore'],
                      modello=stima['modello'], budgetUSD=limiti['budgetUsd'], limitePerCorsoUSD=limiti['maxUsdPerCourse'],
                      limiteSuperioreUSD=stima['limiteSuperioreUSD'], blocchi=stima['blocchi'],
@@ -364,19 +368,19 @@ def genera_con_tetto(extraction: dict, provider, store, corsa_id: str, escluse=(
         finally:
             effettivi = [c.get('effettivoUSD') for c in corsa['chiamate']]
             corsa.update(fine=adesso(),
-                         effettivoUSD=sum(effettivi, Decimal(0)) if all(e is not None for e in effettivi) else None)
+                          effettivoUSD=sum(effettivi, Decimal(0)) if all(e is not None for e in effettivi) else None)
             reg.aggiorna_corsa(corsa)
     finally:
         GENERAZIONE_IN_CORSO.release()
 
 
-def genera_mappa_con_tetto(extraction: dict, provider, store, corsa_id: str, escluse=()) -> dict:
+def genera_mappa_con_tetto(extraction: dict, provider, store, corsa_id: str, escluse=(), scope: str = 'local') -> dict:
     from .spesa_mappa import genera_mappa_con_tetto as _genera_mappa
-    return _genera_mappa(extraction, provider, store, corsa_id, escluse=escluse)
+    return _genera_mappa(extraction, provider, store, corsa_id, escluse=escluse, scope=scope)
 
 
-def trascrivi_con_tetto(store, durata_secondi: float, chiama, **kwargs):
+def trascrivi_con_tetto(store, durata_secondi: float, chiama, scope: str = 'local', **kwargs):
     from .spesa_trascrizione import trascrivi_con_tetto as _trascrivi
-    return _trascrivi(store, durata_secondi, chiama, **kwargs)
+    return _trascrivi(store, durata_secondi, chiama, scope=scope, **kwargs)
 
 

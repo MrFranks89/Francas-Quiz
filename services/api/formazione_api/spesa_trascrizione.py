@@ -22,7 +22,7 @@ def tariffa_audio(fornitore: str, modello: str) -> dict | None:
     return audio_prezzi.get(fornitore, {}).get(modello)
 
 
-def trascrivi_con_tetto(store, durata_secondi: float, chiama, fornitore: str = 'groq', modello: str | None = None):
+def trascrivi_con_tetto(store, durata_secondi: float, chiama, fornitore: str = 'groq', modello: str | None = None, scope: str = 'local'):
     """Esegue la trascrizione audio sotto la guardia di spesa e registra la corsa."""
     mod = modello or os.getenv('GROQ_TRANSCRIPTION_MODEL', 'whisper-large-v3-turbo').strip()
     tariffa = tariffa_audio(fornitore, mod)
@@ -37,7 +37,7 @@ def trascrivi_con_tetto(store, durata_secondi: float, chiama, fornitore: str = '
 
     limiti = limiti_configurati()
     budget = limiti['GENERATION_BUDGET_USD']
-    reg = registro(store)
+    reg = registro(store, scope=scope)
     speso = reg.speso()
 
     try:

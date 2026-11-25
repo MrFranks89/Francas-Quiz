@@ -101,11 +101,12 @@ def genera_quiz_ramo_con_tetto(
     corsa_id: str,
     extraction_id: str,
     idempotency_key: str,
+    scope: str = 'local',
 ) -> dict:
     """Esegue la generazione del quiz di ramo sotto guardia di spesa e lock di processo."""
     con_validatore = bool(os.getenv('VALIDATION_PROVIDER', '').strip())
     stima = valuta_quiz_ramo(extraction, blocchi, provider, store, con_validatore=con_validatore)
-    decidi_quiz(stima, store)
+    decidi_quiz(stima, store, scope=scope)
 
     # Il validatore si crea prima di qualunque chiamata a pagamento: una configurazione invalida
     # (VALIDATION_PROVIDER uguale al fornitore della generazione, modello o chiave mancanti) deve
@@ -117,7 +118,7 @@ def genera_quiz_ramo_con_tetto(
             'Preventivo non disponibile per il validatore incrociato: nessuna spesa avviata.',
         )
 
-    reg = registro(store)
+    reg = registro(store, scope=scope)
     lock = GENERAZIONE_IN_CORSO
     if not lock.acquire(blocking=False):
         raise GenerationError('generation_in_progress', 'Un’altra generazione è già in corso.')
@@ -129,7 +130,7 @@ def genera_quiz_ramo_con_tetto(
                 if q.get('branchId') == branch_id and (q.get('nodeId') or None) == (node_id or None):
                     return {'cached_record': q}
 
-        decidi_quiz(stima, store)
+        decidi_quiz(stima, store, scope=scope)
         inizio = adesso()
         corsa = dict(
             id=corsa_id,

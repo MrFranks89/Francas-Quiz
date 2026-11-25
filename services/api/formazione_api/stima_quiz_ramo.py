@@ -106,7 +106,7 @@ def valuta_quiz_ramo(extraction: dict, blocchi: list[dict], provider, store, con
     }
 
 
-def decidi_quiz(stima: dict, store) -> None:
+def decidi_quiz(stima: dict, store, scope: str = 'local') -> None:
     """Verifica tetto per corso e budget complessivo, rispondendo 402 se superati."""
     limiti = limiti_configurati()
     massimo = limiti['GENERATION_MAX_USD_PER_COURSE']
@@ -120,7 +120,7 @@ def decidi_quiz(stima: dict, store) -> None:
             status=402,
         )
 
-    speso = registro(store).speso()
+    speso = registro(store, scope=scope).speso()
     try:
         verifica_avvio(budget, speso, limite, stima['limiteCompleto'])
     except GuardiaRifiuto as error:

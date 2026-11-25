@@ -11,6 +11,8 @@ from typing import Annotated, Any, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from .account.percorsi import radice_utente
+
 logger = logging.getLogger(__name__)
 
 # Lock globale di processo per tutte le estrazioni (come _LOCK_QUIZ in branch_quiz.py)
@@ -223,18 +225,19 @@ def stato_iniziale(extraction_id: str) -> GamificationState:
     )
 
 
-def percorso_gamification(store_root: str, extraction_id: str) -> str:
+def percorso_gamification(store_root: str, extraction_id: str, user_id: str = 'local') -> str:
     """Restituisce il percorso assoluto del file {extraction_id}.gamification.json."""
     if not re.match(r'^[A-Za-z0-9_-]{1,120}$', extraction_id):
         raise ValueError(f'extraction_id non valido: {extraction_id}')
-    return os.path.join(store_root, f'{extraction_id}.gamification.json')
+    root = radice_utente(user_id, store_root)
+    return str(root / f'{extraction_id}.gamification.json')
 
 
-def carica_stato(store_root: str, extraction_id: str) -> GamificationState:
+def carica_stato(store_root: str, extraction_id: str, user_id: str = 'local') -> GamificationState:
     """Carica lo stato persistito. Se assente, restituisce lo stato iniziale senza scrivere.
     Se il file è corrotto, lo rinomina in .corrotto e riparte dallo stato iniziale.
     """
-    path = percorso_gamification(store_root, extraction_id)
+    path = percorso_gamification(store_root, extraction_id, user_id=user_id)
     if not os.path.exists(path):
         return stato_iniziale(extraction_id)
 
@@ -252,9 +255,9 @@ def carica_stato(store_root: str, extraction_id: str) -> GamificationState:
         return stato_iniziale(extraction_id)
 
 
-def salva_stato(store_root: str, stato: GamificationState) -> None:
+def salva_stato(store_root: str, stato: GamificationState, user_id: str = 'local') -> None:
     """Salva atomicamente lo stato tramite file temporaneo e rename."""
-    path = percorso_gamification(store_root, stato.extractionId)
+    path = percorso_gamification(store_root, stato.extractionId, user_id=user_id)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     tmp_path = f'{path}.{uuid.uuid4().hex}.tmp'
     try:

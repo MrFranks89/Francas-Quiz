@@ -36,6 +36,7 @@ def valuta_voice(
     durata_secondi: float | None,
     store: Any,
     valutatore_override: Any = None,
+    scope: str = 'local',
 ) -> dict[str, Any]:
     """Calcola la stima del caso peggiore per trascrizione e valutazione orale."""
     # 1. Trascrizione
@@ -117,7 +118,7 @@ def valuta_voice(
 
     costo_totale = costo_trascrizione + costo_valutazione
 
-    reg = registro(store)
+    reg = registro(store, scope=scope)
     speso = reg.speso()
     limiti = limiti_configurati()
     budget = limiti['GENERATION_BUDGET_USD']
@@ -137,7 +138,7 @@ def valuta_voice(
     }
 
 
-def decidi_voice(stima: dict[str, Any], store: Any) -> None:
+def decidi_voice(stima: dict[str, Any], store: Any, scope: str = 'local') -> None:
     """Verifica tetto per corso e budget complessivo per la sessione voice recall."""
     limiti = limiti_configurati()
     massimo = limiti['GENERATION_MAX_USD_PER_COURSE']
@@ -151,7 +152,7 @@ def decidi_voice(stima: dict[str, Any], store: Any) -> None:
             status=402,
         )
 
-    speso = registro(store).speso()
+    speso = registro(store, scope=scope).speso()
     try:
         verifica_avvio(budget, speso, limite, stima['limiteCompleto'])
     except GuardiaRifiuto as error:

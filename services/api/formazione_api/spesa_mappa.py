@@ -76,7 +76,7 @@ def calcola_impronta_mappa(fornitore: str, modello: str, chunks: list[Chunk], es
     return sha256_json(payload)
 
 
-def valuta_mappa(extraction: dict, provider, store, escluse=()) -> dict:
+def valuta_mappa(extraction: dict, provider, store, escluse=(), scope: str = 'local') -> dict:
     """Stima di spesa per la mappa concettuale senza chiamare fornitori esterni."""
     if provider is None and not config_status()['configured']:
         raise _non_configurato()
@@ -154,17 +154,17 @@ def valuta_mappa(extraction: dict, provider, store, escluse=()) -> dict:
     }
 
 
-def genera_mappa_con_tetto(extraction: dict, provider, store, corsa_id: str, escluse=()) -> dict:
+def genera_mappa_con_tetto(extraction: dict, provider, store, corsa_id: str, escluse=(), scope: str = 'local') -> dict:
     """Generazione della mappa concettuale con preventivo, limiti e registro."""
-    stima = valuta_mappa(extraction, provider, store, escluse=escluse)
-    decidi(stima, store)
+    stima = valuta_mappa(extraction, provider, store, escluse=escluse, scope=scope)
+    decidi(stima, store, scope=scope)
 
     if not GENERAZIONE_IN_CORSO.acquire(blocking=False):
         raise SpesaRifiuto('generation_in_progress', "Un'altra generazione è in corso: attendere che finisca.", 409)
 
     try:
-        limiti_decisi = decidi(stima, store)
-        reg = registro(store)
+        limiti_decisi = decidi(stima, store, scope=scope)
+        reg = registro(store, scope=scope)
         corsa = dict(
             id=corsa_id,
             inizio=adesso(),
