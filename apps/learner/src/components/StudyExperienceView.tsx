@@ -234,13 +234,18 @@ export function StudyExperienceView({
       </Card>
 
       {includeGamify && show('gamify') && (
-        <GamificationCard topicHint={focusedNode?.title || documentName} />
+        <GamificationCard
+          topicHint={focusedNode?.title || documentName}
+          extractionId={extraction.id}
+        />
       )}
 
       {includeVoice && show('voice') && (
         <VoiceRecallCard
           topic={focusedNode?.title || documentName}
           keywords={focusedNode?.keyTerms}
+          extractionId={extraction.id}
+          nodeId={focusedNode?.id}
         />
       )}
     </View>

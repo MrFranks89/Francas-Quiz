@@ -6,6 +6,8 @@ import { Card, colors, useUiStyles } from './ui';
 import type { VoiceMode, VoiceStatus, VoiceRecallReport } from './voice/types';
 import { VoiceRecorderBox } from './voice/VoiceRecorderBox';
 import { VoiceRecallReportView } from './voice/VoiceRecallReportView';
+import { evaluateLocalTranscript } from './voice/evaluateLocal';
+import { postVoiceRecall } from '../api/voiceRecall';
 
 export interface VoiceRecallCardProps {
   topic?: string;
@@ -13,6 +15,8 @@ export interface VoiceRecallCardProps {
   hint?: string;
   keywords?: string[];
   extractionId?: string;
+  branchId?: string;
+  nodeId?: string;
   onReportGenerated?: (report: VoiceRecallReport) => void;
   onRecordingComplete?: (audioUri: string) => void;
 }
@@ -25,6 +29,9 @@ export function VoiceRecallCard({
   promptQuestion,
   hint,
   keywords,
+  extractionId,
+  branchId,
+  nodeId,
   onReportGenerated,
   onRecordingComplete,
 }: VoiceRecallCardProps) {
@@ -61,39 +68,8 @@ export function VoiceRecallCard({
     };
   }, []);
 
-  function buildSampleTranscript() {
-    const kwText = targetKeywords.join(', ');
-    return `Nell'ambito di ${activeTopic}, l'aspetto fondamentale riguarda ${kwText}, collegando teoria e applicazione pratica secondo le fonti del testo.`;
-  }
-
   function evaluateTranscript(rawText: string): VoiceRecallReport {
-    const content = rawText.trim() || buildSampleTranscript();
-    const normalized = content.toLowerCase();
-    const covered: string[] = [];
-    const missing: string[] = [];
-
-    targetKeywords.forEach((kw) => {
-      if (normalized.includes(kw.toLowerCase())) {
-        covered.push(kw);
-      } else {
-        missing.push(kw);
-      }
-    });
-
-    const coveredRatio = targetKeywords.length > 0 ? covered.length / targetKeywords.length : 1;
-    const score = Math.min(100, Math.max(55, Math.round(coveredRatio * 45 + 55)));
-    const advice =
-      missing.length > 0
-        ? `Buona fluidità nell'esposizione su ${activeTopic}. Per raggiungere il 100%, integra esplicitamente il concetto "${missing[0]}".`
-        : `Esposizione completa e ben strutturata su ${activeTopic}: tutte le parole chiave principali sono state citate con chiarezza.`;
-
-    return {
-      score,
-      transcript: content,
-      covered,
-      missing,
-      advice,
-    };
+    return evaluateLocalTranscript(rawText, targetKeywords, activeTopic);
   }
 
   async function startRecording() {
@@ -141,7 +117,7 @@ export function VoiceRecallCard({
     }
   }
 
-  function stopRecording() {
+  async function stopRecording() {
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
@@ -157,6 +133,37 @@ export function VoiceRecallCard({
     setRecordedUri(uri);
     onRecordingComplete?.(uri);
 
+    if (extractionId) {
+      try {
+        let audioParam: any;
+        if (typeof window !== 'undefined' && uri.startsWith('blob:')) {
+          const blob = await fetch(uri).then((r) => r.blob());
+          audioParam = blob;
+        } else {
+          audioParam = { uri, name: 'recording.m4a', type: 'audio/m4a' };
+        }
+        const apiRes = await postVoiceRecall(extractionId, {
+          audio: audioParam,
+          nodeId,
+          branchId,
+        });
+        const rep: VoiceRecallReport = {
+          score: apiRes.score,
+          transcript: apiRes.transcript,
+          covered: apiRes.covered,
+          missing: apiRes.missing,
+          advice: apiRes.advice,
+        };
+        setTranscript(apiRes.transcript);
+        setReport(rep);
+        setStatus('analyzed');
+        onReportGenerated?.(rep);
+        return;
+      } catch {
+        // Fallback locale
+      }
+    }
+
     const generated = evaluateTranscript(transcript);
     setTranscript(generated.transcript);
     setReport(generated);
@@ -164,7 +171,31 @@ export function VoiceRecallCard({
     onReportGenerated?.(generated);
   }
 
-  function handleAnalyzeText() {
+  async function handleAnalyzeText() {
+    if (extractionId && transcript.trim()) {
+      try {
+        const apiRes = await postVoiceRecall(extractionId, {
+          text: transcript.trim(),
+          nodeId,
+          branchId,
+        });
+        const rep: VoiceRecallReport = {
+          score: apiRes.score,
+          transcript: apiRes.transcript,
+          covered: apiRes.covered,
+          missing: apiRes.missing,
+          advice: apiRes.advice,
+        };
+        setTranscript(apiRes.transcript);
+        setReport(rep);
+        setStatus('analyzed');
+        onReportGenerated?.(rep);
+        return;
+      } catch {
+        // Fallback locale
+      }
+    }
+
     const generated = evaluateTranscript(transcript);
     setTranscript(generated.transcript);
     setReport(generated);
@@ -333,11 +364,7 @@ const localStyles = StyleSheet.create({
   stimulusEyebrow: { fontSize: 10, fontWeight: '800', color: '#be123c', letterSpacing: 0.7 },
   stimulusQuestion: { fontSize: 15, fontWeight: '700', color: colors.navy, lineHeight: 22 },
   stimulusHint: { fontSize: 12, color: colors.muted },
-  modeTabs: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 6,
-  },
+  modeTabs: { flexDirection: 'row', gap: 8, marginTop: 6 },
   modeTab: {
     flex: 1,
     paddingVertical: 8,
@@ -348,19 +375,9 @@ const localStyles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#ffffff',
   },
-  modeTabActive: {
-    borderColor: '#e11d48',
-    backgroundColor: '#fff1f2',
-  },
-  modeTabText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#64748b',
-  },
-  modeTabTextActive: {
-    color: '#be123c',
-    fontWeight: '700',
-  },
+  modeTabActive: { borderColor: '#e11d48', backgroundColor: '#fff1f2' },
+  modeTabText: { fontSize: 13, fontWeight: '600', color: '#64748b' },
+  modeTabTextActive: { color: '#be123c', fontWeight: '700' },
   alertBox: {
     backgroundColor: '#fef2f2',
     borderWidth: 1,
@@ -369,9 +386,5 @@ const localStyles = StyleSheet.create({
     padding: 10,
     marginTop: 6,
   },
-  alertText: {
-    color: '#b91c1c',
-    fontSize: 12,
-    fontWeight: '600',
-  },
+  alertText: { color: '#b91c1c', fontSize: 12, fontWeight: '600' },
 });

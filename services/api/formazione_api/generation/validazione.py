@@ -110,14 +110,8 @@ def create_validator():
     return Validatore(nome)
 
 
-class Validatore:
-    """Risponde alla cieca alle domande di un blocco con un fornitore indipendente.
-
-    Stessa semantica d'errore dei fornitori della generazione (provider_refusal,
-    provider_incomplete, provider_empty; JSON non conforme → validation_invalid) e stessi
-    metadati d'uso (provider_name, model, last_usage), così telemetria e guardia di spesa lo
-    trattano come un fornitore qualsiasi.
-    """
+class ClientLLMBase:
+    """Guscio base per chiamate LLM strutturate con fornitore configurabile."""
 
     def __init__(self, nome: str, client=None, model=None):
         self.provider_name = nome
@@ -149,33 +143,24 @@ class Validatore:
                                 timeout=TIMEOUT_SECONDS, max_retries=MAX_RETRIES)
             self.model = model or os.getenv(voce.variabile_modello, '').strip()
         else:
-            raise GenerationError('not_configured', 'Fornitore di validazione non previsto')
+            raise GenerationError('not_configured', f'Fornitore {nome} non previsto')
         self.client = client
         if not self.model:
             raise GenerationError('not_configured', f'Modello {nome} non configurato')
 
-    def verifica(self, chunk: Chunk, domande: list[dict]) -> list[int]:
-        """Indici delle domande con cui NON concorda, rispondendo alla cieca a tutte in una chiamata."""
-        self.last_usage = None
-        risposta = self._chiama(prompt_validazione(chunk, domande))
-        if len(risposta.risposte) != len(domande):
-            raise GenerationError('validation_invalid',
-                                  f'Il validatore ha risposto a {len(risposta.risposte)} domande su {len(domande)}')
-        return [k for k, (d, s) in enumerate(zip(domande, risposta.risposte)) if not concorda(d, s)]
-
-    def _chiama(self, prompt: str) -> RisposteValidatore:
+    def chiama_strutturato(self, prompt: str, schema=RisposteValidatore, istruzioni: str = ISTRUZIONI_VALIDATORE, max_tokens: int = MAX_OUTPUT_VALIDAZIONE):
         if self.provider_name == 'openai':
-            return self._chiama_openai(prompt)
+            return self._chiama_openai(prompt, schema=schema, istruzioni=istruzioni, max_tokens=max_tokens)
         if self.provider_name == 'anthropic':
-            return self._chiama_anthropic(prompt)
-        return self._chiama_compat(prompt)
+            return self._chiama_anthropic(prompt, schema=schema, istruzioni=istruzioni, max_tokens=max_tokens)
+        return self._chiama_compat(prompt, schema=schema, istruzioni=istruzioni, max_tokens=max_tokens)
 
-    def _chiama_openai(self, prompt: str) -> RisposteValidatore:
+    def _chiama_openai(self, prompt: str, schema=RisposteValidatore, istruzioni: str = ISTRUZIONI_VALIDATORE, max_tokens: int = MAX_OUTPUT_VALIDAZIONE):
         try:
             response, ripetuti = chiama_con_tentativi(
                 self.client.responses, 'parse', model=self.model, store=False,
-                max_output_tokens=MAX_OUTPUT_VALIDAZIONE, truncation='disabled',
-                text_format=RisposteValidatore, instructions=ISTRUZIONI_VALIDATORE, input=prompt)
+                max_output_tokens=max_tokens, truncation='disabled',
+                text_format=schema, instructions=istruzioni, input=prompt)
         except Exception as error:
             raise errore_fornitore(self.provider_name, error) from error
         usage = getattr(response, 'usage', None)
@@ -193,13 +178,13 @@ class Validatore:
             raise GenerationError('provider_incomplete', f'Risposta AI incompleta ({motivo}); nessun corso pubblicato')
         if response.output_parsed is None:
             raise GenerationError('provider_empty', 'Risposta AI priva di contenuti strutturati')
-        return RisposteValidatore.model_validate(response.output_parsed)
+        return schema.model_validate(response.output_parsed)
 
-    def _chiama_anthropic(self, prompt: str) -> RisposteValidatore:
+    def _chiama_anthropic(self, prompt: str, schema=RisposteValidatore, istruzioni: str = ISTRUZIONI_VALIDATORE, max_tokens: int = MAX_OUTPUT_VALIDAZIONE):
         from anthropic import transform_schema
-        richiesta = dict(model=self.model, max_tokens=MAX_OUTPUT_VALIDAZIONE,
-                         system=ISTRUZIONI_VALIDATORE, messages=[{'role': 'user', 'content': prompt}],
-                         output_config={'format': {'type': 'json_schema', 'schema': transform_schema(RisposteValidatore)},
+        richiesta = dict(model=self.model, max_tokens=max_tokens,
+                         system=istruzioni, messages=[{'role': 'user', 'content': prompt}],
+                         output_config={'format': {'type': 'json_schema', 'schema': transform_schema(schema)},
                                         'effort': 'low'})
         try:
             response, ripetuti = chiama_con_tentativi(self.client.messages, 'create', **richiesta)
@@ -225,16 +210,16 @@ class Validatore:
         if not text.strip():
             raise GenerationError('provider_empty', 'Risposta AI priva di contenuti strutturati')
         try:
-            return RisposteValidatore.model_validate_json(text)
+            return schema.model_validate_json(text)
         except ValidationError as error:
             raise GenerationError('validation_invalid', 'Risposta del validatore non conforme allo schema') from error
 
-    def _chiama_compat(self, prompt: str) -> RisposteValidatore:
+    def _chiama_compat(self, prompt: str, schema=RisposteValidatore, istruzioni: str = ISTRUZIONI_VALIDATORE, max_tokens: int = MAX_OUTPUT_VALIDAZIONE):
         from openai.lib._parsing._completions import type_to_response_format_param
-        richiesta = dict(model=self.model, max_tokens=MAX_OUTPUT_VALIDAZIONE,
-                         messages=[{'role': 'system', 'content': ISTRUZIONI_VALIDATORE},
+        richiesta = dict(model=self.model, max_tokens=max_tokens,
+                         messages=[{'role': 'system', 'content': istruzioni},
                                    {'role': 'user', 'content': prompt}],
-                         response_format=type_to_response_format_param(RisposteValidatore))
+                         response_format=type_to_response_format_param(schema))
         try:
             response, ripetuti = chiama_con_tentativi(self.client.chat.completions, 'create', **richiesta)
         except Exception as error:
@@ -260,6 +245,54 @@ class Validatore:
         if not text.strip():
             raise GenerationError('provider_empty', 'Risposta AI priva di contenuti strutturati')
         try:
-            return RisposteValidatore.model_validate_json(text)
+            return schema.model_validate_json(text)
         except ValidationError as error:
             raise GenerationError('validation_invalid', 'Risposta del validatore non conforme allo schema') from error
+
+
+class Validatore(ClientLLMBase):
+    """Risponde alla cieca alle domande di un blocco con un fornitore indipendente.
+
+    Stessa semantica d'errore dei fornitori della generazione (provider_refusal,
+    provider_incomplete, provider_empty; JSON non conforme → validation_invalid) e stessi
+    metadati d'uso (provider_name, model, last_usage), così telemetria e guardia di spesa lo
+    trattano come un fornitore qualsiasi.
+    """
+
+    def verifica(self, chunk: Chunk, domande: list[dict]) -> list[int]:
+        """Indici delle domande con cui NON concorda, rispondendo alla cieca a tutte in una chiamata."""
+        self.last_usage = None
+        risposta = self.chiama_strutturato(prompt_validazione(chunk, domande), schema=RisposteValidatore, istruzioni=ISTRUZIONI_VALIDATORE, max_tokens=MAX_OUTPUT_VALIDAZIONE)
+        if len(risposta.risposte) != len(domande):
+            raise GenerationError('validation_invalid',
+                                  f'Il validatore ha risposto a {len(risposta.risposte)} domande su {len(domande)}')
+        return [k for k, (d, s) in enumerate(zip(domande, risposta.risposte)) if not concorda(d, s)]
+
+    def _chiama(self, prompt: str) -> RisposteValidatore:
+        return self.chiama_strutturato(prompt, schema=RisposteValidatore, istruzioni=ISTRUZIONI_VALIDATORE, max_tokens=MAX_OUTPUT_VALIDAZIONE)
+
+
+class ValutatoreOrale(ClientLLMBase):
+    """Valuta l'esposizione orale dello studente producendo ValutazioneOraleLLM."""
+
+    def valuta(self, prompt: str):
+        from ..voice_recall import ISTRUZIONI_VALUTATORE_ORALE, ValutazioneOraleLLM
+        self.last_usage = None
+        return self.chiama_strutturato(prompt, schema=ValutazioneOraleLLM, istruzioni=ISTRUZIONI_VALUTATORE_ORALE, max_tokens=1500)
+
+
+def crea_valutatore_orale(client=None, model=None) -> ValutatoreOrale | None:
+    """Crea il ValutatoreOrale leggendo VOICE_EVAL_PROVIDER (o fallback a VALIDATION_PROVIDER).
+    Restituisce None se non configurato."""
+    nome = os.getenv('VOICE_EVAL_PROVIDER', '').strip().lower()
+    if not nome:
+        nome = os.getenv('VALIDATION_PROVIDER', '').strip().lower()
+    if not nome:
+        return None
+    from .selection import FORNITORI
+    if nome not in FORNITORI:
+        return None
+    try:
+        return ValutatoreOrale(nome, client=client, model=model)
+    except Exception:
+        return None

@@ -10,6 +10,9 @@ from .generation_routes import router as generation_router
 from .editing_routes import router as editing_router
 from .impostazioni_routes import router as impostazioni_router
 from .branch_quiz_routes import router as branch_quiz_router
+from .gamification_routes import router as gamification_router
+from .funzioni import router as funzioni_router
+from .voice_recall_routes import router as voice_recall_router
 from .storage import Store
 
 
@@ -29,6 +32,9 @@ def create_app(storage_dir=None):
     app.include_router(editing_router)
     app.include_router(impostazioni_router)
     app.include_router(branch_quiz_router)
+    app.include_router(gamification_router)
+    app.include_router(funzioni_router)
+    app.include_router(voice_recall_router)
     return app
 
 
