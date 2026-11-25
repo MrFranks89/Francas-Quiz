@@ -8,4 +8,6 @@ export * from './branchQuiz';
 export * from './gamification';
 export * from './voiceRecall';
 export * from './funzioni';
-
+export * from './account';
+export * from './referral';
+export * from './duelli';
