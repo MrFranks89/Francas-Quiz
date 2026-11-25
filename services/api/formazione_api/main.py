@@ -17,6 +17,7 @@ from .impostazioni_routes import router as impostazioni_router
 from .routes import public_router as health_router, router
 from .routes_account import public_router as public_account_router, router as account_router
 from .account.routes_referral import router as referral_router
+from .account.routes_duelli import public_router as public_duelli_router, router as duelli_router
 from .storage import Store
 from .voice_recall_routes import router as voice_recall_router
 
@@ -48,6 +49,7 @@ def create_app(storage_dir=None):
     # Rotte pubbliche (nessuna dependency di autenticazione)
     app.include_router(health_router)
     app.include_router(public_account_router)
+    app.include_router(public_duelli_router)
 
     # Rotte protette (richiedono utente_corrente; con AUTH_REQUIRED=false restituisce UTENTE_LOCALE)
     auth_deps = [Depends(utente_corrente)]
@@ -61,6 +63,7 @@ def create_app(storage_dir=None):
     app.include_router(voice_recall_router, dependencies=auth_deps)
     app.include_router(account_router, dependencies=auth_deps)
     app.include_router(referral_router, dependencies=auth_deps)
+    app.include_router(duelli_router, dependencies=auth_deps)
     return app
 
 
