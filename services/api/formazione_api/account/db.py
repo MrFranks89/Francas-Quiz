@@ -131,13 +131,17 @@ def open_db(db_path: Path | str) -> sqlite3.Connection:
 
 @contextmanager
 def db_transaction(conn: sqlite3.Connection) -> Generator[sqlite3.Connection, None, None]:
-    """Context manager che avvia una transazione BEGIN IMMEDIATE."""
-    conn.execute("BEGIN IMMEDIATE")
+    """Context manager che avvia una transazione BEGIN IMMEDIATE (se non già in transazione)."""
+    is_outer = not conn.in_transaction
+    if is_outer:
+        conn.execute("BEGIN IMMEDIATE")
     try:
         yield conn
-        conn.execute("COMMIT")
+        if is_outer:
+            conn.execute("COMMIT")
     except Exception:
-        conn.execute("ROLLBACK")
+        if is_outer:
+            conn.execute("ROLLBACK")
         raise
 
 

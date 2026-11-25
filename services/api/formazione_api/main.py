@@ -16,6 +16,7 @@ from .generation_routes import router as generation_router
 from .impostazioni_routes import router as impostazioni_router
 from .routes import public_router as health_router, router
 from .routes_account import public_router as public_account_router, router as account_router
+from .account.routes_referral import router as referral_router
 from .storage import Store
 from .voice_recall_routes import router as voice_recall_router
 
@@ -59,6 +60,7 @@ def create_app(storage_dir=None):
     app.include_router(funzioni_router, dependencies=auth_deps)
     app.include_router(voice_recall_router, dependencies=auth_deps)
     app.include_router(account_router, dependencies=auth_deps)
+    app.include_router(referral_router, dependencies=auth_deps)
     return app
 
 

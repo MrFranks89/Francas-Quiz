@@ -49,6 +49,25 @@ def get_tetto_corsi_extra() -> int:
         return 5
 
 
+def get_referral_finestra_ore() -> int:
+    """Restituisce la finestra in ore entro cui riscattare un codice referral (default 24)."""
+    try:
+        return int(os.getenv("REFERRAL_FINESTRA_ORE", "24"))
+    except ValueError:
+        return 24
+
+
+def get_referral_salt() -> str:
+    """Restituisce il salt crittografico per gli hash di IP e dispositivi."""
+    return os.getenv("REFERRAL_SALT", "referral-default-salt").strip()
+
+
+def is_trust_proxy() -> bool:
+    """Indica se considerare gli header proxy come X-Forwarded-For per l'IP client."""
+    val = os.getenv("TRUST_PROXY", "false").strip().lower()
+    return val in {"true", "1", "yes"}
+
+
 def valida_config_avvio() -> None:
     """Fail-fast all'avvio dell'applicazione se AUTH_REQUIRED=true senza configurazione valida."""
     if not is_auth_required():

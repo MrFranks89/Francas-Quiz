@@ -57,3 +57,38 @@ UTENTE_LOCALE = Utente(
     aggiornato_il=datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
     ultimo_accesso_il=datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
 )
+
+
+class RegistrazioneVista(BaseModel):
+    nome_o_iniziali: str
+    data: datetime
+
+
+class ReferralStato(BaseModel):
+    codice: str
+    registrazioni_accreditate: int
+    registrazioni_non_accreditate: int
+    corsi_extra_guadagnati: int
+    tetto_corsi_extra: int | None
+    inviti_condivisi: int | None = None
+    ultime_registrazioni: list[RegistrazioneVista] = []
+
+
+EsitoRiscatto = Literal[
+    "ACCREDITATO",
+    "GIA_ACCREDITATO",
+    "AUTO_INVITO",
+    "EMAIL_GIA_REGISTRATA",
+    "FINESTRA_SCADUTA",
+    "TETTO_RAGGIUNTO",
+]
+
+
+class RiscattoRichiesta(BaseModel):
+    codice: str
+
+
+class RiscattoRisposta(BaseModel):
+    accreditato: bool
+    esito: EsitoRiscatto
+    segnali: list[str] = []
