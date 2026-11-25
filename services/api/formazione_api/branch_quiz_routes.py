@@ -7,6 +7,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
+from .account.spesa_scope import scope_spesa
 from .generation.branch_quiz import (
     aggiungi_quiz,
     chiave_idempotenza,
@@ -131,19 +132,23 @@ def preview_quiz(identifier: str, request: Request, body: BranchQuizPreviewReque
 
     provider = getattr(request.app.state, 'generation_provider', None)
     con_validatore = bool(os.getenv('VALIDATION_PROVIDER', '').strip())
+    scope = scope_spesa(getattr(request.state, 'utente', None))
     try:
         stima = valuta_quiz_ramo(extraction, selezione['blocks'], provider, store, con_validatore=con_validatore)
     except SpesaRifiuto as rifiuto:
-        raise HTTPException(rifiuto.status, {'code': rifiuto.code, 'message': str(rifiuto)}) from rifiuto
+        detail = {'code': rifiuto.code, 'message': str(rifiuto)}
+        if getattr(rifiuto, 'scope', None):
+            detail['scope'] = rifiuto.scope
+        raise HTTPException(rifiuto.status, detail) from rifiuto
 
     try:
-        decidi_quiz(stima, store)
+        decidi_quiz(stima, store, scope=scope)
         fits_budget = True
     except SpesaRifiuto:
         fits_budget = False
 
     budget = limiti_configurati()['GENERATION_BUDGET_USD']
-    speso = registro(store).speso()
+    speso = registro(store, scope=scope).speso()
     remaining_budget = max(budget - speso, Decimal(0))
 
     warnings = list(selezione.get('warnings', []))
@@ -235,6 +240,7 @@ def generate_quiz(identifier: str, request: Request, body: BranchQuizRequest, re
     if body.nodeId and nodi_prompt:
         titolo = f"{titolo} — {nodi_prompt[0].get('title', '')}"
 
+    scope = scope_spesa(getattr(request.state, 'utente', None))
     try:
         esito = genera_quiz_ramo_con_tetto(
             extraction,
@@ -250,9 +256,13 @@ def generate_quiz(identifier: str, request: Request, body: BranchQuizRequest, re
             corsa_id=corsa_id,
             extraction_id=identifier,
             idempotency_key=key,
+            scope=scope,
         )
     except SpesaRifiuto as rifiuto:
-        raise HTTPException(rifiuto.status, {'code': rifiuto.code, 'message': str(rifiuto)}) from rifiuto
+        detail = {'code': rifiuto.code, 'message': str(rifiuto)}
+        if getattr(rifiuto, 'scope', None):
+            detail['scope'] = rifiuto.scope
+        raise HTTPException(rifiuto.status, detail) from rifiuto
     except GenerationError as error:
         if error.code == 'generation_in_progress':
             raise HTTPException(409, {'code': 'generation_in_progress', 'message': str(error)}) from error

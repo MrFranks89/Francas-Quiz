@@ -12,6 +12,7 @@ from typing import Any
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 
+from .account.spesa_scope import scope_spesa
 from .generation.causa import errore_fornitore
 from .generation.validazione import crea_valutatore_orale
 from .measurement.guardia import adesso
@@ -125,6 +126,7 @@ async def preview_voice_recall(identifier: str, body: VoiceRecallPreviewRequest,
         warnings.append('NO_SOURCE_BLOCKS')
 
     valutatore_override = getattr(request.app.state, 'voice_evaluator', None)
+    scope = scope_spesa(getattr(request.state, 'utente', None))
     try:
         stima = valuta_voice(
             extraction=extraction,
@@ -135,9 +137,13 @@ async def preview_voice_recall(identifier: str, body: VoiceRecallPreviewRequest,
             durata_secondi=float(body.durationSeconds or 300),
             store=store,
             valutatore_override=valutatore_override,
+            scope=scope,
         )
     except SpesaRifiuto as rifiuto:
-        raise HTTPException(rifiuto.status, detail={'code': rifiuto.code, 'message': str(rifiuto)})
+        detail = {'code': rifiuto.code, 'message': str(rifiuto)}
+        if getattr(rifiuto, 'scope', None):
+            detail['scope'] = rifiuto.scope
+        raise HTTPException(rifiuto.status, detail=detail)
 
     return VoiceRecallEstimate(
         blockIds=[b['id'] for b in blocchi_sel],
@@ -216,6 +222,7 @@ async def esegui_voice_recall(
 
         # 3. Guardia di spesa preventiva
         valutatore_override = getattr(request.app.state, 'voice_evaluator', None)
+        scope = scope_spesa(getattr(request.state, 'utente', None))
         try:
             stima = valuta_voice(
                 extraction=extraction,
@@ -226,10 +233,14 @@ async def esegui_voice_recall(
                 durata_secondi=durata_misurata,
                 store=store,
                 valutatore_override=valutatore_override,
+                scope=scope,
             )
-            decidi_voice(stima, store)
+            decidi_voice(stima, store, scope=scope)
         except SpesaRifiuto as rifiuto:
-            raise HTTPException(rifiuto.status, detail={'code': rifiuto.code, 'message': str(rifiuto)})
+            detail = {'code': rifiuto.code, 'message': str(rifiuto)}
+            if getattr(rifiuto, 'scope', None):
+                detail['scope'] = rifiuto.scope
+            raise HTTPException(rifiuto.status, detail=detail)
 
         # 4. Trascrizione (E.2-1: la rotta NON tiene GENERAZIONE_IN_CORSO qui)
         if audio is not None:
@@ -240,11 +251,15 @@ async def esegui_voice_recall(
                     store,
                     durata_misurata or 1.0,
                     lambda: trascrivi(temp_audio_path, client=client_audio, provider=provider_audio, nome=audio.filename),
+                    scope=scope,
                 )
                 durata_misurata = durata_reale
                 trascrizione = ' '.join(b.get('text', '') for b in blocks_tr).strip()
             except SpesaRifiuto as sr:
-                raise HTTPException(sr.status, detail={'code': sr.code, 'message': str(sr)})
+                detail = {'code': sr.code, 'message': str(sr)}
+                if getattr(sr, 'scope', None):
+                    detail['scope'] = sr.scope
+                raise HTTPException(sr.status, detail=detail)
             except Exception as e:
                 logger.exception("Errore durante la trascrizione audio")
                 raise HTTPException(503, detail={'code': 'not_configured', 'message': str(e)})

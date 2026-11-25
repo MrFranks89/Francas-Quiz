@@ -40,19 +40,16 @@ GENERAZIONE_IN_CORSO = threading.Lock()
 
 
 class SpesaRifiuto(Exception):
-    def __init__(self, code: str, message: str, status: int = 422):
+    def __init__(self, code: str, message: str, status: int = 422, scope: str | None = None):
         super().__init__(message)
-        self.code, self.status = code, status
-
+        self.code, self.status, self.scope = code, status, scope
 
 def _usd(valore: Decimal) -> str:
     return str(valore)
 
-
 def per_eccesso(valore: Decimal) -> Decimal:
     """Al centesimo superiore: il costo mostrato resta un massimo anche arrotondato."""
     return valore.quantize(Decimal('0.01'), rounding=ROUND_CEILING)
-
 
 def limiti_configurati() -> dict[str, Decimal]:
     """Limiti dalle variabili d'ambiente del processo server; assenti → PREDEFINITI. Un valore
@@ -297,17 +294,27 @@ def decidi(stima: dict, store, scope: str = 'local') -> dict:
     limiti = limiti_configurati()
     massimo, budget = limiti['GENERATION_MAX_USD_PER_COURSE'], limiti['GENERATION_BUDGET_USD']
     limite = stima['limiteSuperioreUSD']
+    scope_kind = 'user' if scope.startswith('user:') else ('global' if scope in ('global', 'local') else None)
     if limite > massimo:
         raise SpesaRifiuto('over_course_limit', f'Costo massimo {per_eccesso(limite)} USD oltre il limite per corso '
                                                 f'di {massimo} USD (GENERATION_MAX_USD_PER_COURSE). '
-                                                'Ridurre le pagine selezionate.')
+                                                'Ridurre le pagine selezionate.', scope=scope_kind)
     speso = registro(store, scope=scope).speso()
     try:
         verifica_avvio(budget, speso, limite, stima['limiteCompleto'])
     except GuardiaRifiuto as error:
         raise SpesaRifiuto('over_budget', f'Tetto di spesa raggiunto: già prenotati {per_eccesso(speso)} USD su '
                                           f'{budget} USD (GENERATION_BUDGET_USD); questa generazione può costare '
-                                          f'fino a {per_eccesso(limite)} USD.') from error
+                                          f'fino a {per_eccesso(limite)} USD.', scope=scope_kind) from error
+
+    if scope.startswith('user:'):
+        speso_globale = registro(store, scope='global').speso()
+        try:
+            verifica_avvio(budget, speso_globale, limite, stima['limiteCompleto'])
+        except GuardiaRifiuto as error:
+            raise SpesaRifiuto('over_budget', f'Tetto di spesa globale di sistema raggiunto: già prenotati {per_eccesso(speso_globale)} USD su '
+                                              f'{budget} USD (GENERATION_BUDGET_USD).', scope='global') from error
+
     return {'maxUsdPerCourse': massimo, 'budgetUsd': budget, 'spentUsd': speso}
 
 
@@ -316,7 +323,10 @@ def preventivo_pubblico(extraction: dict, provider, store, escluse=(), scope: st
     try:
         stima = valuta(extraction, provider, store, escluse)
     except SpesaRifiuto as rifiuto:
-        return {'available': False, 'allowed': False, 'refusal': {'code': rifiuto.code, 'message': str(rifiuto)}}
+        refusal = {'code': rifiuto.code, 'message': str(rifiuto)}
+        if rifiuto.scope:
+            refusal['scope'] = rifiuto.scope
+        return {'available': False, 'allowed': False, 'refusal': refusal}
     voce = {'available': True, 'provider': stima['fornitore'], 'model': stima['modello'], 'chunks': stima['blocchi'],
             'savedChunks': stima['blocchiSalvati'], 'totalChunks': stima['blocchiTotali'],
             'maxCalls': stima['chiamateMassime'], 'upperBoundUsd': _usd(stima['limiteSuperioreUSD']),
@@ -324,7 +334,10 @@ def preventivo_pubblico(extraction: dict, provider, store, escluse=(), scope: st
     try:
         limiti = decidi(stima, store, scope=scope)
     except SpesaRifiuto as rifiuto:
-        return {**voce, 'allowed': False, 'refusal': {'code': rifiuto.code, 'message': str(rifiuto)}}
+        refusal = {'code': rifiuto.code, 'message': str(rifiuto)}
+        if rifiuto.scope:
+            refusal['scope'] = rifiuto.scope
+        return {**voce, 'allowed': False, 'refusal': refusal}
     return {**voce, 'allowed': True, 'limits': {k: _usd(v) for k, v in limiti.items()}}
 
 
@@ -382,5 +395,4 @@ def genera_mappa_con_tetto(extraction: dict, provider, store, corsa_id: str, esc
 def trascrivi_con_tetto(store, durata_secondi: float, chiama, scope: str = 'local', **kwargs):
     from .spesa_trascrizione import trascrivi_con_tetto as _trascrivi
     return _trascrivi(store, durata_secondi, chiama, scope=scope, **kwargs)
-
 

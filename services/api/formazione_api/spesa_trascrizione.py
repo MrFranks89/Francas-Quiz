@@ -39,6 +39,7 @@ def trascrivi_con_tetto(store, durata_secondi: float, chiama, fornitore: str = '
     budget = limiti['GENERATION_BUDGET_USD']
     reg = registro(store, scope=scope)
     speso = reg.speso()
+    scope_kind = 'user' if scope.startswith('user:') else ('global' if scope in ('global', 'local') else None)
 
     try:
         verifica_avvio(budget, speso, stima, limite_completo=True)
@@ -47,7 +48,19 @@ def trascrivi_con_tetto(store, durata_secondi: float, chiama, fornitore: str = '
             'over_budget',
             f'Tetto di spesa raggiunto: già prenotati {per_eccesso(speso)} USD su {budget} USD (GENERATION_BUDGET_USD); '
             f'questa trascrizione può costare fino a {per_eccesso(stima)} USD.',
+            scope=scope_kind,
         ) from error
+
+    if scope.startswith('user:'):
+        speso_globale = registro(store, scope='global').speso()
+        try:
+            verifica_avvio(budget, speso_globale, stima, limite_completo=True)
+        except GuardiaRifiuto as error:
+            raise SpesaRifiuto(
+                'over_budget',
+                f'Tetto di spesa globale di sistema raggiunto: già prenotati {per_eccesso(speso_globale)} USD su {budget} USD (GENERATION_BUDGET_USD).',
+                scope='global',
+            ) from error
 
     if not GENERAZIONE_IN_CORSO.acquire(blocking=False):
         raise SpesaRifiuto('generation_in_progress', "Un'altra generazione è in corso: attendere che finisca.", 409)

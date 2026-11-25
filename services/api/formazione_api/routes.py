@@ -17,6 +17,9 @@ from .documents import (
 from .extractors import native_extract
 from .generation.errors import GenerationError
 from .models import ExtractionRequest, selected_pages
+from .account.db import resolve_db_path
+from .account.limiti import CourseLimitReached, slot_corso
+from .account.spesa_scope import scope_spesa
 from .spesa_generazione import SpesaRifiuto, trascrivi_con_tetto
 
 router = APIRouter()
@@ -123,33 +126,51 @@ def extract(identifier: str, body: ExtractionRequest, request: Request):
         start, end = selected_pages(body.selection, document['pageCount'], document['kind'])
     except ValueError as error:
         raise HTTPException(422, str(error)) from error
-    if document['kind'] == 'audio':
-        engine = 'trascrizione'
-    elif document['kind'] == 'image':
-        engine = 'docling'
-    else:
-        engine = body.engine
+
+    utente = getattr(request.state, 'utente', None)
+    base_dir = getattr(store, 'base_root', None)
+    db_path = resolve_db_path(base_dir)
+    extraction_id = store.new_id()
+
     try:
-        if engine == 'trascrizione':
-            import mutagen
-            from .trascrizione import trascrivi
-            audio_path = store.path(identifier, 'source')
-            audio_info = mutagen.File(audio_path)
-            durata = getattr(audio_info.info, 'length', 0) if audio_info and audio_info.info else 0
-            client_audio = getattr(request.app.state, 'groq_client', None)
-            provider_audio = getattr(request.app.state, 'transcription_provider', None)
-            blocks, warnings, status, _ = trascrivi_con_tetto(
-                store,
-                durata,
-                lambda: trascrivi(audio_path, nome=document.get('name'), client=client_audio, provider=provider_audio),
-            )
-        elif engine == 'native':
-            blocks, warnings, status = native_extract(store.path(identifier, 'source'), document['kind'], start, end)
-        else:
-            from .docling_adapter import docling_extract
-            blocks, warnings, status = docling_extract(store.path(identifier, 'source'), document['kind'], start, end)
+        with slot_corso(utente, extraction_id, db_path=db_path):
+            if document['kind'] == 'audio':
+                engine = 'trascrizione'
+            elif document['kind'] == 'image':
+                engine = 'docling'
+            else:
+                engine = body.engine
+            scope = scope_spesa(utente)
+            if engine == 'trascrizione':
+                import mutagen
+                from .trascrizione import trascrivi
+                audio_path = store.path(identifier, 'source')
+                audio_info = mutagen.File(audio_path)
+                durata = getattr(audio_info.info, 'length', 0) if audio_info and audio_info.info else 0
+                client_audio = getattr(request.app.state, 'groq_client', None)
+                provider_audio = getattr(request.app.state, 'transcription_provider', None)
+                blocks, warnings, status, _ = trascrivi_con_tetto(
+                    store,
+                    durata,
+                    lambda: trascrivi(audio_path, nome=document.get('name'), client=client_audio, provider=provider_audio),
+                    scope=scope,
+                )
+            elif engine == 'native':
+                blocks, warnings, status = native_extract(store.path(identifier, 'source'), document['kind'], start, end)
+            else:
+                from .docling_adapter import docling_extract
+                blocks, warnings, status = docling_extract(store.path(identifier, 'source'), document['kind'], start, end)
+
+            result = {'id': extraction_id, 'documentId': identifier, 'selection': body.selection.model_dump(), 'pageCount': end - start + 1 if start else None, 'blocks': blocks, 'warnings': warnings, 'status': status, 'engine': engine}
+            store.save(extraction_id, 'extraction.json', result)
+            return result
+    except CourseLimitReached as limit_err:
+        raise HTTPException(403, detail=limit_err.to_payload()) from limit_err
     except SpesaRifiuto as rifiuto:
-        raise HTTPException(rifiuto.status, {'code': rifiuto.code, 'message': str(rifiuto)}) from rifiuto
+        detail = {'code': rifiuto.code, 'message': str(rifiuto)}
+        if getattr(rifiuto, 'scope', None):
+            detail['scope'] = rifiuto.scope
+        raise HTTPException(rifiuto.status, detail) from rifiuto
     except GenerationError as error:
         status_code = 503 if error.code == 'not_configured' else 422
         raise HTTPException(status_code, {'code': error.code, 'message': str(error)}) from error
@@ -159,10 +180,6 @@ def extract(identifier: str, body: ExtractionRequest, request: Request):
     except Exception as error:
         logger.error('Extraction failed: %s', type(error).__name__)
         raise HTTPException(422, 'Estrazione non riuscita; verificare il documento.') from error
-    extraction_id = store.new_id()
-    result = {'id': extraction_id, 'documentId': identifier, 'selection': body.selection.model_dump(), 'pageCount': end - start + 1 if start else None, 'blocks': blocks, 'warnings': warnings, 'status': status, 'engine': engine}
-    store.save(extraction_id, 'extraction.json', result)
-    return result
 
 
 @router.get('/extractions/{identifier}')

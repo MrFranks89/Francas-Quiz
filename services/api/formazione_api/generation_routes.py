@@ -3,6 +3,7 @@ import uuid
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt
 
+from .account.spesa_scope import scope_spesa
 from .esclusione_pagine import EsclusioneNonValida, applica_esclusione, non_lette_rimaste, registra_esclusione
 
 from .generation import GenerationError, config_status
@@ -69,7 +70,8 @@ def _escludi(extraction: dict, pagine: list[int]) -> dict:
 
 @router.get('/generation/config')
 def configuration(request: Request):
-    return {**config_status(), 'spending': configurazione_spesa(request.app.state.store)}
+    scope = scope_spesa(getattr(request.state, 'utente', None))
+    return {**config_status(), 'spending': configurazione_spesa(request.app.state.store, scope=scope)}
 
 
 @router.get('/extractions/{identifier}/generation-estimate')
@@ -78,8 +80,9 @@ def generation_estimate(identifier: str, request: Request, excludePages: list[in
     sulle stesse pagine (esclusione compresa). `unreadPages`: pagine non lette che bloccano ancora."""
     store = request.app.state.store
     extraction = read_record(store, identifier, 'extraction.json')
+    scope = scope_spesa(getattr(request.state, 'utente', None))
     stima = preventivo_pubblico(_escludi(extraction, excludePages),
-                                getattr(request.app.state, 'generation_provider', None), store, excludePages)
+                                getattr(request.app.state, 'generation_provider', None), store, excludePages, scope=scope)
     pagine = non_lette_rimaste(extraction, excludePages)
     stima = {**stima, 'unreadPages': pagine, 'excludedPages': sorted(excludePages)}
     if pagine and stima['allowed']:
@@ -102,15 +105,20 @@ def generate_course(identifier: str, body: GenerationRequest, request: Request):
     if pagine := non_lette_rimaste(extraction, body.excludePages):
         raise HTTPException(422, {'code': 'unread_pages', 'message': messaggio_blocco(pagine), 'pages': pagine})
     draft_id = store.new_id()
+    scope = scope_spesa(getattr(request.state, 'utente', None))
     try:
         # Preventivo, limiti del server e registro prima di qualunque chiamata (spesa_generazione.py).
         # Blocchi salvati da una generazione interrotta: riusati se l'impronta coincide (stesse pagine
         # escluse, stesso fornitore e modello...), scartati con `restart` (ripresa_generazione.py).
         result = genera_con_tetto(da_generare, getattr(request.app.state, 'generation_provider', None), store, draft_id,
                                   escluse=body.excludePages, ricomincia=body.restart,
+                                  scope=scope,
                                   title=body.title.strip(), acknowledge_warnings=body.acknowledgeWarnings)
     except SpesaRifiuto as rifiuto:
-        raise HTTPException(rifiuto.status, {'code': rifiuto.code, 'message': str(rifiuto)}) from rifiuto
+        detail = {'code': rifiuto.code, 'message': str(rifiuto)}
+        if getattr(rifiuto, 'scope', None):
+            detail['scope'] = rifiuto.scope
+        raise HTTPException(rifiuto.status, detail) from rifiuto
     except GenerationError as error:
         raise _generation_http_error(error) from error
     result = {'id': draft_id, 'revision': 1, **registra_esclusione(result, body.excludePages)}
@@ -154,10 +162,14 @@ def concept_tree(identifier: str, request: Request, body: ConceptTreeRequest | N
             pass
 
     corsa_id = uuid.uuid4().hex
+    scope = scope_spesa(getattr(request.state, 'utente', None))
     try:
-        esito = genera_mappa_con_tetto(extraction, provider, store, corsa_id=corsa_id, escluse=exclude_pages)
+        esito = genera_mappa_con_tetto(extraction, provider, store, corsa_id=corsa_id, escluse=exclude_pages, scope=scope)
     except SpesaRifiuto as rifiuto:
-        raise HTTPException(rifiuto.status, {'code': rifiuto.code, 'message': str(rifiuto)}) from rifiuto
+        detail = {'code': rifiuto.code, 'message': str(rifiuto)}
+        if getattr(rifiuto, 'scope', None):
+            detail['scope'] = rifiuto.scope
+        raise HTTPException(rifiuto.status, detail) from rifiuto
     except GenerationError as error:
         raise _generation_http_error(error) from error
 

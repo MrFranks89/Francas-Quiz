@@ -145,11 +145,14 @@ def decidi_voice(stima: dict[str, Any], store: Any, scope: str = 'local') -> Non
     budget = limiti['GENERATION_BUDGET_USD']
     limite = stima['costoTotaleDecimal']
 
+    scope_kind = 'user' if scope.startswith('user:') else ('global' if scope in ('global', 'local') else None)
+
     if limite > massimo:
         raise SpesaRifiuto(
             'budget_exceeded',
             'Il budget disponibile per questo corso non basta per la sessione di voice recall.',
             status=402,
+            scope=scope_kind,
         )
 
     speso = registro(store, scope=scope).speso()
@@ -160,4 +163,17 @@ def decidi_voice(stima: dict[str, Any], store: Any, scope: str = 'local') -> Non
             'budget_exceeded',
             'Il budget disponibile non basta per completare la sessione di voice recall.',
             status=402,
+            scope=scope_kind,
         ) from error
+
+    if scope.startswith('user:'):
+        speso_globale = registro(store, scope='global').speso()
+        try:
+            verifica_avvio(budget, speso_globale, limite, stima['limiteCompleto'])
+        except GuardiaRifiuto as error:
+            raise SpesaRifiuto(
+                'budget_exceeded',
+                'Il budget globale di sistema è stato superato.',
+                status=402,
+                scope='global',
+            ) from error
