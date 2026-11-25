@@ -23,24 +23,42 @@ def piano_corrente() -> Literal['base', 'pro']:
     return 'pro' if val == 'pro' else 'base'
 
 
-def funzione_attiva(chiave: str) -> bool:
-    """Verifica se una determinata funzione del catalogo è abilitata per il piano attuale."""
+def funzione_abilitata(chiave: str, piano: str) -> bool:
+    """Verifica se una determinata funzione del catalogo è abilitata per il piano specificato."""
     info = CATALOGO_FUNZIONI.get(chiave)
     if not info:
         return False
-    piano = piano_corrente()
     if piano == 'pro':
         return True
     return info['livello'] == 'base'
 
 
-def richiedi_funzione(chiave: str) -> None:
-    """Guardia HTTP che solleva 403 FEATURE_NOT_ENABLED se la funzione non è attiva."""
-    if not funzione_attiva(chiave):
+def funzione_attiva(chiave: str, piano: str | None = None) -> bool:
+    """Verifica se una determinata funzione del catalogo è abilitata per il piano attuale o specificato."""
+    if piano is None:
+        piano = piano_corrente()
+    return funzione_abilitata(chiave, piano)
+
+
+def richiedi_funzione(chiave: str, utente: object = None) -> None:
+    """Guardia HTTP che solleva 403 FEATURE_NOT_ENABLED se la funzione non è attiva per l'utente o piano."""
+    piano = getattr(utente, 'piano', None) or piano_corrente()
+    if not funzione_abilitata(chiave, piano):
         raise HTTPException(
             status_code=403,
             detail={'code': 'FEATURE_NOT_ENABLED', 'message': f"La funzione '{chiave}' richiede il piano Pro."},
         )
+
+
+def guardia_funzione(chiave: str):
+    """Dependency factory per FastAPI che applica richiedi_funzione leggendo l'utente dalla richiesta."""
+    from fastapi import Request
+
+    def _dipendenza(request: Request) -> None:
+        utente = getattr(request.state, 'utente', None)
+        richiedi_funzione(chiave, utente=utente)
+
+    return _dipendenza
 
 
 class FunzioneVoce(BaseModel):

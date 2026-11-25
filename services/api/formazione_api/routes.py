@@ -30,7 +30,10 @@ def read_record(store, identifier, suffix):
         raise HTTPException(404, 'Risorsa non trovata.')
 
 
-@router.get('/health')
+public_router = APIRouter()
+
+
+@public_router.get('/health')
 def health():
     return {'status': 'ok', 'mode': 'local-single-operator'}
 
