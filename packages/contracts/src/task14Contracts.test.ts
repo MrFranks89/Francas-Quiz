@@ -18,6 +18,7 @@ import {
   EsitoDuelloSchema,
   CreaDuelloRichiestaSchema,
   AnteprimaInvitoDuelloSchema,
+  DuelNotEnoughQuestionsErrorSchema,
   DUEL_CODE_REGEX,
 } from './duelli';
 
@@ -158,6 +159,18 @@ describe('TASK-14 Zod Contracts', () => {
       expect(CreaDuelloRichiestaSchema.parse({ extraction_id: 'ext-1', n_domande: 5 }).n_domande).toBe(5);
       expect(() => CreaDuelloRichiestaSchema.parse({ extraction_id: 'ext-1', n_domande: 4 })).toThrow();
       expect(() => CreaDuelloRichiestaSchema.parse({ extraction_id: 'ext-1', n_domande: 25 })).toThrow();
+    });
+
+    it('valida DuelNotEnoughQuestionsError con richieste ed eleggibili (E14-4)', () => {
+      const err = DuelNotEnoughQuestionsErrorSchema.parse({
+        code: 'DUEL_NOT_ENOUGH_QUESTIONS',
+        message: 'Il corso non contiene abbastanza domande eleggibili per il duello.',
+        richieste: 10,
+        eleggibili: 4,
+      });
+      expect(err.code).toBe('DUEL_NOT_ENOUGH_QUESTIONS');
+      expect(err.richieste).toBe(10);
+      expect(err.eleggibili).toBe(4);
     });
   });
 });

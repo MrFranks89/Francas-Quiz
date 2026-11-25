@@ -37,6 +37,8 @@ def create_app(storage_dir=None):
 
     if is_auth_required():
         inizializza_db(resolve_db_path(target_storage))
+        from .account.claim_local import avvisa_se_dati_legacy_non_reclamati
+        avvisa_se_dati_legacy_non_reclamati(target_storage)
 
     origins = os.environ.get('FORMAZIONE_CORS_ORIGINS', 'http://localhost:8081,http://localhost:8082,http://127.0.0.1:8081,http://127.0.0.1:8082')
     app.add_middleware(

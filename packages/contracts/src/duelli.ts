@@ -82,10 +82,22 @@ export type EsitoDuello = z.infer<typeof EsitoDuelloSchema>;
 
 export const SoluzioneDomandaSchema = z.object({
   domanda_id: z.string(),
-  corretta: z.number().int(),
+  testo: z.string().optional(),
+  opzioni: z.array(z.string()).optional(),
+  correctIndex: z.number().int().optional(),
+  corretta: z.number().int().optional(),
+  explanation: z.string().optional(),
   spiegazione: z.string().optional(),
 });
 export type SoluzioneDomanda = z.infer<typeof SoluzioneDomandaSchema>;
+
+export const DuelNotEnoughQuestionsErrorSchema = z.object({
+  code: z.literal('DUEL_NOT_ENOUGH_QUESTIONS'),
+  message: z.string(),
+  richieste: z.number().int(),
+  eleggibili: z.number().int(),
+});
+export type DuelNotEnoughQuestionsError = z.infer<typeof DuelNotEnoughQuestionsErrorSchema>;
 
 export const RisultatoDuelloRispostaSchema = z.object({
   stato: StatoDuelloEnum,
