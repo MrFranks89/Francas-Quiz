@@ -1,8 +1,13 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { usePalette, useTheme } from '@formazione/civis-ui/src/ThemeProvider';
 
-export function ProModesCard() {
+export interface ProModesCardProps {
+  onNavigateDuels?: () => void;
+  onNavigateReferral?: () => void;
+}
+
+export function ProModesCard({ onNavigateDuels, onNavigateReferral }: ProModesCardProps = {}) {
   const C = usePalette(), { dark } = useTheme();
 
   return (
@@ -45,25 +50,41 @@ export function ProModesCard() {
           </View>
         </View>
 
-        <View style={styles.featureItem}>
+        <TouchableOpacity
+          style={styles.featureItem}
+          onPress={onNavigateDuels}
+          disabled={!onNavigateDuels}
+          accessibilityRole="button"
+          accessibilityLabel="Vai ai Duelli Asincroni Pro"
+        >
           <Text style={styles.featureBullet}>🥊</Text>
           <View style={styles.featureTexts}>
-            <Text style={[styles.featureTitle, dark && { color: C.text }]}>Duello Asincrono</Text>
+            <Text style={[styles.featureTitle, dark && { color: C.text }]}>
+              Duello Asincrono {onNavigateDuels ? '→' : ''}
+            </Text>
             <Text style={[styles.featureDesc, dark && { color: C.textMuted }]}>
               Lancia una sfida a un collega con scadenza 24 ore.
             </Text>
           </View>
-        </View>
+        </TouchableOpacity>
 
-        <View style={styles.featureItem}>
+        <TouchableOpacity
+          style={styles.featureItem}
+          onPress={onNavigateReferral}
+          disabled={!onNavigateReferral}
+          accessibilityRole="button"
+          accessibilityLabel="Vai al programma Invita un Amico"
+        >
           <Text style={styles.featureBullet}>🎁</Text>
           <View style={styles.featureTexts}>
-            <Text style={[styles.featureTitle, dark && { color: C.text }]}>Invita un Amico</Text>
+            <Text style={[styles.featureTitle, dark && { color: C.text }]}>
+              Invita un Amico {onNavigateReferral ? '→' : ''}
+            </Text>
             <Text style={[styles.featureDesc, dark && { color: C.textMuted }]}>
               Invita un collega: al suo accesso ottieni +1 documento/corso caricabile.
             </Text>
           </View>
-        </View>
+        </TouchableOpacity>
       </View>
 
       <View style={[styles.disabledNotice, dark && { backgroundColor: C.surfaceHover }]}>

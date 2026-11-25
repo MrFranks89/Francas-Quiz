@@ -28,6 +28,8 @@ export interface StudyExperienceViewProps {
   onStartPractice?: (course: Course) => void;
   onBackToMaterial: () => void;
   onBackToConfig: () => void;
+  onNavigateDuels?: () => void;
+  onNavigateReferral?: () => void;
 }
 
 export function StudyExperienceView({
@@ -44,6 +46,8 @@ export function StudyExperienceView({
   onStartPractice,
   onBackToMaterial,
   onBackToConfig,
+  onNavigateDuels,
+  onNavigateReferral,
 }: StudyExperienceViewProps) {
   const C = usePalette(), { dark } = useTheme(), ui = useUiStyles();
   const [activeTab, setActiveTab] = useState<StudioTab>('all');
@@ -237,6 +241,8 @@ export function StudyExperienceView({
         <GamificationCard
           topicHint={focusedNode?.title || documentName}
           extractionId={extraction.id}
+          onNavigateDuels={onNavigateDuels}
+          onNavigateReferral={onNavigateReferral}
         />
       )}
 

@@ -1,7 +1,7 @@
 import React, { useState, useReducer, useMemo, useEffect } from 'react';
-import { Text, View, StyleSheet, Platform, Pressable } from 'react-native';
+import { Text, View, Platform, Pressable } from 'react-native';
 import * as Picker from 'expo-document-picker';
-import { parsePageSelection, selectedPages, type Course } from '@formazione/contracts';
+import { parsePageSelection, selectedPages, type Course, type UtenteVista } from '@formazione/contracts';
 import { apiUrl, uploadDocument, extractDocument, type DocumentChapter } from '../api/documents';
 import { FORMATI_AMMESSI, tipiSelettore } from '../api/formats';
 import { usePalette, useTheme } from '@formazione/civis-ui/src/ThemeProvider';
@@ -16,17 +16,24 @@ import { StudyConfigCard } from '../components/StudyConfigCard';
 import { StudyExperienceView } from '../components/StudyExperienceView';
 import { FotoPicker, type PickedAsset } from '../components/FotoPicker';
 import { AudioPicker } from '../components/AudioPicker';
+import { CourseLimitBanner } from '../components/account';
+import { getMe } from '../api/account';
+import { localStyles } from './ImportScreenStyles';
 import type { Draft } from '../api/generation';
 
-export function ImportScreen({ onDraft, onStartPractice }: {
+export function ImportScreen({
+  onDraft, onStartPractice, onNavigateReferral, onNavigateDuels,
+}: {
   onDraft: (draft: Draft) => void;
   onStartPractice?: (course: Course) => void;
+  onNavigateReferral?: () => void;
+  onNavigateDuels?: () => void;
 }) {
   const C = usePalette(), { dark } = useTheme(), s = useUiStyles();
   const [state, dispatch] = useReducer(importReducer, initialImport);
   const { document, range, from, to, engine, result, step } = state;
   const { includeMap, includeCourse, includeGamify, includeVoice } = state;
-
+  const [utente, setUtente] = useState<UtenteVista | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [showPreview, setShowPreview] = useState(false);
@@ -34,6 +41,10 @@ export function ImportScreen({ onDraft, onStartPractice }: {
   const [lastValidPages, setLastValidPages] = useState<number[]>([]);
   const [excludedPages, setExcludedPages] = useState<number[]>([]);
   const [rangeHighlighted, setRangeHighlighted] = useState(false);
+
+  useEffect(() => {
+    getMe().then(setUtente).catch(() => {});
+  }, []);
 
   const setRange = (v: boolean) => { setRangeHighlighted(false); dispatch({ type: 'range', value: v }); };
   const setFrom = (v: string) => { setRangeHighlighted(false); dispatch({ type: 'from', value: v }); };
@@ -150,6 +161,18 @@ export function ImportScreen({ onDraft, onStartPractice }: {
         Configura il percorso, scegli il materiale e genera strumenti di studio interattivi
         mantenendo il controllo sulle fonti estratte.
       </Text>
+
+      {utente && utente.limite_effettivo !== null && utente.corsi_usati >= utente.limite_effettivo && (
+        <CourseLimitBanner
+          corsiUsati={utente.corsi_usati}
+          limiteEffettivo={utente.limite_effettivo}
+          limiteBase={utente.limite_base}
+          corsiExtraReferral={utente.corsi_extra_referral}
+          piano={utente.piano_effettivo}
+          referralDisponibile={utente.corsi_extra_referral < 5}
+          onInviteFriend={onNavigateReferral}
+        />
+      )}
 
       {step === 'config' && (
         <StudyConfigCard
@@ -363,6 +386,8 @@ export function ImportScreen({ onDraft, onStartPractice }: {
           onStartPractice={onStartPractice}
           onBackToMaterial={() => dispatch({ type: 'step', value: 'material' })}
           onBackToConfig={() => dispatch({ type: 'step', value: 'config' })}
+          onNavigateDuels={onNavigateDuels}
+          onNavigateReferral={onNavigateReferral}
         />
       )}
 
@@ -370,25 +395,3 @@ export function ImportScreen({ onDraft, onStartPractice }: {
     </View>
   );
 }
-
-const localStyles = StyleSheet.create({
-  stepNavRow: {
-    flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between',
-    alignItems: 'center', gap: 8,
-  },
-  backLink: { paddingVertical: 4 },
-  backLinkText: { color: '#2563eb', fontSize: 13, fontWeight: '700' },
-  docCard: {
-    backgroundColor: '#f8fafc', borderRadius: 14, borderWidth: 1,
-    borderColor: colors.line, padding: 14, gap: 8,
-  },
-  docHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  formatBadge: {
-    backgroundColor: colors.pale, paddingHorizontal: 8, paddingVertical: 3,
-    borderRadius: 6, borderWidth: 1, borderColor: '#cde4e0',
-  },
-  formatBadgeText: {
-    color: colors.teal, fontSize: 12, fontWeight: '700', textTransform: 'uppercase',
-  },
-  docName: { fontSize: 16, fontWeight: '700', color: colors.navy, flex: 1 },
-});

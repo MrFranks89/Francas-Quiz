@@ -31,7 +31,7 @@ export function DuelSolutionsList({
               Domanda #{sIdx + 1}
             </Text>
             <Text style={[styles.solAnswer, { color: '#059669' }]}>
-              Risposta esatta: Opzione {String.fromCharCode(65 + sol.corretta)}
+              Risposta esatta: Opzione {sol.corretta !== undefined ? String.fromCharCode(65 + sol.corretta) : '-'}
             </Text>
             {sol.spiegazione && (
               <Text style={[styles.solExplanation, dark && { color: C.text }]}>

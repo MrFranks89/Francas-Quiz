@@ -33,6 +33,8 @@ export interface GamificationCardProps {
   questions?: GameQuestion[];
   flashcards?: FlashcardItem[];
   onXpEarned?: (xp: number) => void;
+  onNavigateDuels?: () => void;
+  onNavigateReferral?: () => void;
 }
 
 export function GamificationCard({
@@ -42,6 +44,8 @@ export function GamificationCard({
   questions = DEFAULT_QUESTIONS,
   flashcards: initialFlashcards = DEFAULT_FLASHCARDS,
   onXpEarned,
+  onNavigateDuels,
+  onNavigateReferral,
 }: GamificationCardProps) {
   const C = usePalette(), { dark } = useTheme();
 
@@ -281,7 +285,12 @@ export function GamificationCard({
         }}
       />
 
-      {mode === 'idle' && <ProModesCard />}
+      {mode === 'idle' && (
+        <ProModesCard
+          onNavigateDuels={onNavigateDuels}
+          onNavigateReferral={onNavigateReferral}
+        />
+      )}
 
       {mode === 'survival' && (
         <SurvivalGame

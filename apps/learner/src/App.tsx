@@ -24,6 +24,7 @@ import { ImportScreen } from './screens/ImportScreen';
 import { CourseScreen } from './screens/CourseScreen';
 import { EditorScreen } from './screens/EditorScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
+import { ProfileNetworkScreen } from './screens/ProfileNetworkScreen';
 import { leggiImpostazioni } from './api/settings';
 import { apriImpostazioniAllAvvio } from './state/impostazioni';
 import { navigate, initialNavigation } from './state/navigation';
@@ -106,7 +107,7 @@ function Shell() {
   const C = usePalette(),
     { dark } = useTheme(),
     ui = useUiStyles();
-  const [{ screen, selected, draft }, dispatch] = useReducer(navigate, initialNavigation);
+  const [{ screen, selected, draft, profileTab }, dispatch] = useReducer(navigate, initialNavigation);
   const { width } = useWindowDimensions();
   const [error, setError] = useState(''),
     [draftId, setDraftId] = useState(''),
@@ -192,6 +193,12 @@ function Shell() {
           onPress={() => dispatch({ type: 'draft', draft })}
         />
       )}
+      <NavPillola
+        label="Profilo & Rete"
+        attiva={screen === 'profile'}
+        dark={dark}
+        onPress={() => dispatch({ type: 'profile' })}
+      />
       <NavPillola
         label="Impostazioni"
         attiva={screen === 'settings'}
@@ -295,6 +302,8 @@ function Shell() {
             <ImportScreen
               onDraft={(draft) => dispatch({ type: 'draft', draft })}
               onStartPractice={(course) => dispatch({ type: 'practice', course })}
+              onNavigateReferral={() => dispatch({ type: 'profile', tab: 'referral' })}
+              onNavigateDuels={() => dispatch({ type: 'profile', tab: 'duels' })}
             />
             <Card>
               <Text style={ui.subtitle}>Riprendi una bozza salvata</Text>
@@ -336,6 +345,14 @@ function Shell() {
             currentCourse={selected?.course}
             kind={selected?.kind}
           />
+        </Pannello>
+        <Pannello attivo={screen === 'profile'} piede={piede}>
+          <View style={corniceStrumenti}>
+            <ProfileNetworkScreen
+              initialTab={profileTab}
+              onNavigateTab={(tab) => dispatch({ type: 'profile', tab })}
+            />
+          </View>
         </Pannello>
         <Pannello attivo={screen === 'settings'} piede={piede}>
           <SettingsScreen primoAvvio={primoAvvio} onChiudi={tornaAiMateriali} />

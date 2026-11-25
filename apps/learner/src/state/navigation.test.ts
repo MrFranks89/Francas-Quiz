@@ -30,3 +30,18 @@ it('Impostazioni è una schermata che conserva la bozza e torna ai materiali', (
   expect(impostazioni.draft).toBe(draft);
   expect(navigate(impostazioni, { type: 'screen', screen: 'import' }).screen).toBe('import');
 });
+it('Profilo & Rete supporta deep-link a sotto-schede e conserva la bozza', () => {
+  const draft = {
+    id: 'draft-1',
+    revision: 1,
+    status: 'draft' as const,
+    course: CourseSchema.parse(sample),
+  };
+  const profile = navigate(navigate(initialNavigation, { type: 'draft', draft }), {
+    type: 'profile',
+    tab: 'referral',
+  });
+  expect(profile.screen).toBe('profile');
+  expect(profile.profileTab).toBe('referral');
+  expect(profile.draft).toBe(draft);
+});

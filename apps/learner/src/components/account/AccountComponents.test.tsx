@@ -89,7 +89,7 @@ describe('TASK-14: Account & Auth Components', () => {
         auth_required: true,
       };
 
-      const onUpdateName = jest.fn().mockImplementation(() => Promise.resolve());
+      const onUpdateName = jest.fn<(_newName: string) => Promise<void>>().mockResolvedValue(undefined);
 
       act(() => {
         renderer = ReactTestRenderer.create(
@@ -137,7 +137,7 @@ describe('TASK-14: Account & Auth Components', () => {
       });
 
       const text = readAllText(renderer!);
-      expect(text).toContain('2 di 3 corsi usati');
+      expect(text).toContain('Hai usato 2 corsi su 3.');
     });
 
     test('mostra stato blocco con CTA referral se referralDisponibile è true', () => {
@@ -157,8 +157,8 @@ describe('TASK-14: Account & Auth Components', () => {
       });
 
       const text = readAllText(renderer!);
-      expect(text).toContain('Hai raggiunto il limite di corsi disponibili');
-      expect(text).toContain('Invita un amico per sbloccare +1 corso gratuito');
+      expect(text).toContain('Hai raggiunto il limite');
+      expect(text).toContain('Invita un amico: con la sua registrazione ottieni uno slot in più.');
 
       const inviteBtn = renderer!.root.findByProps({
         accessibilityLabel: 'Invita un amico per sbloccare un corso extra',
@@ -184,8 +184,8 @@ describe('TASK-14: Account & Auth Components', () => {
       });
 
       const text = readAllText(renderer!);
-      expect(text).toContain('Hai raggiunto la capacità massima di corsi');
-      expect(text).not.toContain('Invita un amico per sbloccare +1 corso gratuito');
+      expect(text).toContain('Elimina un corso per liberare uno slot oppure passa a Pro.');
+      expect(text).not.toContain('Invita un amico: con la sua registrazione ottieni uno slot in più.');
     });
   });
 
@@ -201,9 +201,9 @@ describe('TASK-14: Account & Auth Components', () => {
       });
 
       let text = readAllText(renderer!);
-      expect(text).toContain('Accedi o Crea un Account');
-      expect(text).toContain('Accedi con Email');
-      expect(text).toContain('Crea un nuovo Account');
+      expect(text).toContain('Studia, ovunque tu sia');
+      expect(text).toContain('Accedi');
+      expect(text).toContain('Crea un account');
 
       // Passa a Login
       const loginBtn = renderer!.root.findByProps({
@@ -214,21 +214,21 @@ describe('TASK-14: Account & Auth Components', () => {
       });
 
       text = readAllText(renderer!);
-      expect(text).toContain('Accedi al tuo Account');
-      expect(text).toContain('Non hai ancora un account? Registrati');
+      expect(text).toContain('Accedi');
+      expect(text).toContain('È la prima volta? Crea un account');
 
       // Passa a Registrazione
       const registerLink = renderer!.root.findAllByProps({ accessibilityRole: 'button' })
         .find((b) => {
           const t = b.props.children;
-          return t?.props?.children === 'Non hai ancora un account? Registrati';
+          return t?.props?.children === 'È la prima volta? Crea un account';
         });
       act(() => {
         registerLink?.props.onPress();
       });
 
       text = readAllText(renderer!);
-      expect(text).toContain('Crea il tuo Account');
+      expect(text).toContain('Crea un account');
     });
   });
 });

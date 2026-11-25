@@ -50,8 +50,8 @@ describe('TASK-14: Referral Components', () => {
 
       const text = readAllText(renderer!);
       expect(text).toContain('REF-23456789');
-      expect(text).toContain('Copia Codice');
-      expect(text).toContain('Condividi Link');
+      expect(text).toContain('Copia codice');
+      expect(text).toContain('Condividi il tuo invito');
 
       const copyBtn = renderer!.root.findByProps({
         accessibilityLabel: 'Copia codice referral',
@@ -70,7 +70,7 @@ describe('TASK-14: Referral Components', () => {
       });
 
       const text = readAllText(renderer!);
-      expect(text).toContain('Registrazioni accreditate');
+      expect(text).toContain('Registrazioni completate');
       expect(text).toContain('+3');
       expect(text).toContain('Tetto massimo: 5 corsi');
       expect(text).toContain('Luigi V.');
@@ -127,7 +127,7 @@ describe('TASK-14: Referral Components', () => {
 
       expect(referralApi.redeemReferralCode).toHaveBeenCalledWith('REF-AB345678');
       expect(onSuccess).toHaveBeenCalledTimes(1);
-      expect(readAllText(renderer!)).toContain('Codice riscattato con successo!');
+      expect(readAllText(renderer!)).toContain('Codice collegato. Buon inizio!');
     });
 
     test('mostra messaggio informativo per codice già accreditato', async () => {
@@ -159,7 +159,7 @@ describe('TASK-14: Referral Components', () => {
         await submitBtn.props.onPress();
       });
 
-      expect(readAllText(renderer!)).toContain('Hai già utilizzato un codice invito');
+      expect(readAllText(renderer!)).toContain('Hai già collegato un codice invito per questo account.');
       expect(onSuccess).not.toHaveBeenCalled();
     });
   });

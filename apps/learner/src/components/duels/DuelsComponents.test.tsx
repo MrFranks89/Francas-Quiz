@@ -143,13 +143,13 @@ describe('TASK-14: Duels Components (Pro)', () => {
         );
       });
 
-      expect(readAllText(renderer!)).toContain('Crea un Duello Asincrono');
+      expect(readAllText(renderer!)).toContain('Scegli il corso');
       expect(readAllText(renderer!)).toContain('Procedura Penale');
 
       const submitBtn = renderer!.root.findAllByProps({ accessibilityRole: 'button' })
         .find((b) => {
           const child = b.props.children;
-          return child?.props?.children === 'Genera Sfida e Codice' || child === 'Genera Sfida e Codice';
+          return child?.props?.children === 'Crea e invita' || child === 'Crea e invita';
         });
 
       await act(async () => {
@@ -190,7 +190,7 @@ describe('TASK-14: Duels Components (Pro)', () => {
       expect(text).toContain('Sfida Ricevuta!');
       expect(text).toContain('Contabilità di Stato');
       expect(text).toContain('Avv. Rossi');
-      expect(text).toContain('Le domande verranno mostrate senza soluzioni durante la prova');
+      expect(text).toContain('Rispondi alle 10 domande entro 15 minuti');
 
       const acceptBtn = renderer!.root.findByProps({
         accessibilityLabel: 'Accetta sfida ed entra nel duello',
@@ -205,11 +205,11 @@ describe('TASK-14: Duels Components (Pro)', () => {
   describe('DuelPlayModal', () => {
     test('mostra domande senza soluzioni una alla volta e permette la consegna', async () => {
       jest.useFakeTimers();
-      const onSubmit = jest.fn().mockImplementation(() => Promise.resolve({
+      const onSubmit = jest.fn<(_d: string, _r: Array<{ domanda_id: string; scelta: number | null; ms: number }>) => Promise<{ corrette: number; tempo_totale_ms: number; duello_chiuso: boolean }>>().mockResolvedValue({
         corrette: 2,
         tempo_totale_ms: 25000,
         duello_chiuso: false,
-      }));
+      });
 
       const mockPlayData = {
         domande: [
@@ -313,7 +313,7 @@ describe('TASK-14: Duels Components (Pro)', () => {
       });
 
       const text = readAllText(renderer!);
-      expect(text).toContain('🏆 Vittoria!');
+      expect(text).toContain('Hai vinto il duello!');
       expect(text).toContain('+50 XP guadagnati!');
       expect(text).toContain('Marco R.');
       expect(text).toContain('Luigi V.');

@@ -1,42 +1,69 @@
 /**
  * Microcopy per Account, Autenticazione e Limiti Corsi (TASK-14).
- * Segnaposto {chiave} predisposti per il merge finale con i testi di ChatGPT.
+ * Merge ufficiale con ordini/TASK-14_microcopy_chatgpt.md (testi ChatGPT prevalenti).
  */
 export const ACCOUNT_MICROCOPY = {
-  // Benvenuto & Auth Modal
-  'auth.welcome.title': 'Accedi o Crea un Account',
-  'auth.welcome.subtitle': 'Sincronizza i tuoi corsi, sfida i colleghi nei duelli e invita amici per sbloccare più corsi.',
-  'auth.welcome.ctaLogin': 'Accedi con Email',
-  'auth.welcome.ctaRegister': 'Crea un nuovo Account',
-  'auth.welcome.guestNote': 'Puoi continuare a utilizzare l’app in locale senza account.',
+  // Area 1 — Autenticazione (ChatGPT)
+  'auth.welcome.title': 'Studia, ovunque tu sia',
+  'auth.welcome.subtitle': 'Crea un account: i tuoi corsi ti seguono su ogni dispositivo.',
+  'auth.welcome.ctaLogin': 'Accedi',
+  'auth.welcome.ctaRegister': 'Crea un account',
+  'auth.welcome.guestNote': 'I dati salvati sul dispositivo restano disponibili.',
 
-  // Login
-  'auth.login.title': 'Accedi al tuo Account',
-  'auth.login.emailPlaceholder': 'La tua email',
+  'auth.login.title': 'Accedi',
+  'auth.login.emailPlaceholder': 'Email',
   'auth.login.passwordPlaceholder': 'Password',
-  'auth.login.ctaSubmit': 'Entra',
-  'auth.login.forgotPassword': 'Password dimenticata?',
-  'auth.login.noAccount': 'Non hai ancora un account? Registrati',
+  'auth.login.ctaSubmit': 'Accedi',
+  'auth.login.forgotPassword': 'Reimposta la password',
+  'auth.login.noAccount': 'È la prima volta? Crea un account',
 
-  // Registrazione
-  'auth.register.title': 'Crea il tuo Account',
-  'auth.register.namePlaceholder': 'Nome visualizzato (opzionale, max 40 car.)',
-  'auth.register.emailPlaceholder': 'La tua email istituzionale o personale',
-  'auth.register.passwordPlaceholder': 'Scegli una password sicura (min 6 car.)',
+  'auth.register.title': 'Crea un account',
+  'auth.register.namePlaceholder': 'Nome visualizzato (opzionale)',
+  'auth.register.emailPlaceholder': 'Email',
+  'auth.register.passwordPlaceholder': 'Password (min 6 caratteri)',
   'auth.register.referralPlaceholder': 'Codice invito (opzionale, es. REF-XXXXXXXX)',
-  'auth.register.ctaSubmit': 'Crea Account',
+  'auth.register.ctaSubmit': 'Crea un account',
   'auth.register.hasAccount': 'Hai già un account? Accedi',
 
-  // Verifica Email
-  'auth.verify.title': 'Controlla la tua Email',
-  'auth.verify.description': 'Ti abbiamo inviato un link di conferma. Aprilo per attivare il tuo profilo.',
-  'auth.verify.ctaDone': 'Ho verificato l’email, continua',
+  'auth.verify.title': 'Controlla la tua email',
+  'auth.verify.description': 'Ti abbiamo inviato un link. Aprilo per verificare l’indirizzo e continuare.',
+  'auth.verify.ctaDone': 'Email verificata. Benvenuto!',
 
-  // Reset Password
-  'auth.reset.title': 'Ripristina Password',
-  'auth.reset.description': 'Inserisci l’indirizzo email associato al tuo profilo per ricevere le istruzioni di reset.',
-  'auth.reset.ctaSubmit': 'Invia link di ripristino',
-  'auth.reset.backToLogin': 'Torna al Login',
+  'auth.reset.title': 'Reimposta la password',
+  'auth.reset.description': 'Inserisci la tua email: ti invieremo un link per scegliere una nuova password.',
+  'auth.reset.ctaSubmit': 'Invia link',
+  'auth.reset.backToLogin': 'Accedi',
+
+  // Errori e stati Auth ChatGPT
+  'auth.verify.success': 'Email verificata. Benvenuto!',
+  'auth.verify.expired': 'Il link è scaduto. Richiedine uno nuovo per verificare l’email.',
+  'auth.verify.resend': 'Invia un nuovo link',
+  'auth.password.reset.sent': 'Se l’indirizzo è registrato, riceverai un link per reimpostare la password.',
+  'auth.password.reset.complete': 'Password aggiornata. Puoi accedere con la nuova password.',
+  'auth.error.tokenMissing': 'Accedi per continuare.',
+  'auth.error.tokenExpired': 'La sessione è scaduta. Accedi di nuovo.',
+  'auth.error.invalidCredentials': 'Email o password non corrette. Riprova.',
+  'auth.error.network': 'Connessione non disponibile. Controlla la rete e riprova.',
+  'auth.logout.confirm.title': 'Vuoi uscire?',
+  'auth.logout.confirm.body': 'I dati salvati sul dispositivo restano disponibili. Potrai ritrovarli accedendo di nuovo.',
+  'auth.logout.confirm.cta': 'Esci dall’account',
+  'auth.logout.success': 'Hai effettuato la disconnessione.',
+
+  // Area 2 — Limite Corsi (ChatGPT)
+  'limit.near.title': 'Ti resta uno slot',
+  'limit.near.body': (usati: number, effettivo: number) => `Hai usato ${usati} corsi su ${effettivo}.`,
+  'limit.banner.info': (usati: number, effettivo: number) => `Hai usato ${usati} corsi su ${effettivo}.`,
+  'limit.blocked.title': 'Hai raggiunto il limite',
+  'limit.blocked.descWithReferral':
+    'Hai usato i corsi disponibili. Invita un amico: con la sua registrazione ottieni uno slot in più.',
+  'limit.blocked.descWithoutReferral':
+    'Hai usato i corsi disponibili. Elimina un corso per liberare uno slot oppure passa a Pro.',
+  'limit.cta.invite': 'Invita un amico',
+  'limit.cta.upgrade': 'Scopri Pro',
+  'limit.course.delete.title': 'Eliminare questo corso?',
+  'limit.course.delete.body': 'Il corso verrà rimosso e lo slot sarà di nuovo disponibile.',
+  'limit.course.delete.confirm': 'Elimina il corso',
+  'limit.course.delete.cancel': 'Annulla',
 
   // Profilo
   'profile.title': 'Il tuo Profilo',
@@ -51,14 +78,12 @@ export const ACCOUNT_MICROCOPY = {
   'profile.coursesUsed': (used: number, limit: number | null) =>
     limit !== null ? `${used} di ${limit} corsi utilizzati` : `${used} corsi utilizzati (Illimitati)`,
   'profile.extraCourses': (count: number) => `+${count} corsi extra guadagnati con gli inviti`,
-  'profile.logout': 'Disconnetti account',
-  'profile.logoutWarning': 'Disconnettendoti, tornerai alla modalità locale. I corsi associati all’account resteranno al sicuro sul cloud.',
+  'profile.logout': 'Esci dall’account',
+  'profile.logoutWarning': 'I dati salvati sul dispositivo restano disponibili. Potrai ritrovarli accedendo di nuovo.',
 
-  // Limiti Corsi
-  'limit.banner.info': (used: number, limit: number) => `${used} di ${limit} corsi usati`,
-  'limit.blocked.title': 'Hai raggiunto il limite di corsi disponibili',
-  'limit.blocked.descWithReferral': 'Il tuo piano include un numero limitato di corsi. Invita un amico per sbloccare +1 corso gratuito subito!',
-  'limit.blocked.descWithoutReferral': 'Hai raggiunto la capacità massima di corsi per il tuo account. Passa a Pro per corsi illimitati.',
-  'limit.cta.invite': 'Invita un amico (+1 corso)',
-  'limit.cta.upgrade': 'Passa a Pro',
+  // Trasversali
+  'common.error.generic': 'Qualcosa è andato storto. Riprova.',
+  'common.error.network': 'Connessione non disponibile. Controlla la rete e riprova.',
+  'common.offline.title': 'Sei offline',
+  'common.offline.body': 'Alcune funzioni richiedono una connessione. Riprova quando torni online.',
 };
