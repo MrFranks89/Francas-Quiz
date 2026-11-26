@@ -37,11 +37,15 @@ export function GenerationPanel({
   onDraft,
   excludedPages,
   onExcludedPagesChange,
+  passingScoreCheck,
+  passingScoreGate,
 }: {
   extraction: Extraction;
   onDraft: (draft: Draft) => void;
   excludedPages?: number[];
   onExcludedPagesChange?: (pages: number[]) => void;
+  passingScoreCheck?: number;
+  passingScoreGate?: number | null;
 }) {
   const C = usePalette(), { dark } = useTheme(), s = useUiStyles();
   const [config, setConfig] = useState<GenerationConfig | null>(null);
@@ -49,6 +53,7 @@ export function GenerationPanel({
   const [title, setTitle] = useState('Il mio corso');
   const [ack, setAck] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [questionsPerCheck, setQuestionsPerCheck] = useState<1 | 2 | 3>(2);
   const [estimate, setEstimate] = useState<GenerationEstimate | null>(null);
   const [internalEscluse, setInternalEscluse] = useState<number[]>([]);
   // Esito dell'ultima generazione fallita: tenuto a parte da `error`, che refresh() azzera.
@@ -66,14 +71,15 @@ export function GenerationPanel({
   const ripresa = statoRipresa(fallita?.ripresa ?? null, estimate);
   const alive = useRef(true);
 
-  async function refresh(targetPages = escluseRef.current) {
+  async function refresh(targetPages?: number[]) {
+    const pages = Array.isArray(targetPages) ? targetPages : escluseRef.current;
     try {
       setConfig(await generationConfig());
-      const stima = await generationEstimate(extraction.id, targetPages);
-      if (escluseRef.current === targetPages) setEstimate(stima);
+      const stima = await generationEstimate(extraction.id, pages);
+      if (escluseRef.current === pages) setEstimate(stima);
       setError('');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'AI non raggiungibile.');
+      setError(e instanceof Error ? e.message : 'Servizio non raggiungibile.');
     }
   }
 
@@ -117,7 +123,7 @@ export function GenerationPanel({
     setError('');
     setFallita(null);
     try {
-      const draft = await generateDraft(extraction.id, title, ack, escluseRef.current, ricomincia);
+      const draft = await generateDraft(extraction.id, title, ack, escluseRef.current, ricomincia, questionsPerCheck, passingScoreCheck, passingScoreGate);
       if (alive.current) onDraft(draft);
     } catch (e) {
       if (!alive.current) return;
@@ -142,7 +148,7 @@ export function GenerationPanel({
 
   return (
     <View style={{ gap: 16 }}>
-      <Text style={s.subtitle}>04 · Crea una bozza didattica</Text>
+      <Text style={s.subtitle}>04 · Genera il corso</Text>
 
       {!config?.configured ? (
         <Notice text={messaggioConfigurazione(config)} />
@@ -205,6 +211,47 @@ export function GenerationPanel({
       {!!fallita && <Notice text={fallita.messaggio} error />}
       {!!ripresa && <Notice text={testoRipresa(ripresa)} />}
 
+      <View style={localStyles.inputWrapper}>
+        <View style={localStyles.inputLabelRow}>
+          <Text style={[localStyles.inputLabel, dark && { color: C.text }]}>
+            Domande per ogni verifica di controllo
+          </Text>
+          <Text style={[localStyles.inputHint, dark && { color: C.textMuted }]}>
+            1–3 domande
+          </Text>
+        </View>
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          {([1, 2, 3] as const).map((n) => {
+            const sel = questionsPerCheck === n;
+            return (
+              <Pressable
+                key={n}
+                accessibilityRole="button"
+                accessibilityLabel={`Verifica di controllo: ${n} domande`}
+                accessibilityState={{ selected: sel }}
+                disabled={busy}
+                onPress={() => setQuestionsPerCheck(n)}
+                style={[
+                  localStyles.numBtn,
+                  sel && (dark ? { backgroundColor: C.teal, borderColor: C.teal } : localStyles.numBtnSelected),
+                  dark && !sel && { backgroundColor: C.surface, borderColor: C.border },
+                ]}
+              >
+                <Text
+                  style={[
+                    localStyles.numBtnText,
+                    sel && { color: 'white', fontWeight: '700' },
+                    dark && !sel && { color: C.text },
+                  ]}
+                >
+                  {n} {n === 1 ? 'domanda' : 'domande'}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+
       <View style={localStyles.actionsRow}>
         <Pressable
           accessibilityRole="button"
@@ -223,7 +270,6 @@ export function GenerationPanel({
           <Text style={localStyles.primaryBtnText}>{etichettaGenerazione(busy, ripresa)}</Text>
         </Pressable>
         {!!ripresa && (
-          // Scarta i blocchi salvati: si pagano di nuovo tutti i blocchi (restart sul server).
           <Button
             label="Ricomincia da capo"
             secondary
@@ -231,16 +277,10 @@ export function GenerationPanel({
             onPress={() => generate(true)}
           />
         )}
-        <Button
-          label="Ricontrolla configurazione AI"
-          secondary
-          disabled={busy}
-          onPress={refresh}
-        />
       </View>
 
       <Text style={s.muted}>
-        La bozza non viene pubblicata automaticamente. La generazione può richiedere diversi minuti.
+        La generazione può richiedere alcuni minuti. Il corso sarà salvato nel tuo account.
       </Text>
     </View>
   );
@@ -289,5 +329,24 @@ const localStyles = StyleSheet.create({
     color: 'white',
     fontWeight: '700',
     fontSize: 15,
+  },
+  numBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: 'white',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  numBtnSelected: {
+    backgroundColor: colors.teal,
+    borderColor: colors.teal,
+  },
+  numBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.ink,
   },
 });

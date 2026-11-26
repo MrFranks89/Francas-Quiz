@@ -8,11 +8,10 @@ import { Card, Notice, colors, useUiStyles } from './ui';
 import { ProposedIndexPanel } from './ProposedIndexPanel';
 import { ConceptTreeSection } from './ConceptTreeSection';
 import { GenerationPanel } from './GenerationPanel';
-import { GamificationCard } from './GamificationCard';
 import { VoiceRecallCard } from './VoiceRecallCard';
 import { BranchQuizSheet } from './BranchQuizSheet';
 
-type StudioTab = 'all' | 'map' | 'course' | 'quiz' | 'gamify' | 'voice';
+type StudioTab = 'all' | 'map' | 'course' | 'quiz' | 'voice';
 
 export interface StudyExperienceViewProps {
   extraction: Extraction;
@@ -21,6 +20,8 @@ export interface StudyExperienceViewProps {
   includeCourse: boolean;
   includeGamify: boolean;
   includeVoice: boolean;
+  passingScoreCheck?: number;
+  passingScoreGate?: number | null;
   excludedPages: number[];
   onTogglePage: (pageNumber: number) => void;
   onExcludedPagesChange: (pages: number[]) => void;
@@ -39,6 +40,8 @@ export function StudyExperienceView({
   includeCourse,
   includeGamify,
   includeVoice,
+  passingScoreCheck,
+  passingScoreGate,
   excludedPages,
   onTogglePage,
   onExcludedPagesChange,
@@ -62,7 +65,6 @@ export function StudyExperienceView({
   if (includeMap) activeLabels.push('Mappa');
   if (includeCourse) activeLabels.push('Corso');
   activeLabels.push('Quiz');
-  if (includeGamify) activeLabels.push('Ripasso Dinamico');
   if (includeVoice) activeLabels.push('Ripetizione a Voce');
 
   const tabs: Array<{ id: StudioTab; label: string; visible: boolean }> = [
@@ -70,7 +72,6 @@ export function StudyExperienceView({
     { id: 'map', label: '🌳 Mappa Concettuale', visible: includeMap },
     { id: 'course', label: '📖 Corso a Schede', visible: includeCourse },
     { id: 'quiz', label: '💡 Quiz di Verifica', visible: true },
-    { id: 'gamify', label: '⚡ Ripasso Dinamico', visible: includeGamify },
     { id: 'voice', label: '🎙️ Ripeti a Voce', visible: includeVoice },
   ];
 
@@ -233,18 +234,11 @@ export function StudyExperienceView({
             onDraft={onDraft}
             excludedPages={excludedPages}
             onExcludedPagesChange={onExcludedPagesChange}
+            passingScoreCheck={passingScoreCheck}
+            passingScoreGate={passingScoreGate}
           />
         )}
       </Card>
-
-      {includeGamify && show('gamify') && (
-        <GamificationCard
-          topicHint={focusedNode?.title || documentName}
-          extractionId={extraction.id}
-          onNavigateDuels={onNavigateDuels}
-          onNavigateReferral={onNavigateReferral}
-        />
-      )}
 
       {includeVoice && show('voice') && (
         <VoiceRecallCard

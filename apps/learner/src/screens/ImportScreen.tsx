@@ -2,7 +2,7 @@ import React, { useState, useReducer, useMemo, useEffect } from 'react';
 import { Text, View, Platform, Pressable } from 'react-native';
 import * as Picker from 'expo-document-picker';
 import { parsePageSelection, selectedPages, mergeIntervals, type PageSelection, type Course, type UtenteVista } from '@formazione/contracts';
-import { apiUrl, uploadDocument, extractDocument, deleteDocument, type DocumentChapter } from '../api/documents';
+import { uploadDocument, extractDocument, deleteDocument, type DocumentChapter } from '../api/documents';
 import { FORMATI_AMMESSI, tipiSelettore } from '../api/formats';
 import { usePalette, useTheme } from '@formazione/civis-ui/src/ThemeProvider';
 import { Button, Card, Notice, colors, useUiStyles } from '../components/ui';
@@ -19,6 +19,7 @@ import { FotoPicker, type PickedAsset } from '../components/FotoPicker';
 import { AudioPicker } from '../components/AudioPicker';
 import { CourseLimitBanner } from '../components/account';
 import { getMe } from '../api/account';
+import { useScrollPannello } from '../components/Guscio';
 import { localStyles } from './ImportScreenStyles';
 import type { Draft } from '../api/generation';
 
@@ -32,22 +33,22 @@ export function ImportScreen({
 }) {
   const C = usePalette(), { dark } = useTheme(), s = useUiStyles();
   const [state, dispatch] = useReducer(importReducer, initialImport);
-  const { document, range, from, to, engine, result, step } = state;
-  const { includeMap, includeCourse, includeGamify, includeVoice } = state;
+  const { document, range, from, to, engine, result, step, includeMap, includeCourse, includeGamify, includeVoice, passingScoreCheck, passingScoreGate } = state;
   const [utente, setUtente] = useState<UtenteVista | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const [showPreview, setShowPreview] = useState(false);
-  const [activePageIndex, setActivePageIndex] = useState(0);
-  const [lastValidPages, setLastValidPages] = useState<number[]>([]);
-  const [excludedPages, setExcludedPages] = useState<number[]>([]);
-  const [rangeHighlighted, setRangeHighlighted] = useState(false);
-
+  const [busy, setBusy] = useState(false), [error, setError] = useState(''), [showPreview, setShowPreview] = useState(false);
+  const [activePageIndex, setActivePageIndex] = useState(0), [lastValidPages, setLastValidPages] = useState<number[]>([]);
+  const [excludedPages, setExcludedPages] = useState<number[]>([]), [rangeHighlighted, setRangeHighlighted] = useState(false);
   const [selectedIntervals, setSelectedIntervals] = useState<{ fromPage: number; toPage: number }[]>([]);
+
+  const scrollContext = useScrollPannello();
 
   useEffect(() => {
     getMe().then(setUtente).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    scrollContext?.scrollToTop?.(false);
+  }, [step]);
 
   const setRange = (v: boolean) => { setRangeHighlighted(false); dispatch({ type: 'range', value: v }); };
   const setFrom = (v: string) => { setSelectedIntervals([]); setRangeHighlighted(false); dispatch({ type: 'from', value: v }); };
@@ -57,8 +58,7 @@ export function ImportScreen({
     dispatch({ type: 'range', value: true });
     dispatch({ type: 'from', value: String(ch.fromPage) });
     dispatch({ type: 'to', value: String(ch.toPage) });
-    setSelectedIntervals([{ fromPage: ch.fromPage, toPage: ch.toPage }]);
-    setRangeHighlighted(true);
+    setSelectedIntervals([{ fromPage: ch.fromPage, toPage: ch.toPage }]); setRangeHighlighted(true);
   }
 
   function togglePageExclusion(page: number) {
@@ -161,8 +161,7 @@ export function ImportScreen({
   function togglePreview() {
     if (showPreview) { setShowPreview(false); return; }
     if (selectionInfo.valid || previewPages.length > 0) {
-      setShowPreview(true);
-      setError('');
+      setShowPreview(true); setError('');
     } else {
       setError(selectionInfo.error || 'Controlla l’intervallo: servono numeri interi tra 1 e il totale.');
     }
@@ -175,9 +174,7 @@ export function ImportScreen({
       dispatch({ type: 'resetDocument' });
       setShowPreview(false);
       setActivePageIndex(0);
-      setLastValidPages([]);
-      setExcludedPages([]);
-      setRangeHighlighted(false);
+      setLastValidPages([]); setExcludedPages([]); setRangeHighlighted(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Eliminazione non riuscita.');
     }
@@ -207,10 +204,13 @@ export function ImportScreen({
         <StudyConfigCard
           includeMap={includeMap} includeCourse={includeCourse}
           includeGamify={includeGamify} includeVoice={includeVoice}
+          passingScoreCheck={passingScoreCheck} passingScoreGate={passingScoreGate}
           onToggleMap={() => dispatch({ type: 'toggleMap' })}
           onToggleCourse={() => dispatch({ type: 'toggleCourse' })}
           onToggleGamify={() => dispatch({ type: 'toggleGamify' })}
           onToggleVoice={() => dispatch({ type: 'toggleVoice' })}
+          onChangePassingScoreCheck={(v) => dispatch({ type: 'passingScoreCheck', value: v })}
+          onChangePassingScoreGate={(v) => dispatch({ type: 'passingScoreGate', value: v })}
           onNext={() => dispatch({ type: 'step', value: result ? 'study' : 'material' })}
           defaultExpanded={false}
         />
@@ -384,17 +384,14 @@ export function ImportScreen({
           extraction={result} documentName={document?.name}
           includeMap={includeMap} includeCourse={includeCourse}
           includeGamify={includeGamify} includeVoice={includeVoice}
+          passingScoreCheck={passingScoreCheck} passingScoreGate={passingScoreGate}
           excludedPages={excludedPages} onTogglePage={togglePageExclusion}
-          onExcludedPagesChange={setExcludedPages} onDraft={onDraft}
-          onStartPractice={onStartPractice}
+          onExcludedPagesChange={setExcludedPages} onDraft={onDraft} onStartPractice={onStartPractice}
           onBackToMaterial={() => dispatch({ type: 'step', value: 'material' })}
           onBackToConfig={() => dispatch({ type: 'step', value: 'config' })}
-          onNavigateDuels={onNavigateDuels}
-          onNavigateReferral={onNavigateReferral}
+          onNavigateDuels={onNavigateDuels} onNavigateReferral={onNavigateReferral}
         />
       )}
-
-      <Text style={s.muted}>API di sviluppo locale · {apiUrl}</Text>
     </View>
   );
 }

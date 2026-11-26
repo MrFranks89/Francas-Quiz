@@ -45,3 +45,7 @@ it('Profilo & Rete supporta deep-link a sotto-schede e conserva la bozza', () =>
   expect(profile.profileTab).toBe('referral');
   expect(profile.draft).toBe(draft);
 });
+it('Giochi è una schermata dedicata accessibile dalla navigazione', () => {
+  const giochi = navigate(initialNavigation, { type: 'screen', screen: 'giochi' });
+  expect(giochi.screen).toBe('giochi');
+});

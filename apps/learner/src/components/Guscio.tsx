@@ -79,6 +79,8 @@ export interface ScrollPannelloContesto {
   getScrollY: () => number;
   scrollaDi: (delta: number, animated?: boolean) => void;
   scrollToEnd: (animated?: boolean) => void;
+  scrollTo: (y: number, animated?: boolean) => void;
+  scrollToTop: (animated?: boolean) => void;
 }
 
 export const ScrollContext = createContext<ScrollPannelloContesto | null>(null);
@@ -134,6 +136,26 @@ export function Pannello({
       },
       scrollToEnd: (animated = true) => {
         scrollRef.current?.scrollToEnd({ animated });
+      },
+      scrollTo: (y: number, animated = true) => {
+        if (Platform.OS === 'web') {
+          const node = scrollRef.current?.getScrollableNode?.() || scrollRef.current;
+          if (node && typeof node.scrollTo === 'function') {
+            node.scrollTo({ top: y, behavior: animated ? 'smooth' : 'auto' });
+            return;
+          }
+        }
+        scrollRef.current?.scrollTo({ y, animated });
+      },
+      scrollToTop: (animated = false) => {
+        if (Platform.OS === 'web') {
+          const node = scrollRef.current?.getScrollableNode?.() || scrollRef.current;
+          if (node && typeof node.scrollTo === 'function') {
+            node.scrollTo({ top: 0, behavior: animated ? 'smooth' : 'auto' });
+            return;
+          }
+        }
+        scrollRef.current?.scrollTo({ y: 0, animated });
       },
     }),
     [],

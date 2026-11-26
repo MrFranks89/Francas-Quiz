@@ -197,7 +197,7 @@ describe('ImportScreen flusso config-materiale-studio e scheda nodo', () => {
     const texts = readText(renderer);
     expect(texts).not.toContain("Genera Mappa Concettuale con l'AI");
     expect(texts).not.toContain('Simulatore di Esposizione Orale');
-    expect(texts).toContain('Livello Padronanza:');
-    expect(texts).toContain('Crea una bozza didattica');
+    expect(texts).not.toContain('Livello Padronanza:');
+    expect(texts).toContain('Genera il corso');
   });
 });

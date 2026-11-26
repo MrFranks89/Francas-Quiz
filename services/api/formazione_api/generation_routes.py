@@ -3,6 +3,7 @@ import uuid
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt
 
+from .account.corsi import consuma_rigenerazione, puo_rigenerare, salva_corso_utente
 from .account.spesa_scope import scope_spesa
 from .esclusione_pagine import EsclusioneNonValida, applica_esclusione, non_lette_rimaste, registra_esclusione
 
@@ -35,6 +36,12 @@ class GenerationRequest(BaseModel):
     # Ricominciare da capo scartando i blocchi salvati da una generazione interrotta
     # (ripresa_generazione.py); predefinito: si riprende dal primo blocco mancante.
     restart: StrictBool = False
+    # Numero di domande per ogni verifica di controllo del modulo (1..3, default 2)
+    questionsPerCheck: int = Field(default=2, ge=1, le=3)
+    # Risposte corrette richieste nel test di controllo (opzionale)
+    passingScoreCheck: int | None = Field(default=None, ge=1, le=10)
+    # Risposte corrette richieste nell'esame di sbarramento (None = non impostato)
+    passingScoreGate: int | None = Field(default=None, ge=1, le=20)
 
 
 class ConceptTreeRequest(BaseModel):
@@ -105,7 +112,17 @@ def generate_course(identifier: str, body: GenerationRequest, request: Request):
     if pagine := non_lette_rimaste(extraction, body.excludePages):
         raise HTTPException(422, {'code': 'unread_pages', 'message': messaggio_blocco(pagine), 'pages': pagine})
     draft_id = store.new_id()
-    scope = scope_spesa(getattr(request.state, 'utente', None))
+    utente_obj = getattr(request.state, 'utente', None)
+    scope = scope_spesa(utente_obj)
+    base_dir = getattr(store, 'base_root', None)
+    user_id = getattr(utente_obj, 'user_id', None) or 'local'
+    if body.restart:
+        ammesso, usate, max_rig = puo_rigenerare(base_dir, user_id, identifier)
+        if not ammesso:
+            raise HTTPException(403, {
+                'code': 'regeneration_limit_reached',
+                'message': f'Hai esaurito le {max_rig} rigenerazioni disponibili per questo corso.'
+            })
     try:
         # Preventivo, limiti del server e registro prima di qualunque chiamata (spesa_generazione.py).
         # Blocchi salvati da una generazione interrotta: riusati se l'impronta coincide (stesse pagine
@@ -113,7 +130,10 @@ def generate_course(identifier: str, body: GenerationRequest, request: Request):
         result = genera_con_tetto(da_generare, getattr(request.app.state, 'generation_provider', None), store, draft_id,
                                   escluse=body.excludePages, ricomincia=body.restart,
                                   scope=scope,
-                                  title=body.title.strip(), acknowledge_warnings=body.acknowledgeWarnings)
+                                  title=body.title.strip(), acknowledge_warnings=body.acknowledgeWarnings,
+                                  questions_per_check=body.questionsPerCheck,
+                                  passing_score_check=body.passingScoreCheck,
+                                  passing_score_gate=body.passingScoreGate)
     except SpesaRifiuto as rifiuto:
         detail = {'code': rifiuto.code, 'message': str(rifiuto)}
         if getattr(rifiuto, 'scope', None):
@@ -123,6 +143,17 @@ def generate_course(identifier: str, body: GenerationRequest, request: Request):
         raise _generation_http_error(error) from error
     result = {'id': draft_id, 'revision': 1, **registra_esclusione(result, body.excludePages)}
     store.save(draft_id, 'draft.json', result)
+    if 'course' in result:
+        snapshot = {**result, 'id': draft_id, 'status': 'published', 'revision': 1, 'course': result['course']}
+        store.save(draft_id, 'course.json', snapshot)
+    try:
+        if body.restart:
+            consuma_rigenerazione(base_dir, user_id, identifier)
+        piano = getattr(utente_obj, 'piano', None)
+        salva_corso_utente(base_dir, user_id, draft_id, piano)
+        salva_corso_utente(base_dir, user_id, identifier, piano)
+    except Exception:
+        pass
     # Solo a bozza salvata: se il salvataggio fallisse, i blocchi resterebbero riusabili.
     cancella_ripresa(store.root, identifier)
     return result

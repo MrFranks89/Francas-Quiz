@@ -113,7 +113,7 @@ export function CourseScreen({
         : kind === 'published'
           ? 'Corso pubblicato sul server locale · contenuto revisionato.'
           : kind === 'draft'
-            ? 'Bozza AI da revisionare · non pubblicata. Verifica testi, risposte e riferimenti alle fonti.'
+            ? 'Corso in preparazione. Verifica testi, risposte e riferimenti alle fonti.'
             : 'Corso importato da JSON · contenuto fornito dall’utente, non generato durante questa sessione.';
   return (
     <View style={{ gap: 18, width: '100%', maxWidth: 760, alignSelf: 'center' }}>

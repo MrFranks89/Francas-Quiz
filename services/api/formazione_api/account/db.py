@@ -96,8 +96,21 @@ CREATE TABLE IF NOT EXISTS duelli_giocate (
 );
 """
 
+MIGRAZIONE_002 = """
+CREATE TABLE IF NOT EXISTS rigenerazioni_corsi (
+    extraction_id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    rigenerazioni_usate INTEGER NOT NULL DEFAULT 0,
+    max_rigenerazioni INTEGER NOT NULL DEFAULT 3,
+    creato_il TEXT NOT NULL,
+    aggiornato_il TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_rigenerazioni_corsi_user ON rigenerazioni_corsi(user_id);
+"""
+
 MIGRAZIONI: list[tuple[int, str, str]] = [
     (1, "001_iniziale_tabelle_account_referral_duelli", MIGRAZIONE_001),
+    (2, "002_rigenerazioni_corsi", MIGRAZIONE_002),
 ]
 
 

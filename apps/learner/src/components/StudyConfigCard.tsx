@@ -15,10 +15,14 @@ export interface StudyConfigCardProps {
   includeCourse: boolean;
   includeGamify: boolean;
   includeVoice: boolean;
+  passingScoreCheck?: number;
+  passingScoreGate?: number | null;
   onToggleMap: () => void;
   onToggleCourse: () => void;
   onToggleGamify: () => void;
   onToggleVoice: () => void;
+  onChangePassingScoreCheck?: (val: number) => void;
+  onChangePassingScoreGate?: (val: number | null) => void;
   onNext: () => void;
   defaultExpanded?: boolean;
 }
@@ -112,10 +116,14 @@ export function StudyConfigCard({
   includeCourse,
   includeGamify,
   includeVoice,
+  passingScoreCheck = 2,
+  passingScoreGate = null,
   onToggleMap,
   onToggleCourse,
   onToggleGamify,
   onToggleVoice,
+  onChangePassingScoreCheck,
+  onChangePassingScoreGate,
   onNext,
   defaultExpanded = true,
 }: StudyConfigCardProps) {
@@ -245,6 +253,71 @@ export function StudyConfigCard({
                   <Text style={[localStyles.optionDesc, dark && { color: C.textMuted }]}>
                     Domande a risposta multipla, vero/falso e associazioni con soglia di idoneità.
                   </Text>
+                  <View style={[localStyles.examRulesBox, dark && { borderTopColor: C.border }]}>
+                    <Text style={[localStyles.examRulesTitle, dark && { color: C.text }]}>Regole del test e dell'esame</Text>
+                    <View style={localStyles.examRuleRow}>
+                      <Text style={[localStyles.examRuleLabel, dark && { color: C.textMuted }]}>
+                        Risposte corrette richieste nel test di controllo
+                      </Text>
+                      <View style={localStyles.examButtonGroup}>
+                        {[1, 2, 3].map((val) => {
+                          const active = passingScoreCheck === val;
+                          return (
+                            <Pressable
+                              key={val}
+                              accessibilityRole="button"
+                              accessibilityLabel={`Controllo: ${val} corrette`}
+                              onPress={() => onChangePassingScoreCheck?.(val)}
+                              style={[
+                                localStyles.examBtn,
+                                dark && { backgroundColor: C.surface, borderColor: C.border },
+                                active && localStyles.examBtnActive,
+                              ]}
+                            >
+                              <Text style={[localStyles.examBtnText, dark && { color: C.text }, active && localStyles.examBtnTextActive]}>
+                                {val} {val === 2 ? '(consigliato)' : ''}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    </View>
+                    <View style={localStyles.examRuleRow}>
+                      <Text style={[localStyles.examRuleLabel, dark && { color: C.textMuted }]}>
+                        Risposte corrette richieste nell'esame di sbarramento
+                      </Text>
+                      <View style={localStyles.examButtonGroup}>
+                        {[
+                          { label: 'Non impostato', val: null },
+                          { label: '3', val: 3 },
+                          { label: '4', val: 4 },
+                          { label: '5', val: 5 },
+                        ].map((opt) => {
+                          const active = passingScoreGate === opt.val;
+                          return (
+                            <Pressable
+                              key={opt.label}
+                              accessibilityRole="button"
+                              accessibilityLabel={`Sbarramento: ${opt.label}`}
+                              onPress={() => onChangePassingScoreGate?.(opt.val)}
+                              style={[
+                                localStyles.examBtn,
+                                dark && { backgroundColor: C.surface, borderColor: C.border },
+                                active && localStyles.examBtnActive,
+                              ]}
+                            >
+                              <Text style={[localStyles.examBtnText, dark && { color: C.text }, active && localStyles.examBtnTextActive]}>
+                                {opt.label}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                      <Text style={[localStyles.examHint, dark && { color: C.textMuted }]}>
+                        Se lo sbarramento non è selezionato, dopo due sezioni le verifiche diventano automaticamente esami di sbarramento.
+                      </Text>
+                    </View>
+                  </View>
                 </View>
                 <View style={[localStyles.optionFooter, dark && { backgroundColor: C.surfaceDark, borderColor: C.border }]}>
                   <Text style={[localStyles.optionFooterText, { color: dark ? '#34d399' : '#047857' }]}>

@@ -62,11 +62,14 @@ export async function generateDraft(
   acknowledgeWarnings: boolean,
   escluse: number[] = [],
   ricomincia = false,
+  questionsPerCheck = 2,
+  passingScoreCheck?: number,
+  passingScoreGate?: number | null,
 ): Promise<Draft> {
   const response = await fetch(`${apiUrl}/extractions/${id}/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(corpoGenerazione(title, acknowledgeWarnings, escluse, ricomincia)),
+    body: JSON.stringify(corpoGenerazione(title, acknowledgeWarnings, escluse, ricomincia, questionsPerCheck, passingScoreCheck, passingScoreGate)),
   });
   const result = await response.json();
   // Blocco fallito: il server dice quanti blocchi ha salvato per la ripresa (savedChunks, totalChunks).

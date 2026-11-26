@@ -13,6 +13,8 @@ export type ImportState = {
   includeCourse: boolean;
   includeGamify: boolean;
   includeVoice: boolean;
+  passingScoreCheck: number;
+  passingScoreGate: number | null;
   step: ImportStep;
 };
 
@@ -27,6 +29,8 @@ export const initialImport: ImportState = {
   includeCourse: true,
   includeGamify: true,
   includeVoice: true,
+  passingScoreCheck: 2,
+  passingScoreGate: null,
   step: 'config',
 };
 
@@ -39,10 +43,9 @@ export type ImportAction =
   | { type: 'result'; value: Extraction }
   | { type: 'step'; value: ImportStep }
   | { type: 'toggleMap' | 'toggleCourse' | 'toggleGamify' | 'toggleVoice' }
-  | {
-      type: 'includeMap' | 'includeCourse' | 'includeGamify' | 'includeVoice';
-      value: boolean;
-    };
+  | { type: 'includeMap' | 'includeCourse' | 'includeGamify' | 'includeVoice'; value: boolean }
+  | { type: 'passingScoreCheck'; value: number }
+  | { type: 'passingScoreGate'; value: number | null };
 
 export function importReducer(state: ImportState, action: ImportAction): ImportState {
   switch (action.type) {

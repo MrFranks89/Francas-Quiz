@@ -11,6 +11,7 @@ from .account.config import (
     get_supabase_url,
     is_auth_required,
 )
+from .account.corsi import elenco_corsi_utente
 from .account.db import resolve_db_path
 from .account.modelli import PatchMeRichiesta, Utente, UtenteVista
 from .account.repo_utenti import aggiorna_nome_visualizzato, conta_corsi_utente
@@ -109,3 +110,16 @@ def patch_me(
         nome=richiesta.nome_visualizzato,
     )
     return {"nome_visualizzato": utente_aggiornato.nome_visualizzato}
+
+
+@router.get("/account/courses")
+def get_account_courses(
+    request: Request,
+    utente: Utente = Depends(utente_corrente),
+) -> dict[str, list[dict]]:
+    """Restituisce l'elenco dei corsi salvati per l'account con lo stato e le rigenerazioni."""
+    store = getattr(request.app.state, "store", None)
+    base_dir = store.base_root if store else None
+    db_path = resolve_db_path(base_dir)
+    user_id = utente.user_id if is_auth_required() else "local"
+    return {"courses": elenco_corsi_utente(db_path, user_id, store=store)}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { usePalette, useTheme } from '@formazione/civis-ui/src/ThemeProvider';
 import { colors } from './ui';
 
@@ -72,7 +72,12 @@ export function ReadingMethodSelector({
               accessibilityLabel={opt.title}
               accessibilityState={{ selected, disabled }}
               disabled={disabled}
-              onPress={() => onChange(opt.id)}
+              onPress={(e: any) => {
+                if (Platform.OS === 'web' && e?.preventDefault) {
+                  e.preventDefault();
+                }
+                onChange(opt.id);
+              }}
               style={({ pressed }) => [
                 selectorStyles.card,
                 selected

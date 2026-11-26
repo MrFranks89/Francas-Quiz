@@ -4,7 +4,7 @@ import type { Draft } from '../api/generation';
 export type ProfileTab = 'profile' | 'referral' | 'duels';
 
 export type Navigation = {
-  screen: 'import' | 'course' | 'editor' | 'settings' | 'profile';
+  screen: 'import' | 'course' | 'editor' | 'settings' | 'profile' | 'giochi';
   selected: { course: Course; kind: 'draft' | 'published' | 'imported' | 'practice' } | null;
   draft: Draft | null;
   profileTab?: ProfileTab;

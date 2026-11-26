@@ -92,27 +92,30 @@ describe('GenerationPanel, ripresa dopo un errore', () => {
     await attendi();
     expect(pulsante(albero, 'Riprendi la generazione')).toHaveLength(0);
     expect(pulsante(albero, 'Ricomincia da capo')).toHaveLength(0);
-    await act(async () => pulsante(albero, 'Crea bozza AI')[0].props.onPress());
+    await act(async () => pulsante(albero, 'Genera il corso')[0].props.onPress());
     await attendi();
 
     const visibili = testi(albero);
     expect(visibili).toContain('Errore AI controllato');
     expect(visibili).toContain(
-      '2 di 4 blocchi salvati: riprovando si riparte dal blocco 3 e si pagano solo i blocchi mancanti.',
+      '2 di 4 blocchi salvati: riprovando si riparte dal blocco 3 per completare il corso.',
     );
-    // Preventivo riletto dopo l'errore: solo i blocchi mancanti.
-    expect(visibili).toContain('0,05 USD');
     expect(visibili).toContain('Fino a 2 blocchi da generare su 4: 2 già salvati');
     expect(pulsante(albero, 'Riprendi la generazione')).not.toHaveLength(0);
-    expect(pulsante(albero, 'Crea bozza AI')).toHaveLength(0);
+    expect(pulsante(albero, 'Genera il corso')).toHaveLength(0);
     expect(visibili).toContain('Riprendi la generazione');
-    expect(visibili).not.toContain('Crea bozza AI');
+    expect(visibili).not.toContain('Genera il corso');
 
     // Riprendi: stesso corpo della prima richiesta (stessa impronta sul server).
     await act(async () => pulsante(albero, 'Riprendi la generazione')[0].props.onPress());
     await attendi();
     expect(generazioni[1]).toEqual(generazioni[0]);
-    expect(generazioni[0]).toEqual({ title: 'Il mio corso', acknowledgeWarnings: false, excludePages: [] });
+    expect(generazioni[0]).toEqual({
+      title: 'Il mio corso',
+      acknowledgeWarnings: false,
+      excludePages: [],
+      questionsPerCheck: 2,
+    });
 
     await act(async () => pulsante(albero, 'Ricomincia da capo')[0].props.onPress());
     await attendi();

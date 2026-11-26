@@ -2,12 +2,13 @@ import logging
 from uuid import uuid4
 from time import perf_counter
 from pydantic import ValidationError
-from .chunks import plan_chunks
+from .chunks import Chunk, SourcePiece, dimezza_chunk, plan_chunks
 from .bozze import errore_forma
 from .errors import GenerationError
 from .models import OPZIONI_VERO_FALSO, Course, ModuleDraft, Source, violazioni_domanda
 from .selection import create_provider
-from .soglia import SOGLIA_SUPERAMENTO_PERCENTO, soglia_predefinita  # noqa: F401 (letti anche come pipeline.*)
+from .soglia import SOGLIA_SUPERAMENTO_PERCENTO, soglia_minima, soglia_predefinita  # noqa: F401 (letti anche come pipeline.*)
+from .source_refs import ripara_lista_refs
 from .telemetry import aggregate_usage, call_usage
 
 logger = logging.getLogger(__name__)
@@ -53,16 +54,53 @@ def domanda_del_contratto(question, qid: str, module_id: str, lesson_id: str) ->
                 explanation=question.explanation, sourceRefs=question.sourceRefs)
 
 
-def _genera_blocco(i: int, chunk, provider, validator) -> dict:
+def _e_errore_tpm_o_413(error: BaseException) -> bool:
+    """Verifica se l'errore è un 413 Payload Too Large o rate limit TPM (dimensione richiesta)."""
+    raw_causa = getattr(error, 'causa', None) if isinstance(error, GenerationError) else None
+    causa = raw_causa if isinstance(raw_causa, dict) else {}
+    stato = causa.get('statoHttp') if causa else getattr(error, 'status_code', None)
+    msg = causa.get('messaggio') or ''
+    testo = f"{msg} {error}".lower()
+    if stato == 413 or '413' in testo or 'too large' in testo:
+        return True
+    if 'tpm' in testo or 'tokens per minute' in testo:
+        return True
+    return False
+
+
+def _chiama_provider_con_dimezzamento(chunk, provider, dimezzamenti: int = 0) -> tuple[ModuleDraft, list[dict]]:
+    """Chiamata al provider con retry adattivo a dimezzamento su errore 413/TPM (max 2 dimezzamenti)."""
+    try:
+        started = perf_counter()
+        draft = ModuleDraft.model_validate(provider.module(chunk))
+        return draft, [call_usage(provider, chunk.id, round((perf_counter() - started) * 1000, 3))]
+    except BaseException as error:
+        if _e_errore_tpm_o_413(error):
+            if dimezzamenti < 2:
+                logger.info('Errore 413/TPM nel blocco %s: dimezzamento adattivo (livello %d)', chunk.id, dimezzamenti + 1)
+                chunk_a, chunk_b = dimezza_chunk(chunk)
+                draft_a, usage_a = _chiama_provider_con_dimezzamento(chunk_a, provider, dimezzamenti + 1)
+                draft_b, usage_b = _chiama_provider_con_dimezzamento(chunk_b, provider, dimezzamenti + 1)
+                unito = ModuleDraft(
+                    title=draft_a.title,
+                    objectives=list(dict.fromkeys(list(draft_a.objectives) + list(draft_b.objectives))),
+                    slides=list(draft_a.slides) + list(draft_b.slides),
+                    questions=list(draft_a.questions) + list(draft_b.questions)
+                )
+                return unito, usage_a + usage_b
+        raise
+
+
+def _genera_blocco(i: int, chunk, provider, validator, questions_per_check: int | None = None,
+                   passing_score_check: int | None = None, passing_score_gate: int | None = None) -> dict:
     """Il blocco in posizione i: chiamata al fornitore (con un secondo tentativo per una bozza non
     valida), regole di qualità, validatore incrociato. Restituisce la voce del blocco, la stessa
     conservata per la ripresa: modulo, domande con i loro id, obiettivi, copertura, scarti, usage."""
     draft, usage, domande = None, [], []
     for attempt in range(2):
         try:
-            started = perf_counter()
-            draft = ModuleDraft.model_validate(provider.module(chunk))
-            usage.append(call_usage(provider, chunk.id, round((perf_counter() - started) * 1000, 3)))
+            draft, uso = _chiama_provider_con_dimezzamento(chunk, provider)
+            usage.extend(uso)
             break
         except GenerationError:
             raise
@@ -70,12 +108,32 @@ def _genera_blocco(i: int, chunk, provider, validator) -> dict:
             logger.warning('Validazione bozza fallita nel blocco %s (tentativo %d/2): %s', chunk.id, attempt + 1, error)
             if attempt == 1:
                 raise GenerationError('invalid_generated_content', f'Contenuto AI non valido nel blocco {chunk.id}: {error}') from error
+
     allowed = {p.source_id for p in chunk.pieces}
-    # Prima delle regole di qualità e su tutte le domande, anche quelle che verranno scartate:
-    # una fonte inventata resta fatale.
-    for item in [*draft.slides, *draft.questions]:
-        if len(set(item.sourceRefs)) != len(item.sourceRefs) or not set(item.sourceRefs) <= allowed:
+
+    def _valida_e_ripara(d) -> bool:
+        for item in [*d.slides, *d.questions]:
+            item.sourceRefs = ripara_lista_refs(item.sourceRefs, allowed, logger=logger)
+            if not item.sourceRefs or not set(item.sourceRefs) <= allowed:
+                return False
+        return True
+
+    if not _valida_e_ripara(draft):
+        logger.info('sourceRefs non concordi nel blocco %s: avvio retry riparatore con istruzioni esplicite', chunk.id)
+        pezzo_guida = SourcePiece(list(allowed)[0], 0, 0,
+                                  f"\n\n[ID FONTI VALIDI PER QUESTO BLOCCO: {', '.join(sorted(allowed))}. USA ESCLUSIVAMENTE QUESTI ID IN sourceRefs]\n")
+        chunk_guida = Chunk(chunk.id, chunk.pieces + (pezzo_guida,))
+        try:
+            started = perf_counter()
+            draft_rip = ModuleDraft.model_validate(provider.module(chunk_guida))
+            usage.append(call_usage(provider, chunk.id, round((perf_counter() - started) * 1000, 3)))
+            if _valida_e_ripara(draft_rip):
+                draft = draft_rip
+            else:
+                raise GenerationError('invented_source', 'La risposta AI cita una fonte assente dal blocco')
+        except Exception:
             raise GenerationError('invented_source', 'La risposta AI cita una fonte assente dal blocco')
+
     module_id, lesson_id = f'module-{i}', f'lesson-{i}'
     ids, scarti_blocco, accettate = [], [], []
     for position, question in enumerate(draft.questions, 1):
@@ -116,15 +174,29 @@ def _genera_blocco(i: int, chunk, provider, validator) -> dict:
         # Un modulo senza domande non è un modulo valido: il blocco fallisce come prima dello scarto.
         raise GenerationError('invalid_generated_content', f'Contenuto AI non valido: {avviso_scarti(len(scarti_blocco))} '
                               f'nel blocco {chunk.id} ({", ".join(s["rule"] for s in scarti_blocco)}), nessuna rimasta')
+    if questions_per_check is not None and questions_per_check > 0:
+        ids = ids[:questions_per_check]
+        domande = [d for d in domande if d['id'] in set(ids)]
     slides = [dict(id=f'slide-{i}-{j}', **slide.model_dump()) for j, slide in enumerate(draft.slides, 1)]
+    if passing_score_gate is not None:
+        exam_mode = 'gate'
+        p_score = min(len(ids), max(soglia_minima(len(ids)), passing_score_gate))
+    else:
+        # Regola automatica: se lo sbarramento non è selezionato, dopo due sezioni le domande diventano automaticamente di sbarramento
+        if i > 2:
+            exam_mode = 'gate'
+            p_score = soglia_predefinita(len(ids))
+        else:
+            exam_mode = 'practice'
+            p_score = min(len(ids), passing_score_check) if passing_score_check is not None else soglia_predefinita(len(ids))
     modulo = dict(id=module_id, title=draft.title, lessons=[dict(id=lesson_id, title=draft.title, slides=slides, questionIds=ids)],
-                  exam=dict(id=f'exam-{i}', questionIds=ids, mode='practice', passingScore=soglia_predefinita(len(ids)), maxAttempts=None))
+                  exam=dict(id=f'exam-{i}', questionIds=ids, mode=exam_mode, passingScore=p_score, maxAttempts=None))
     copertura = dict(chunkId=chunk.id, moduleId=module_id, pieces=[dict(sourceId=p.source_id, start=p.start, end=p.end) for p in chunk.pieces])
     return dict(chunkId=chunk.id, modulo=modulo, domande=domande, obiettivi=list(draft.objectives), copertura=copertura,
                 scarti=scarti_blocco, usage=usage)
 
 
-def generate(extraction: dict, provider=None, *, title='Corso dal documento', max_chars=8000, max_chunks=40, acknowledge_warnings: bool = False, validator=None, ripresa=None):
+def generate(extraction: dict, provider=None, *, title='Corso dal documento', max_chars=8000, max_chunks=40, acknowledge_warnings: bool = False, validator=None, ripresa=None, questions_per_check: int | None = None, passing_score_check: int | None = None, passing_score_gate: int | None = None):
     """Draft generation. No partial course returned on any failed chunk.
 
     `validator`: validatore AI incrociato facoltativo (generation/validazione.py). Se presente,
@@ -155,7 +227,8 @@ def generate(extraction: dict, provider=None, *, title='Corso dal documento', ma
         for i, chunk in enumerate(chunks, 1):
             voce = ripresa.riprendi(i, chunk) if ripresa is not None else None
             if voce is None:
-                voce = _genera_blocco(i, chunk, provider, validator)
+                voce = _genera_blocco(i, chunk, provider, validator, questions_per_check=questions_per_check,
+                                      passing_score_check=passing_score_check, passing_score_gate=passing_score_gate)
                 # Subito, prima del blocco successivo: il blocco pagato sopravvive anche a un processo morto.
                 if ripresa is not None:
                     ripresa.conserva(i, chunk, voce)

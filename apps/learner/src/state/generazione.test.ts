@@ -6,60 +6,52 @@ import {
   statoRipresa,
   testoRipresa,
   percorsoPreventivo,
-  importoUsd,
   messaggioConfigurazione,
   testoEsclusione,
   testoPagineNonLette,
   testoPreventivo,
 } from './generazione';
-it('names the variables of the selected provider, not always OpenAI', () => {
-  const testo = messaggioConfigurazione({
-    configured: false,
+
+it('messaggioConfigurazione does not mention API providers or keys', () => {
+  const attivo = messaggioConfigurazione({
+    configured: true,
     provider: 'anthropic',
-    missing: ['ANTHROPIC_API_KEY', 'ANTHROPIC_MODEL'],
-  });
-  expect(testo).toContain('ANTHROPIC_API_KEY e ANTHROPIC_MODEL');
-  expect(testo).toContain('anthropic');
-  expect(testo).not.toContain('OPENAI');
-  expect(
-    messaggioConfigurazione({ configured: false, provider: 'openai', missing: ['OPENAI_MODEL'] }),
-  ).toContain('OPENAI_MODEL');
-});
-it('reports an invalid provider variable', () => {
-  const testo = messaggioConfigurazione({
-    configured: false,
-    provider: 'non_valido',
     missing: [],
-    invalid: ['GENERATION_PROVIDER'],
   });
-  expect(testo).toContain('GENERATION_PROVIDER non valido');
-  expect(testo).not.toContain('OPENAI');
+  expect(attivo).toBe('Il servizio di generazione è attivo.');
+  expect(attivo).not.toMatch(/anthropic|openai|api|token/i);
+
+  const nonConfigurato = messaggioConfigurazione({
+    configured: false,
+    provider: 'openai',
+    missing: ['OPENAI_API_KEY'],
+  });
+  expect(nonConfigurato).toBe('Il servizio di generazione non è attivo: contatta l’amministratore.');
+  expect(nonConfigurato).not.toMatch(/openai|key|token|impostazioni/i);
+
+  const nonLetto = messaggioConfigurazione(null);
+  expect(nonLetto).toBe('Il servizio di generazione non è ancora pronto: attendi qualche istante.');
 });
-it('configured provider and unread configuration', () => {
-  expect(
-    messaggioConfigurazione({ configured: true, provider: 'anthropic', missing: [] }),
-  ).toContain('Provider AI configurato');
-  expect(messaggioConfigurazione(null)).not.toContain('OPENAI');
+
+it('testoPreventivo shows status without USD amounts or models', () => {
+  const pronto = testoPreventivo({
+    available: true,
+    allowed: true,
+    provider: 'anthropic',
+    model: 'claude-haiku-5-5',
+    chunks: 9,
+    maxCostUsd: '0.12',
+  });
+  expect(pronto).toEqual({ testo: 'Elaborazione pronta (9 blocchi).', bloccante: false });
+  expect(pronto.testo).not.toMatch(/usd|claude|\$|costo/i);
+
+  const sing = testoPreventivo({ available: true, allowed: true, model: 'm', chunks: 1, maxCostUsd: '0.01' });
+  expect(sing.testo).toBe('Elaborazione pronta (1 blocco).');
 });
-it('shows the guaranteed maximum cost with model and chunks', () => {
-  expect(
-    testoPreventivo({
-      available: true,
-      allowed: true,
-      provider: 'anthropic',
-      model: 'claude-haiku-5-5',
-      chunks: 9,
-      maxCostUsd: '0.12',
-    }),
-  ).toEqual({ testo: 'Costo massimo: 0,12 USD (claude-haiku-5-5, 9 blocchi)', bloccante: false });
-  expect(
-    testoPreventivo({ available: true, allowed: true, model: 'm', chunks: 1, maxCostUsd: '0.01' })
-      .testo,
-  ).toContain('1 blocco)');
-  expect(importoUsd('12.50')).toBe('12,50 USD');
-});
-it('blocks when the estimate is unavailable, refused or not loaded', () => {
-  expect(testoPreventivo(null).bloccante).toBe(true);
+
+it('blocks when the estimate is unavailable, refused or not loaded without revealing technical error details', () => {
+  expect(testoPreventivo(null)).toEqual({ testo: 'Preparazione in corso…', bloccante: true });
+
   const assente = testoPreventivo({
     available: false,
     allowed: false,
@@ -68,9 +60,12 @@ it('blocks when the estimate is unavailable, refused or not loaded', () => {
       message: 'Preventivo non disponibile: Modello senza prezzo.',
     },
   });
-  expect(assente).toMatchObject({ bloccante: true });
-  expect(assente.testo).toContain('Modello senza prezzo');
-  const oltre = testoPreventivo({
+  expect(assente).toEqual({
+    testo: 'La generazione non è disponibile al momento: riprova più tardi.',
+    bloccante: true,
+  });
+
+  const rifiutata = testoPreventivo({
     available: true,
     allowed: false,
     model: 'm',
@@ -78,37 +73,24 @@ it('blocks when the estimate is unavailable, refused or not loaded', () => {
     maxCostUsd: '0.20',
     refusal: { code: 'over_course_limit', message: 'Oltre il limite per corso.' },
   });
-  expect(oltre).toEqual({
-    testo: 'Costo massimo: 0,20 USD (m, 2 blocchi). Oltre il limite per corso.',
+  expect(rifiutata).toEqual({
+    testo: 'La generazione non è disponibile al momento: riprova più tardi.',
     bloccante: true,
   });
 });
-it('points to the Settings screen when the provider is not configured', () => {
-  const testo = messaggioConfigurazione({
-    configured: false,
-    provider: 'openai',
-    missing: ['OPENAI_API_KEY', 'OPENAI_MODEL'],
-  });
-  expect(testo).toContain('Impostazioni');
-  expect(testo).not.toContain('Imposta OPENAI');
-  expect(
-    messaggioConfigurazione({
-      configured: false,
-      provider: 'non_valido',
-      missing: [],
-      invalid: ['GENERATION_PROVIDER'],
-    }),
-  ).toContain('Impostazioni');
-});
+
 it('lists unread and excluded pages', () => {
   expect(elencoPagine([3])).toBe('pagina 3');
   expect(elencoPagine([3, 1])).toBe('pagine 1 e 3');
   expect(elencoPagine([1, 3, 5])).toBe('pagine 1, 3 e 5');
   expect(testoPagineNonLette([1, 3])).toContain('Pagine non lette: pagine 1 e 3');
   expect(testoEsclusione([1, 3])).toBe(
-    'Escluse dal corso su richiesta: pagine 1 e 3. Non saranno inviate al fornitore e l’esclusione resterà scritta nella bozza.',
+    'Escluse dal corso su richiesta: pagine 1 e 3. Non saranno elaborate e l’esclusione resterà annotata nel corso.',
   );
+  expect(testoEsclusione([1, 3])).not.toContain('fornitore');
+  expect(testoEsclusione([1, 3])).not.toContain('bozza');
 });
+
 it('sends the excluded pages to the estimate and to the generation', () => {
   expect(percorsoPreventivo('e1', [])).toBe('/extractions/e1/generation-estimate');
   expect(percorsoPreventivo('e1', [1, 3])).toBe(
@@ -118,15 +100,16 @@ it('sends the excluded pages to the estimate and to the generation', () => {
     title: 'Corso',
     acknowledgeWarnings: true,
     excludePages: [1, 3],
+    questionsPerCheck: 2,
   });
-  expect(corpoGenerazione('Corso', false, [])).toEqual({
+  expect(corpoGenerazione('Corso', false, [], false, 3)).toEqual({
     title: 'Corso',
     acknowledgeWarnings: false,
     excludePages: [],
+    questionsPerCheck: 3,
   });
 });
 
-// Ripresa di una generazione interrotta (services/api/formazione_api/ripresa_generazione.py).
 const conSalvati = {
   available: true,
   allowed: true,
@@ -136,55 +119,58 @@ const conSalvati = {
   totalChunks: 10,
   maxCostUsd: '0.07',
 };
+
 it('the estimate counts only the chunks still to generate', () => {
   expect(testoPreventivo(conSalvati)).toEqual({
-    testo:
-      'Costo massimo: 0,07 USD (claude-haiku-5-5, 5 blocchi da generare su 10: 5 già salvati)',
+    testo: 'Elaborazione pronta (5 blocchi da generare su 10: 5 già salvati).',
     bloccante: false,
   });
   expect(blocchiStima(conSalvati)).toBe('5 blocchi da generare su 10: 5 già salvati');
   expect(blocchiStima({ ...conSalvati, chunks: 1, savedChunks: 9 })).toBe(
     '1 blocco da generare su 10: 9 già salvati',
   );
-  // Senza blocchi salvati il testo resta quello di sempre.
   expect(blocchiStima({ ...conSalvati, chunks: 10, savedChunks: 0 })).toBe('10 blocchi');
   expect(blocchiStima({ available: true, allowed: true, chunks: 1 })).toBe('1 blocco');
 });
-it('says how many chunks are saved and where the resume starts', () => {
+
+it('says how many chunks are saved and where the resume starts without mentioning payment or provider', () => {
   expect(testoRipresa({ salvati: 5, totali: 10 })).toBe(
-    '5 di 10 blocchi salvati: riprovando si riparte dal blocco 6 e si pagano solo i blocchi mancanti.',
+    '5 di 10 blocchi salvati: riprovando si riparte dal blocco 6 per completare il corso.',
   );
   expect(testoRipresa({ salvati: 1, totali: 4 })).toBe(
-    '1 di 4 blocchi salvati: riprovando si riparte dal blocco 2 e si pagano solo i blocchi mancanti.',
+    '1 di 4 blocchi salvati: riprovando si riparte dal blocco 2 per completare il corso.',
   );
   expect(testoRipresa({ salvati: 4, totali: 4 })).toBe(
-    'Tutti i 4 blocchi sono salvati: riprovando si ricompone il corso senza chiamare il fornitore.',
+    'Tutti i 4 blocchi sono salvati: riprovando si ricompone il corso.',
   );
+  expect(testoRipresa({ salvati: 1, totali: 4 })).not.toMatch(/pagano|fornitore/i);
 });
+
 it('resume state: the fresh estimate wins, the error detail covers the reload', () => {
   const dallErrore = { salvati: 2, totali: 4 };
   expect(statoRipresa(dallErrore, null)).toEqual(dallErrore);
   expect(statoRipresa(null, conSalvati)).toEqual({ salvati: 5, totali: 10 });
-  // Pagine escluse cambiate dopo l'errore: impronta diversa, niente da riprendere.
   expect(
     statoRipresa(dallErrore, { ...conSalvati, chunks: 10, savedChunks: 0, totalChunks: 10 }),
   ).toBeNull();
-  // Preventivo non disponibile: senza conteggio vale quello dell'errore.
   expect(statoRipresa(dallErrore, { available: false, allowed: false })).toEqual(dallErrore);
   expect(statoRipresa(null, null)).toBeNull();
   expect(statoRipresa({ salvati: 0, totali: 4 }, null)).toBeNull();
 });
+
 it('primary button: resume after a failure with saved chunks', () => {
-  expect(etichettaGenerazione(false, null)).toBe('Crea bozza AI');
+  expect(etichettaGenerazione(false, null)).toBe('Genera il corso');
   expect(etichettaGenerazione(false, { salvati: 5, totali: 10 })).toBe('Riprendi la generazione');
   expect(etichettaGenerazione(true, { salvati: 5, totali: 10 })).toBe('Generazione in corso…');
 });
+
 it('restart is sent only when asked, the resume body is the same as the first request', () => {
   expect(corpoGenerazione('Corso', false, [3], true)).toEqual({
     title: 'Corso',
     acknowledgeWarnings: false,
     excludePages: [3],
     restart: true,
+    questionsPerCheck: 2,
   });
   expect(corpoGenerazione('Corso', false, [3], false)).toEqual(corpoGenerazione('Corso', false, [3]));
 });

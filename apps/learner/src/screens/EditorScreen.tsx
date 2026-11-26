@@ -1,4 +1,4 @@
-import React, { useReducer, useState } from 'react';
+import React, { useEffect, useReducer, useRef, useState } from 'react';
 import { View, Text, TextInput, Switch } from 'react-native';
 import { draftRequest, type Draft } from '../api/generation';
 import {
@@ -84,22 +84,50 @@ export function EditorScreen({
     );
   }
 
+  const mountedRef = useRef(true);
+  const saveTimeoutRef = useRef<any>(null);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, []);
+
   async function save() {
+    if (!mountedRef.current) return;
     dispatch({ type: 'start' });
     try {
       const richiesta = richiestaSalvataggio(draft, validaBozza(course));
       const next = await draftRequest(richiesta.path, richiesta.method, richiesta.body);
+      if (!mountedRef.current) return;
       onChange(next);
       dispatch({ type: 'saved', course: next.course });
     } catch (e) {
+      if (!mountedRef.current) return;
       dispatch({
         type: 'error',
         message: messaggioErrore(e, 'Salvataggio non riuscito.'),
       });
     } finally {
-      dispatch({ type: 'end' });
+      if (mountedRef.current) dispatch({ type: 'end' });
     }
   }
+
+  const saveRef = useRef(save);
+  saveRef.current = save;
+
+  useEffect(() => {
+    if (!dirty || busy || published || bloccata) return;
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(() => {
+      void saveRef.current();
+    }, 800);
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, [dirty, course, busy, published, bloccata]);
 
   async function publish() {
     dispatch({ type: 'start' });
@@ -118,9 +146,9 @@ export function EditorScreen({
 
   return (
     <View style={{ gap: 20 }}>
-      <Text style={styles.title}>{published ? 'Corso pubblicato' : 'Revisione della bozza'}</Text>
+      <Text style={styles.title}>{published ? 'Corso completato' : 'Revisione del corso'}</Text>
       <Notice
-        text={`${published ? 'Snapshot pubblicato sul server locale' : 'Bozza non pubblicata'} · ID ${draft.id} · revisione ${draft.revision ?? 1}`}
+        text={`${published ? 'Corso pronto per lo studio' : 'Corso in preparazione'} · ID ${draft.id} · revisione ${draft.revision ?? 1}`}
       />
       {!!error && <Notice error text={error} />}
 
@@ -129,7 +157,7 @@ export function EditorScreen({
       <View style={{ display: isTabActive('panoramica') ? 'flex' : 'none', gap: 20 }}>
         {!!draft.warnings?.length && (
           <Card>
-            <Text style={styles.subtitle}>Avvisi della bozza</Text>
+            <Text style={styles.subtitle}>Avvisi sul corso</Text>
             {draft.warnings.map((avviso, i) => (
               <Text key={i} style={styles.body}>
                 • {avviso}
@@ -243,17 +271,27 @@ export function EditorScreen({
       </View>
 
       <Card>
-        <Text style={styles.subtitle}>Azioni sulla bozza</Text>
+        <Text style={styles.subtitle}>Stato e finalizzazione</Text>
         <View style={styles.row}>
-          <Button
-            label={dirty ? 'Salva modifiche' : 'Bozza salvata'}
-            disabled={busy || published || !dirty || bloccata}
-            onPress={save}
-          />
+          <View
+            accessibilityLabel="Stato salvataggio"
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingVertical: 8,
+              paddingHorizontal: 12,
+              backgroundColor: dirty ? '#fef3c7' : '#ecfdf5',
+              borderRadius: 8,
+            }}
+          >
+            <Text style={{ fontSize: 13, fontWeight: '600', color: dirty ? '#92400e' : '#065f46' }}>
+              {busy ? 'Salvataggio…' : dirty ? 'Salvataggio in corso…' : '✓ Salvato'}
+            </Text>
+          </View>
           <Button
             label="Apri anteprima corso"
             secondary
-            disabled={busy || dirty}
+            disabled={busy || bloccata}
             onPress={onPreview}
           />
         </View>
@@ -262,14 +300,14 @@ export function EditorScreen({
             <View style={styles.row}>
               <Switch
                 accessibilityLabel="Confermo la revisione di lezioni quiz e fonti"
-                disabled={busy || dirty}
+                disabled={busy || bloccata}
                 value={reviewed}
                 onValueChange={(value) => dispatch({ type: 'reviewed', value })}
               />
               <Text style={styles.body}>Confermo la revisione di lezioni, quiz e fonti</Text>
             </View>
             <Button
-              label="Pubblica sul server locale"
+              label="Finalizza corso"
               disabled={busy || dirty || !reviewed || bloccata}
               onPress={publish}
             />

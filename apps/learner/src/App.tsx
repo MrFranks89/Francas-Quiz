@@ -25,6 +25,7 @@ import { CourseScreen } from './screens/CourseScreen';
 import { EditorScreen } from './screens/EditorScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { ProfileNetworkScreen } from './screens/ProfileNetworkScreen';
+import { GiochiScreen } from './screens/GiochiScreen';
 import { leggiImpostazioni } from './api/settings';
 import { apriImpostazioniAllAvvio } from './state/impostazioni';
 import { navigate, initialNavigation } from './state/navigation';
@@ -152,10 +153,10 @@ function Shell() {
     setLoading(true);
     setError('');
     try {
-      if (!/^[a-zA-Z0-9_-]+$/.test(draftId)) throw new Error('ID bozza non valido.');
+      if (!/^[a-zA-Z0-9_-]+$/.test(draftId)) throw new Error('ID corso non valido.');
       dispatch({ type: 'draft', draft: await fetchDraft(draftId) });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Bozza non recuperabile.');
+      setError(e instanceof Error ? e.message : 'Corso non recuperabile.');
     } finally {
       setLoading(false);
     }
@@ -187,7 +188,7 @@ function Shell() {
       <NavPillola label="Importa corso JSON" dark={dark} onPress={importCourse} />
       {draft && (
         <NavPillola
-          label="Gestisci bozza"
+          label="Il tuo corso"
           attiva={screen === 'editor'}
           dark={dark}
           onPress={() => dispatch({ type: 'draft', draft })}
@@ -198,6 +199,12 @@ function Shell() {
         attiva={screen === 'profile'}
         dark={dark}
         onPress={() => dispatch({ type: 'profile' })}
+      />
+      <NavPillola
+        label="Giochi"
+        attiva={screen === 'giochi'}
+        dark={dark}
+        onPress={() => dispatch({ type: 'screen', screen: 'giochi' })}
       />
       <NavPillola
         label="Impostazioni"
@@ -306,13 +313,13 @@ function Shell() {
               onNavigateDuels={() => dispatch({ type: 'profile', tab: 'duels' })}
             />
             <Card>
-              <Text style={ui.subtitle}>Riprendi una bozza salvata</Text>
+              <Text style={ui.subtitle}>Riprendi un corso salvato</Text>
               <Text style={ui.muted}>
                 Inserisci l’ID restituito dal server. Un corso JSON importato rimane una sola
                 anteprima locale.
               </Text>
               <CampoTesto
-                accessibilityLabel="ID bozza salvata"
+                accessibilityLabel="ID corso salvato"
                 style={ui.input}
                 placeholderTextColor={dark ? C.textVeryDim : colors.muted}
                 value={draftId}
@@ -320,7 +327,7 @@ function Shell() {
                 autoCapitalize="none"
               />
               <Button
-                label="Recupera bozza"
+                label="Recupera corso"
                 disabled={loading || !draftId.trim()}
                 onPress={recoverDraft}
               />
@@ -351,6 +358,14 @@ function Shell() {
             <ProfileNetworkScreen
               initialTab={profileTab}
               onNavigateTab={(tab) => dispatch({ type: 'profile', tab })}
+            />
+          </View>
+        </Pannello>
+        <Pannello attivo={screen === 'giochi'} piede={piede}>
+          <View style={corniceStrumenti}>
+            <GiochiScreen
+              onNavigateDuels={() => dispatch({ type: 'profile', tab: 'duels' })}
+              onNavigateReferral={() => dispatch({ type: 'profile', tab: 'referral' })}
             />
           </View>
         </Pannello>

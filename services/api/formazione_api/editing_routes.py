@@ -90,4 +90,8 @@ def publish_draft(identifier: str, body: PublishRequest, request: Request):
 
 @router.get('/courses/{identifier}')
 def get_course(identifier: str, request: Request):
-    return read_record(request.app.state.store, identifier, 'course.json')
+    store = request.app.state.store
+    try:
+        return store.read(identifier, 'course.json')
+    except FileNotFoundError:
+        raise HTTPException(404, 'Corso non trovato')

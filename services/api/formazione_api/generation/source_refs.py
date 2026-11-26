@@ -103,3 +103,46 @@ def resolve_source_refs(refs: list[str], blocks: list[dict]) -> dict:
         'unresolved': unresolved,
         'levels': levels,
     }
+
+
+def ripara_source_ref(ref: str, allowed_ids: set[str]) -> str | None:
+    """Tenta di riparare un singolo sourceRef mappandolo su uno degli allowed_ids del blocco."""
+    if not isinstance(ref, str) or not allowed_ids:
+        return None
+    ref_clean = ref.strip()
+    if ref_clean in allowed_ids:
+        return ref_clean
+    norm = _normalizza(ref_clean)
+    norm_no_dash = norm.replace('-', '').replace('_', '').replace(' ', '')
+
+    for aid in allowed_ids:
+        aid_norm = _normalizza(aid).replace('-', '').replace('_', '').replace(' ', '')
+        if norm_no_dash == aid_norm:
+            return aid
+
+    num_match = re.search(r'\d+', norm)
+    if num_match:
+        digits = num_match.group(0)
+        candidati = [aid for aid in allowed_ids if digits in aid]
+        if len(candidati) == 1:
+            return candidati[0]
+
+    if len(allowed_ids) == 1:
+        if re.search(r'\b(?:pag|page|pagina|fonte|blocco|source|doc)\b|\b(?:p|b)\d+', norm):
+            return next(iter(allowed_ids))
+
+    return None
+
+
+def ripara_lista_refs(refs: list[str], allowed_ids: set[str], logger=None) -> list[str]:
+    """Ripara una lista di sourceRefs: mappa i riparabili, scarta i non riparabili con warning."""
+    risultato = []
+    for ref in refs:
+        riparato = ripara_source_ref(ref, allowed_ids)
+        if riparato:
+            if riparato not in risultato:
+                risultato.append(riparato)
+        else:
+            if logger is not None:
+                logger.warning('Rimosso sourceRef non riparabile: %s (ammessi: %s)', ref, allowed_ids)
+    return risultato
