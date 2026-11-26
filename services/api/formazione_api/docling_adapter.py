@@ -10,6 +10,9 @@ from .pagine_non_lette import avviso_ocr_vuoto, avviso_pagina_bianca, pagine_bia
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_DOCLING_PATH = REPO_ROOT / '.cache' / 'docling'
+# Percorso standard della cache di Docling (download ufficiale dei modelli),
+# usato come ripiego quando la env non è impostata e la cache di repo è assente.
+USER_DOCLING_PATH = Path.home() / '.cache' / 'docling' / 'models'
 DEFAULT_HF_HOME = REPO_ROOT / '.cache' / 'huggingface'
 
 if 'HF_HOME' not in os.environ and DEFAULT_HF_HOME.is_dir():
@@ -96,6 +99,19 @@ def _pdf_da_immagine(path):
         return _PercorsoInMemoria(buf.getvalue())
 
 
+def resolve_artifacts_path():
+    configured = os.environ.get('DOCLING_ARTIFACTS_PATH')
+    if configured:
+        if not Path(configured).is_dir():
+            raise RuntimeError('Configurare DOCLING_ARTIFACTS_PATH con i modelli Docling già scaricati localmente.')
+        return Path(configured)
+    if DEFAULT_DOCLING_PATH.is_dir():
+        return DEFAULT_DOCLING_PATH
+    if USER_DOCLING_PATH.is_dir():
+        return USER_DOCLING_PATH
+    raise RuntimeError('Configurare DOCLING_ARTIFACTS_PATH con i modelli Docling già scaricati localmente.')
+
+
 def docling_extract(path, kind, start, end):
     if kind not in ('pdf', 'image'):
         raise ValueError('Docling è disponibile in questa versione solo per PDF e immagini.')
@@ -103,15 +119,7 @@ def docling_extract(path, kind, start, end):
         path = _pdf_da_immagine(path)
         start = 1
         end = 1
-    configured = os.environ.get('DOCLING_ARTIFACTS_PATH')
-    if configured:
-        if not Path(configured).is_dir():
-            raise RuntimeError('Configurare DOCLING_ARTIFACTS_PATH con i modelli Docling già scaricati localmente.')
-        artifacts_path = Path(configured)
-    elif DEFAULT_DOCLING_PATH.is_dir():
-        artifacts_path = DEFAULT_DOCLING_PATH
-    else:
-        raise RuntimeError('Configurare DOCLING_ARTIFACTS_PATH con i modelli Docling già scaricati localmente.')
+    artifacts_path = resolve_artifacts_path()
     try:
         from docling.datamodel.document import DocumentStream
         from docling.datamodel.base_models import ConversionStatus
